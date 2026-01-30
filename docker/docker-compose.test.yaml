@@ -1,0 +1,70 @@
+x-shared-env: &shared_envs
+  DB_HOST: database-test
+  DB_USER: tron
+  DB_PASSWORD: tron
+  DB_PORT: 5432
+  DEBUG: "True"
+
+x-env-api: &shared_env_api
+  environment:
+    <<: *shared_envs
+    DB_NAME: api
+    CORS_ORIGINS: "http://localhost:3000,http://localhost:80,http://portal:3000"
+    CORS_ALLOW_CREDENTIALS: "true"
+    CORS_ALLOW_METHODS: "GET,POST,PUT,DELETE,OPTIONS"
+    CORS_ALLOW_HEADERS: "Content-Type,Authorization,Accept,Origin,X-Requested-With"
+    SECRET_KEY: "your-super-secret-key-minimum-32-characters"
+    TRON_SECRETS_KEY: "NfMA_cWx0cuHAGiwl-qWYfl7u1S6bXvADFt5T9WMfUM="
+
+services:
+  database-test:
+    image: postgres:16-alpine
+    environment:
+      - POSTGRES_USER=tron
+      - POSTGRES_PASSWORD=tron
+      - POSTGRES_MULTIPLE_DATABASES=api,portal
+      - PGDATA=/var/lib/postgresql/data/pgdata
+    command: >
+      postgres
+      -c max_connections=100
+      -c shared_buffers=128MB
+      -c work_mem=4MB
+      -c maintenance_work_mem=64MB
+      -c effective_cache_size=512MB
+    ports:
+      - "5433:5432"  # Different port to avoid conflicts
+    volumes:
+      - ./volumes/postgres-test:/var/lib/postgresql/data
+      - ./db-entrypoint:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U tron -d api -h localhost"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  api-test:
+    build:
+      context: ../api
+      dockerfile: Dockerfile
+    image: api-test
+    <<: *shared_env_api
+    environment:
+      - PYTHONPATH=./
+      - ENV=test
+    command: pytest tests/
+    volumes:
+      - ../api:/app
+    depends_on:
+      database-test:
+        condition: service_healthy
+
+  portal-test:
+    build:
+      context: ../portal
+      dockerfile: Dockerfile
+    image: portal-test
+    volumes:
+      - ../portal:/app
+      - /app/node_modules
+    command: npm run test

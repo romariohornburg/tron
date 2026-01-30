@@ -8,6 +8,7 @@ import {
 import { useDashboardOverview } from '../../features/dashboard'
 import { Breadcrumbs, PageHeader } from '../../shared/components'
 import { useAuth } from '../../contexts/AuthContext'
+import { useOrganization } from '../../contexts/OrganizationContext'
 import {
   ComponentsOverview,
   StatsGrid,
@@ -19,13 +20,28 @@ import {
 function Home() {
   const { user } = useAuth()
   const isAdmin = user?.role === 'admin'
+  const { selectedOrganizationUuid, isLoading: isLoadingOrg } = useOrganization()
 
-  const { data: dashboard, isLoading } = useDashboardOverview()
+  const { data: dashboard, isLoading } = useDashboardOverview(selectedOrganizationUuid)
 
-  if (isLoading) {
+  if (isLoadingOrg || isLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+          <p className="mt-4 text-neutral-600">Loading...</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (!selectedOrganizationUuid) {
+    return (
+      <div className="space-y-6">
+        <Breadcrumbs items={[{ label: 'Home', path: '/' }]} />
+        <div className="rounded-lg p-4 bg-yellow-50 border border-yellow-200 text-yellow-800">
+          <p>No organization selected. Please select an organization first.</p>
+        </div>
       </div>
     )
   }

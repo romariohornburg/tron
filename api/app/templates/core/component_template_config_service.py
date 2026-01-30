@@ -32,14 +32,18 @@ class ComponentTemplateConfigService:
         self.template_repository = template_repository
 
     def create_component_template_config(
-        self, config_data: ComponentTemplateConfigCreate
+        self, config_data: ComponentTemplateConfigCreate, organization_id: int
     ) -> ComponentTemplateConfigModel:
         """Create a new component template config."""
-        # Validate template exists
+        # Validate template exists and belongs to organization
         template = self.template_repository.find_by_uuid(config_data.template_uuid)
         if not template:
             raise TemplateNotFoundError(
                 f"Template with UUID {config_data.template_uuid} not found"
+            )
+        if template.organization_id != organization_id:
+            raise TemplateNotFoundError(
+                f"Template with UUID {config_data.template_uuid} does not belong to this organization"
             )
 
         # Check if config already exists
@@ -57,6 +61,7 @@ class ComponentTemplateConfigService:
             uuid=uuid4(),
             component_type=config_data.component_type,
             template_id=template.id,
+            organization_id=organization_id,
             render_order=config_data.render_order,
             enabled=str(config_data.enabled).lower(),
         )
@@ -93,18 +98,18 @@ class ComponentTemplateConfigService:
         return config
 
     def get_component_template_configs(
-        self, component_type: Optional[str] = None, skip: int = 0, limit: int = 100
+        self, component_type: Optional[str] = None, skip: int = 0, limit: int = 100, organization_id: int | None = None
     ) -> List[ComponentTemplateConfigModel]:
-        """Get all component template configs, optionally filtered by component type."""
+        """Get all component template configs, optionally filtered by component type and organization_id."""
         return self.config_repository.find_all(
-            component_type=component_type, skip=skip, limit=limit
+            component_type=component_type, skip=skip, limit=limit, organization_id=organization_id
         )
 
     def get_templates_for_component_type(
-        self, component_type: str
+        self, component_type: str, organization_id: int | None = None
     ) -> List[TemplateModel]:
-        """Get templates ordered by render_order for a component type."""
-        return self.config_repository.find_templates_for_component_type(component_type)
+        """Get templates ordered by render_order for a component type, optionally filtered by organization_id."""
+        return self.config_repository.find_templates_for_component_type(component_type, organization_id=organization_id)
 
     def delete_component_template_config(self, config_uuid: UUID) -> dict:
         """Delete a component template config."""

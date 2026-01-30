@@ -2,13 +2,8 @@ import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Settings, Mail, Lock, User, Check, Loader2, AlertCircle, Rocket } from 'lucide-react'
 import axios from 'axios'
-import { API_BASE_URL } from '../../config/api'
+import { setupApi } from '../../features/setup'
 import { useAuth } from '../../contexts/AuthContext'
-
-interface SetupStatus {
-  initialized: boolean
-  message: string
-}
 
 export default function Setup() {
   const navigate = useNavigate()
@@ -29,8 +24,8 @@ export default function Setup() {
 
   const checkSetupStatus = useCallback(async () => {
     try {
-      const response = await axios.get<SetupStatus>(`${API_BASE_URL}/setup/status`)
-      if (response.data.initialized) {
+      const status = await setupApi.getStatus()
+      if (status.initialized) {
         // Already initialized, redirect based on auth status
         // If authenticated, go to home; otherwise go to login
         if (!authLoading) {
@@ -85,7 +80,7 @@ export default function Setup() {
     setSubmitting(true)
 
     try {
-      await axios.post(`${API_BASE_URL}/setup/initialize`, {
+      await setupApi.initialize({
         admin_email: adminEmail,
         admin_password: adminPassword,
         admin_name: adminName || 'Administrator',

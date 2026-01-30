@@ -31,6 +31,29 @@ class ClusterRepository:
         """Find all clusters."""
         return self.db.query(ClusterModel).offset(skip).limit(limit).all()
 
+    def find_by_organization_id(self, organization_id: int, skip: int = 0, limit: int = 100) -> List[ClusterModel]:
+        """Find all clusters for a specific organization."""
+        return (
+            self.db.query(ClusterModel)
+            .join(EnvironmentModel, ClusterModel.environment_id == EnvironmentModel.id)
+            .filter(EnvironmentModel.organization_id == organization_id)
+            .offset(skip)
+            .limit(limit)
+            .all()
+        )
+
+    def find_by_environment_id(
+        self, environment_id: int, skip: int = 0, limit: int = 100
+    ) -> List[ClusterModel]:
+        """Find all clusters for a specific environment."""
+        return (
+            self.db.query(ClusterModel)
+            .filter(ClusterModel.environment_id == environment_id)
+            .offset(skip)
+            .limit(limit)
+            .all()
+        )
+
     def find_environment_by_uuid(self, uuid: UUID) -> Optional[EnvironmentModel]:
         """Find environment by UUID."""
         return (

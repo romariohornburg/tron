@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { Plus, ChevronDown, ChevronUp, Circle } from 'lucide-react'
 import { useCreateApplication } from '../../features/applications'
 import { useClusters } from '../../features/clusters'
+import { useOrganization } from '../../contexts/OrganizationContext'
 import { useCreateInstance } from '../../features/instances'
 import { useCreateWebappComponent, useCreateCronComponent, useCreateWorkerComponent } from '../../features/components'
 import { applicationCreateSchema } from '../../features/applications/schemas'
@@ -19,7 +20,7 @@ import {
   getDefaultCronSettings,
   getDefaultWorkerSettings,
 } from '../../components/applications'
-import { Breadcrumbs, PageHeader, Stepper, useStepper, type Step } from '../../shared/components'
+import { Breadcrumbs, CreationPageLayout, Stepper, useStepper, type Step } from '../../shared/components'
 import { useAuth } from '../../contexts/AuthContext'
 
 function CreateApplication() {
@@ -34,12 +35,13 @@ function CreateApplication() {
   // Stepper state
   const { currentStep, completedSteps, goToStep, completeStep } = useStepper(1)
 
-  const createApplicationMutation = useCreateApplication()
-  const { data: clusters } = useClusters()
-  const createInstanceMutation = useCreateInstance()
-  const createWebappComponentMutation = useCreateWebappComponent()
-  const createCronComponentMutation = useCreateCronComponent()
-  const createWorkerComponentMutation = useCreateWorkerComponent()
+  const { selectedOrganizationUuid } = useOrganization()
+  const createApplicationMutation = useCreateApplication(selectedOrganizationUuid)
+  const { data: clusters } = useClusters(selectedOrganizationUuid)
+  const createInstanceMutation = useCreateInstance(selectedOrganizationUuid)
+  const createWebappComponentMutation = useCreateWebappComponent(selectedOrganizationUuid)
+  const createCronComponentMutation = useCreateCronComponent(selectedOrganizationUuid)
+  const createWorkerComponentMutation = useCreateWorkerComponent(selectedOrganizationUuid)
 
   // Application form
   const [applicationData, setApplicationData] = useState<ApplicationCreate>({
@@ -464,6 +466,7 @@ function CreateApplication() {
               key={index}
               component={component}
               onChange={(updatedComponent) => updateComponent(index, updatedComponent)}
+              organizationUuid={selectedOrganizationUuid}
               onRemove={() => removeComponent(index)}
               hasGatewayApi={hasGatewayApi}
               gatewayResources={gatewayResources}
@@ -504,115 +507,43 @@ function CreateApplication() {
   ]
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-50 relative">
-      {isCreating && (
-        <div className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl shadow-soft-lg p-8 flex flex-col items-center gap-4">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-            <div className="text-center">
-              <p className="text-lg font-semibold text-slate-800">Creating Application</p>
-              <p className="text-sm text-slate-600 mt-1">Please wait while we create your application, instance, and components...</p>
-            </div>
-          </div>
-        </div>
-      )}
-      
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <Breadcrumbs
-          items={[
-            { label: 'Applications', path: '/applications' },
-            { label: 'New Application' },
-          ]}
+    <CreationPageLayout
+      breadcrumbs={[
+        { label: 'Applications', path: '/applications' },
+        { label: 'New Application' },
+      ]}
+      title="Create New Application"
+      description="Follow the steps below to create your application"
+      notification={notification}
+      onDismissNotification={() => {
+        setNotification(null)
+        if (!partialSuccess) setPartialSuccess(null)
+      }}
+      partialSuccess={partialSuccess}
+      onNavigatePartialSuccess={
+        partialSuccess
+          ? () => navigate(`/applications/${partialSuccess.applicationUuid}/instances/${partialSuccess.instanceUuid}/components`)
+          : undefined
+      }
+      isCreating={isCreating}
+      creatingMessage="Please wait while we create your application, instance, and components..."
+      onCancel={() => navigate('/applications')}
+      submitLabel="Create Application"
+      onSubmit={handleSubmit}
+      submitDisabled={!canSubmit}
+      isSubmitting={isCreating}
+    >
+      <div className="bg-white rounded-xl shadow-soft border border-slate-200/60 overflow-hidden divide-y divide-slate-200">
+        <Stepper
+          steps={steps}
+          currentStep={currentStep}
+          completedSteps={completedSteps}
+          onStepChange={goToStep}
+          onStepComplete={completeStep}
+          showContinueButton={currentStep < 3}
         />
-
-        {/* Header */}
-        <div className="mb-8">
-          <PageHeader title="Create New Application" description="Follow the steps below to create your application" />
-        </div>
-
-        {/* Notification */}
-        {notification && (
-          <div
-            className={`mb-6 p-4 rounded-lg ${
-              notification.type === 'success' ? 'bg-green-50 text-green-800 border border-green-200' : 'bg-red-50 text-red-800 border border-red-200'
-            }`}
-          >
-            <div className="flex flex-col gap-3">
-              <div className="flex items-start justify-between">
-                <span>{notification.message}</span>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setNotification(null)
-                    if (!partialSuccess) setPartialSuccess(null)
-                  }}
-                  className="text-slate-400 hover:text-slate-600 ml-2"
-                >
-                  ✕
-                </button>
-              </div>
-              {partialSuccess && notification.type === 'error' && (
-                <div className="flex gap-2 mt-2">
-                  <button
-                    type="button"
-                    onClick={() => navigate(`/applications/${partialSuccess.applicationUuid}/instances/${partialSuccess.instanceUuid}/components`)}
-                    className="px-3 py-1.5 text-sm bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
-                  >
-                    Go to Instance (add components there)
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setNotification(null)
-                      setPartialSuccess(null)
-                    }}
-                    className="px-3 py-1.5 text-sm bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 transition-colors"
-                  >
-                    Stay and fix
-                  </button>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-
-        <form onSubmit={handleSubmit}>
-          {/* Stepper Container */}
-          <div className="bg-white rounded-xl shadow-soft border border-slate-200/60 overflow-hidden divide-y divide-slate-200">
-            <Stepper
-              steps={steps}
-              currentStep={currentStep}
-              completedSteps={completedSteps}
-              onStepChange={goToStep}
-              onStepComplete={completeStep}
-              showContinueButton={currentStep < 3}
-            />
-          </div>
-
-          {/* Submit Button - Always visible at bottom */}
-          <div className="flex justify-between items-center mt-6 pt-6 border-t border-slate-200">
-            <button
-              type="button"
-              onClick={() => navigate('/applications')}
-              className="px-6 py-2.5 text-slate-600 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors text-sm font-medium"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={!canSubmit || isCreating}
-              className={`px-6 py-2.5 rounded-lg transition-colors text-sm font-medium ${
-                canSubmit && !isCreating
-                  ? 'bg-blue-600 text-white hover:bg-blue-700 shadow-soft'
-                  : 'bg-slate-100 text-slate-400 cursor-not-allowed'
-              }`}
-            >
-              {isCreating ? 'Creating...' : 'Create Application'}
-            </button>
-          </div>
-        </form>
       </div>
-    </div>
+    </CreationPageLayout>
   )
 }
 

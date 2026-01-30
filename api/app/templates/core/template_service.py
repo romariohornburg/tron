@@ -17,11 +17,11 @@ class TemplateService:
     def __init__(self, repository: TemplateRepository):
         self.repository = repository
 
-    def create_template(self, dto: TemplateCreate) -> Template:
+    def create_template(self, dto: TemplateCreate, organization_id: int) -> Template:
         """Create a new template."""
         validate_template_create_dto(dto)
 
-        template = self._build_template_entity(dto)
+        template = self._build_template_entity(dto, organization_id)
         return self.repository.create(template)
 
     def update_template(self, uuid: UUID, dto: TemplateUpdate) -> Template:
@@ -51,10 +51,10 @@ class TemplateService:
         return self.repository.find_by_uuid(uuid)
 
     def get_templates(
-        self, skip: int = 0, limit: int = 100, category: Optional[str] = None
+        self, skip: int = 0, limit: int = 100, category: Optional[str] = None, organization_id: int | None = None
     ) -> List[Template]:
-        """Get all templates, optionally filtered by category."""
-        return self.repository.find_all(skip=skip, limit=limit, category=category)
+        """Get all templates, optionally filtered by category and organization_id."""
+        return self.repository.find_all(skip=skip, limit=limit, category=category, organization_id=organization_id)
 
     def delete_template(self, uuid: UUID) -> dict:
         """Delete a template and its associated component configs."""
@@ -73,7 +73,7 @@ class TemplateService:
 
         return {"status": "success", "message": "Template deleted successfully"}
 
-    def _build_template_entity(self, dto: TemplateCreate) -> TemplateModel:
+    def _build_template_entity(self, dto: TemplateCreate, organization_id: int) -> TemplateModel:
         """Build Template entity from DTO."""
         return TemplateModel(
             uuid=uuid4(),
@@ -82,4 +82,5 @@ class TemplateService:
             category=dto.category,
             content=dto.content,
             variables_schema=dto.variables_schema,
+            organization_id=organization_id,
         )

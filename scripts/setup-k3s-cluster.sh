@@ -12,8 +12,7 @@ CLUSTER_NAME="${CLUSTER_NAME:-local-cluster}"
 CLUSTER_API_ADDRESS="${CLUSTER_API_ADDRESS:-https://k3s-server:5443}"  # Port 5443 as configured in docker-compose
 SERVICE_ACCOUNT_NAME="${SERVICE_ACCOUNT_NAME:-tron}"
 SERVICE_ACCOUNT_NAMESPACE="${SERVICE_ACCOUNT_NAMESPACE:-kube-system}"
-ADMIN_EMAIL="${ADMIN_EMAIL:-admin@example.com}"
-ADMIN_PASSWORD="${ADMIN_PASSWORD:-admin}"
+ORGANIZATION_UUID="${ORGANIZATION_UUID:-}"  # Se não fornecido, será buscada a primeira organização
 
 # Cores
 GREEN='\033[0;32m'
@@ -31,6 +30,18 @@ fi
 
 echo -e "${GREEN}✓ API está acessível${NC}"
 
+# Solicitar credenciais se não estiverem definidas
+if [ -z "$ADMIN_EMAIL" ]; then
+    echo -e "${YELLOW}📧 Email:${NC}"
+    read -r ADMIN_EMAIL
+fi
+
+if [ -z "$ADMIN_PASSWORD" ]; then
+    echo -e "${YELLOW}🔒 Senha:${NC}"
+    read -rs ADMIN_PASSWORD
+    echo ""  # Nova linha após senha oculta
+fi
+
 # Fazer login
 echo -e "${YELLOW}🔐 Fazendo login...${NC}"
 LOGIN_RESPONSE=$(curl -s -X POST "${API_URL}/auth/login" \
@@ -47,9 +58,42 @@ fi
 
 echo -e "${GREEN}✓ Login realizado${NC}"
 
+# Obter UUID do usuário atual
+echo -e "${YELLOW}🔍 Obtendo informações do usuário...${NC}"
+USER_INFO_RESPONSE=$(curl -s -X GET "${API_URL}/auth/me" \
+    -H "Authorization: Bearer ${JWT_TOKEN}")
+
+USER_UUID=$(echo "$USER_INFO_RESPONSE" | jq -r '.uuid // empty')
+
+if [ -z "$USER_UUID" ] || [ "$USER_UUID" = "null" ]; then
+    echo -e "${RED}❌ Erro ao obter informações do usuário${NC}"
+    echo "$USER_INFO_RESPONSE"
+    exit 1
+fi
+
+echo -e "${GREEN}✓ UUID do usuário obtido: ${USER_UUID}${NC}"
+
+# Obter ou buscar organização
+if [ -z "$ORGANIZATION_UUID" ]; then
+    echo -e "${YELLOW}🔍 Buscando organização padrão...${NC}"
+    ORGANIZATIONS_RESPONSE=$(curl -s -X GET "${API_URL}/organizations/" \
+        -H "Authorization: Bearer ${JWT_TOKEN}")
+
+    ORGANIZATION_UUID=$(echo "$ORGANIZATIONS_RESPONSE" | jq -r '.[0].uuid // empty' | head -1)
+
+    if [ -z "$ORGANIZATION_UUID" ] || [ "$ORGANIZATION_UUID" = "null" ]; then
+        echo -e "${RED}❌ Nenhuma organização encontrada. Por favor, crie uma organização primeiro ou defina ORGANIZATION_UUID${NC}"
+        exit 1
+    fi
+
+    echo -e "${GREEN}✓ Usando organização: ${ORGANIZATION_UUID}${NC}"
+else
+    echo -e "${GREEN}✓ Usando organização fornecida: ${ORGANIZATION_UUID}${NC}"
+fi
+
 # Verificar se token existe no backend
 echo -e "${YELLOW}🔍 Verificando se token existe no backend...${NC}"
-TOKENS_RESPONSE=$(curl -s -X GET "${API_URL}/tokens" \
+TOKENS_RESPONSE=$(curl -s -X GET "${API_URL}/users/${USER_UUID}/tokens" \
     -H "Authorization: Bearer ${JWT_TOKEN}")
 
 TOKEN_EXISTS=$(echo "$TOKENS_RESPONSE" | jq -r ".[] | select(.name == \"${TOKEN_NAME}\") | .uuid" | head -1)
@@ -61,27 +105,27 @@ if [ -n "$TOKEN_EXISTS" ] && [ "$TOKEN_EXISTS" != "null" ]; then
     if [ -f "$TOKEN_FILE" ]; then
         SAVED_TOKEN=$(cat "$TOKEN_FILE" | tr -d '\n\r ')
         if [ -n "$SAVED_TOKEN" ]; then
-            # Testar se funciona
-            TEST_CODE=$(curl -s -o /dev/null -w "%{http_code}" -X GET "${API_URL}/environments/" \
+            # Testar se funciona (usando endpoint de organizations)
+            TEST_CODE=$(curl -s -o /dev/null -w "%{http_code}" -X GET "${API_URL}/organizations/${ORGANIZATION_UUID}/environments/" \
                 -H "x-tron-token: ${SAVED_TOKEN}")
             if [ "$TEST_CODE" = "200" ]; then
                 echo -e "${GREEN}✓ Token salvo ainda é válido${NC}"
                 API_TOKEN="$SAVED_TOKEN"
             else
                 echo -e "${YELLOW}⚠️  Token salvo não é válido. Deletando e criando novo...${NC}"
-                curl -s -X DELETE "${API_URL}/tokens/${TOKEN_EXISTS}" \
+                curl -s -X DELETE "${API_URL}/users/${USER_UUID}/tokens/${TOKEN_EXISTS}" \
                     -H "Authorization: Bearer ${JWT_TOKEN}" > /dev/null
                 API_TOKEN=""
             fi
         else
             echo -e "${YELLOW}⚠️  Token existe no backend mas não temos o valor. Deletando...${NC}"
-            curl -s -X DELETE "${API_URL}/tokens/${TOKEN_EXISTS}" \
+            curl -s -X DELETE "${API_URL}/users/${USER_UUID}/tokens/${TOKEN_EXISTS}" \
                 -H "Authorization: Bearer ${JWT_TOKEN}" > /dev/null
             API_TOKEN=""
         fi
     else
         echo -e "${YELLOW}⚠️  Token existe no backend mas não temos o valor. Deletando...${NC}"
-        curl -s -X DELETE "${API_URL}/tokens/${TOKEN_EXISTS}" \
+        curl -s -X DELETE "${API_URL}/users/${USER_UUID}/tokens/${TOKEN_EXISTS}" \
             -H "Authorization: Bearer ${JWT_TOKEN}" > /dev/null
         API_TOKEN=""
     fi
@@ -92,10 +136,10 @@ fi
 # Criar novo token se necessário
 if [ -z "$API_TOKEN" ]; then
     echo -e "${YELLOW}📝 Criando novo token...${NC}"
-    CREATE_RESPONSE=$(curl -s -X POST "${API_URL}/tokens" \
+    CREATE_RESPONSE=$(curl -s -X POST "${API_URL}/users/${USER_UUID}/tokens" \
         -H "Authorization: Bearer ${JWT_TOKEN}" \
         -H "Content-Type: application/json" \
-        -d "{\"name\": \"${TOKEN_NAME}\", \"role\": \"admin\"}")
+        -d "{\"name\": \"${TOKEN_NAME}\"}")
 
     API_TOKEN=$(echo "$CREATE_RESPONSE" | jq -r '.token // empty')
 
@@ -115,7 +159,7 @@ fi
 
 # Verificar/criar ambiente
 echo -e "${YELLOW}🔍 Verificando ambiente '${ENVIRONMENT_NAME}'...${NC}"
-ENVIRONMENTS_RESPONSE=$(curl -s -X GET "${API_URL}/environments/" \
+ENVIRONMENTS_RESPONSE=$(curl -s -X GET "${API_URL}/organizations/${ORGANIZATION_UUID}/environments/" \
     -H "x-tron-token: ${API_TOKEN}")
 
 ENVIRONMENT_UUID=$(echo "$ENVIRONMENTS_RESPONSE" | jq -r ".[] | select(.name == \"${ENVIRONMENT_NAME}\") | .uuid" | head -1)
@@ -124,7 +168,7 @@ if [ -n "$ENVIRONMENT_UUID" ] && [ "$ENVIRONMENT_UUID" != "null" ]; then
     echo -e "${GREEN}✓ Ambiente '${ENVIRONMENT_NAME}' já existe${NC}"
 else
     echo -e "${YELLOW}📝 Criando ambiente '${ENVIRONMENT_NAME}'...${NC}"
-    CREATE_ENV_RESPONSE=$(curl -s -X POST "${API_URL}/environments/" \
+    CREATE_ENV_RESPONSE=$(curl -s -X POST "${API_URL}/organizations/${ORGANIZATION_UUID}/environments/" \
         -H "Content-Type: application/json" \
         -H "x-tron-token: ${API_TOKEN}" \
         -d "{\"name\": \"${ENVIRONMENT_NAME}\"}")
@@ -210,17 +254,17 @@ fi
 
 # Verificar/criar cluster
 echo -e "${YELLOW}🔍 Verificando cluster '${CLUSTER_NAME}'...${NC}"
-CLUSTERS_RESPONSE=$(curl -s -X GET "${API_URL}/clusters/" \
+CLUSTERS_RESPONSE=$(curl -s -X GET "${API_URL}/organizations/${ORGANIZATION_UUID}/clusters/" \
     -H "x-tron-token: ${API_TOKEN}")
 
 CLUSTER_UUID=$(echo "$CLUSTERS_RESPONSE" | jq -r ".[] | select(.name == \"${CLUSTER_NAME}\") | .uuid" 2>/dev/null | head -1)
 
 if [ -n "$CLUSTER_UUID" ] && [ "$CLUSTER_UUID" != "null" ]; then
     echo -e "${GREEN}✓ Cluster '${CLUSTER_NAME}' já existe (UUID: ${CLUSTER_UUID})${NC}"
-    
+
     if [ -n "$CLUSTER_TOKEN" ]; then
         echo -e "${YELLOW}📝 Atualizando token do cluster...${NC}"
-        UPDATE_CLUSTER_RESPONSE=$(curl -s -X PUT "${API_URL}/clusters/${CLUSTER_UUID}" \
+        UPDATE_CLUSTER_RESPONSE=$(curl -s -X PUT "${API_URL}/organizations/${ORGANIZATION_UUID}/clusters/${CLUSTER_UUID}" \
             -H "Content-Type: application/json" \
             -H "x-tron-token: ${API_TOKEN}" \
             -d "{
@@ -229,7 +273,7 @@ if [ -n "$CLUSTER_UUID" ] && [ "$CLUSTER_UUID" != "null" ]; then
                 \"token\": \"${CLUSTER_TOKEN}\",
                 \"environment_uuid\": \"${ENVIRONMENT_UUID}\"
             }")
-        
+
         # Check if update was successful
         UPDATED_UUID=$(echo "$UPDATE_CLUSTER_RESPONSE" | jq -r '.uuid // empty' 2>/dev/null)
         if [ -n "$UPDATED_UUID" ] && [ "$UPDATED_UUID" != "null" ]; then
@@ -243,7 +287,7 @@ else
         echo -e "${YELLOW}⚠️  Token do cluster não disponível. Pulando criação do cluster${NC}"
     else
         echo -e "${YELLOW}📝 Criando cluster '${CLUSTER_NAME}'...${NC}"
-        CREATE_CLUSTER_RESPONSE=$(curl -s -X POST "${API_URL}/clusters/" \
+        CREATE_CLUSTER_RESPONSE=$(curl -s -X POST "${API_URL}/organizations/${ORGANIZATION_UUID}/clusters/" \
             -H "Content-Type: application/json" \
             -H "x-tron-token: ${API_TOKEN}" \
             -d "{

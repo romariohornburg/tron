@@ -20,11 +20,12 @@ interface WebappFormProps {
   gatewayResources?: string[]
   gatewayReference?: { namespace: string; name: string }
   isAdmin?: boolean
+  organizationUuid?: string
   componentUuid?: string
   hasEnvironmentSelected?: boolean
 }
 
-export function WebappForm({ settings, onChange, url, onUrlChange, hasGatewayApi = true, gatewayResources = [], gatewayReference = { namespace: '', name: '' }, isAdmin = false, componentUuid, hasEnvironmentSelected = true }: WebappFormProps) {
+export function WebappForm({ settings, onChange, url, onUrlChange, hasGatewayApi = true, gatewayResources = [], gatewayReference = { namespace: '', name: '' }, isAdmin = false, organizationUuid, componentUuid, hasEnvironmentSelected = true }: WebappFormProps) {
   const [showAdvanced, setShowAdvanced] = useState(false)
   
   const updateField = <K extends keyof WebappSettings>(field: K, value: WebappSettings[K]) => {
@@ -105,6 +106,7 @@ export function WebappForm({ settings, onChange, url, onUrlChange, hasGatewayApi
             secrets={settings.secrets || []}
             onChange={(secrets) => updateField('secrets', secrets)}
             isAdmin={isAdmin}
+            organizationUuid={organizationUuid}
             componentUuid={componentUuid}
             componentType="webapp"
           />

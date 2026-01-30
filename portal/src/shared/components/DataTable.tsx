@@ -27,7 +27,7 @@ function DataTable<T>({
   columns,
   data,
   isLoading = false,
-  emptyMessage = 'Nenhum item encontrado',
+  emptyMessage = 'No items found',
   loadingColor = 'blue',
   getRowKey,
   actions,
@@ -182,7 +182,7 @@ function DataTable<T>({
               })}
               {actions && (
                 <th className="px-6 py-3.5 text-right text-xs font-semibold text-neutral-700 uppercase tracking-wider">
-                  Ações
+                  Actions
                 </th>
               )}
             </tr>
@@ -193,7 +193,7 @@ function DataTable<T>({
                 <td colSpan={colSpan} className="px-6 py-12 text-center text-neutral-400">
                   <div className="flex items-center justify-center gap-2">
                     <div className={`animate-spin rounded-full h-5 w-5 border-2 ${spinnerClass}`}></div>
-                    <span className="text-sm text-neutral-600">Carregando...</span>
+                    <span className="text-sm text-neutral-600">Loading...</span>
                   </div>
                 </td>
               </tr>

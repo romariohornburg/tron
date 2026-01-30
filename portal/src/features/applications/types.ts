@@ -12,3 +12,9 @@ export interface ApplicationCreate {
   repository?: string | null
   enabled?: boolean
 }
+
+export interface ApplicationUpdate {
+  name?: string
+  repository?: string | null
+  enabled?: boolean
+}

@@ -3,10 +3,17 @@ import { render, screen, fireEvent } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { InstanceForm } from './InstanceForm'
 import * as api from '../../services/api'
+import * as organizationsApi from '../../features/organizations/api'
 
 // Mock da API
 vi.mock('../../services/api', () => ({
   environmentsApi: {
+    list: vi.fn(),
+  },
+}))
+
+vi.mock('../../features/organizations/api', () => ({
+  organizationsApi: {
     list: vi.fn(),
   },
 }))
@@ -25,6 +32,10 @@ const createWrapper = () => {
 }
 
 describe('InstanceForm', () => {
+  const mockOrganizations = [
+    { uuid: 'org-1', name: 'Default Organization', owner_user_id: 'user-1', created_at: '2024-01-01T00:00:00Z' },
+  ]
+
   const mockEnvironments = [
     { uuid: 'env-1', name: 'Development', created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z' },
     { uuid: 'env-2', name: 'Production', created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z' },
@@ -37,6 +48,7 @@ describe('InstanceForm', () => {
   }
 
   beforeEach(() => {
+    vi.mocked(organizationsApi.organizationsApi.list).mockResolvedValue(mockOrganizations)
     vi.mocked(api.environmentsApi.list).mockResolvedValue(mockEnvironments)
   })
 

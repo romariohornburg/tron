@@ -16,11 +16,14 @@ from app.settings.core.settings_validators import (
     EnvironmentNotFoundError,
     SettingsKeyAlreadyExistsError,
 )
-from app.users.infra.user_model import UserRole, User
-from app.shared.dependencies.auth import require_role, get_current_user
+from app.organizations.api.dependencies.organization_context import getOrganizationContext
+from app.organizations.core.authorization import (
+    OrganizationAccessContext,
+    isOrgAdmin,
+)
 
 
-router = APIRouter()
+router = APIRouter(prefix="/organizations/{organization_uuid}", tags=["settings"])
 
 
 def get_settings_service(
@@ -33,13 +36,18 @@ def get_settings_service(
 
 @router.post("/settings", response_model=Settings)
 def create_settings(
+    organization_uuid: UUID,
     setting: SettingsCreate,
     service: SettingsService = Depends(get_settings_service),
-    current_user: User = Depends(require_role([UserRole.ADMIN])),
+    ctx: OrganizationAccessContext = Depends(getOrganizationContext),
 ):
-    """Create a new settings."""
+    """Create a new settings. Only organization admins can create settings."""
+    if not isOrgAdmin(ctx):
+        raise HTTPException(
+            status_code=403, detail="Only organization admins can create settings"
+        )
     try:
-        return service.create_settings(setting)
+        return service.create_settings(setting, ctx.organization.id)
     except (EnvironmentNotFoundError, SettingsKeyAlreadyExistsError) as e:
         raise HTTPException(status_code=400, detail=str(e))
     except ValueError as e:
@@ -50,14 +58,19 @@ def create_settings(
 
 @router.put("/settings/{uuid}", response_model=Settings)
 def update_settings(
+    organization_uuid: UUID,
     uuid: UUID,
     setting: SettingsUpdate,
     service: SettingsService = Depends(get_settings_service),
-    current_user: User = Depends(require_role([UserRole.ADMIN])),
+    ctx: OrganizationAccessContext = Depends(getOrganizationContext),
 ):
-    """Update an existing settings."""
+    """Update an existing settings. Only organization admins can update settings."""
+    if not isOrgAdmin(ctx):
+        raise HTTPException(
+            status_code=403, detail="Only organization admins can update settings"
+        )
     try:
-        return service.update_settings(uuid, setting)
+        return service.update_settings(uuid, setting, ctx.organization.id)
     except SettingsNotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e))
     except (SettingsKeyAlreadyExistsError, ValueError) as e:
@@ -68,38 +81,51 @@ def update_settings(
 
 @router.get("/settings/", response_model=list[SettingsWithEnvironment])
 def list_settings(
+    organization_uuid: UUID,
     skip: int = 0,
     limit: int = 100,
     service: SettingsService = Depends(get_settings_service),
-    current_user: User = Depends(get_current_user),
+    ctx: OrganizationAccessContext = Depends(getOrganizationContext),
 ):
-    """List all settings."""
-    return service.get_settings_list(skip=skip, limit=limit)
+    """List all settings for the organization."""
+    return service.get_settings_list(
+        skip=skip, limit=limit, organization_id=ctx.organization.id
+    )
 
 
 @router.get("/settings/{uuid}", response_model=SettingsWithEnvironment)
 def get_settings(
+    organization_uuid: UUID,
     uuid: UUID,
     service: SettingsService = Depends(get_settings_service),
-    current_user: User = Depends(get_current_user),
+    ctx: OrganizationAccessContext = Depends(getOrganizationContext),
 ):
-    """Get settings by UUID."""
+    """Get settings by UUID. Verifies settings belongs to organization."""
     try:
-        return service.get_settings(uuid)
+        return service.get_settings(uuid, ctx.organization.id)
     except SettingsNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
 
 
 @router.delete("/settings/{uuid}", response_model=dict)
 def delete_settings(
+    organization_uuid: UUID,
     uuid: UUID,
     service: SettingsService = Depends(get_settings_service),
-    current_user: User = Depends(require_role([UserRole.ADMIN])),
+    ctx: OrganizationAccessContext = Depends(getOrganizationContext),
 ):
-    """Delete a settings."""
+    """Delete a settings. Only organization admins can delete settings."""
+    if not isOrgAdmin(ctx):
+        raise HTTPException(
+            status_code=403, detail="Only organization admins can delete settings"
+        )
     try:
-        return service.delete_settings(uuid)
+        return service.delete_settings(uuid, ctx.organization.id)
     except SettingsNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))

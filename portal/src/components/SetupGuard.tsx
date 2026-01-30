@@ -1,13 +1,7 @@
 import { useState, useEffect, useCallback, ReactNode } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { Loader2 } from 'lucide-react'
-import axios from 'axios'
-import { API_BASE_URL } from '../config/api'
-
-interface SetupStatus {
-  initialized: boolean
-  message: string
-}
+import { setupApi } from '../features/setup'
 
 interface SetupGuardProps {
   children: ReactNode
@@ -21,11 +15,10 @@ export default function SetupGuard({ children }: SetupGuardProps) {
 
   const checkSetupStatus = useCallback(async () => {
     try {
-      const response = await axios.get<SetupStatus>(`${API_BASE_URL}/setup/status`)
-      setInitialized(response.data.initialized)
-      
-      if (!response.data.initialized && location.pathname !== '/setup') {
-        // Redirect to setup if not initialized
+      const status = await setupApi.getStatus()
+      setInitialized(status.initialized)
+
+      if (!status.initialized && location.pathname !== '/setup') {
         navigate('/setup')
       }
     } catch (err) {

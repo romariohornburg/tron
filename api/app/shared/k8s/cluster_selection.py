@@ -49,7 +49,7 @@ class ClusterSelectionService:
             )
             cluster_loads.append((cluster, instance_count or 0))
 
-        # Retornar o cluster com menor carga
+        # Return the cluster with the least load
         cluster_loads.sort(key=lambda x: x[1])
         return cluster_loads[0][0]
 

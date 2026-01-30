@@ -13,6 +13,8 @@ from app.instances.core.instance_validators import (
     validate_application_exists,
     validate_environment_exists,
     InstanceNotFoundError,
+    EnvironmentNotFoundError,
+    ApplicationNotFoundError,
 )
 from app.webapps.infra.application_component_model import (
     ApplicationComponent as ApplicationComponentModel,
@@ -50,20 +52,38 @@ class InstanceService:
         self.repository = repository
         self.db = database_session
 
-    def create_instance(self, dto: InstanceCreate) -> Instance:
-        """Create a new instance."""
-        validate_instance_create_dto(dto)
+    def get_environment_id_for_organization(
+        self, environment_uuid: UUID, organization_id: int
+    ) -> int:
+        """Return environment id if it exists and belongs to the organization. Raises EnvironmentNotFoundError otherwise."""
+        environment = self.repository.find_environment_by_uuid(environment_uuid)
+        if not environment:
+            raise EnvironmentNotFoundError(f"Environment with UUID '{environment_uuid}' not found")
+        if environment.organization_id != organization_id:
+            raise EnvironmentNotFoundError(
+                f"Environment not found or does not belong to this organization"
+            )
+        return environment.id
 
-        # Validate application and environment exist
+    def create_instance(self, dto: InstanceCreate, organization_id: int) -> Instance:
+        """Create a new instance. Application and environment must belong to the given organization."""
+        validate_instance_create_dto(dto)
         validate_application_exists(self.repository, dto.application_uuid)
         validate_environment_exists(self.repository, dto.environment_uuid)
 
         application = self.repository.find_application_by_uuid(dto.application_uuid)
         environment = self.repository.find_environment_by_uuid(dto.environment_uuid)
 
-        # Validate uniqueness
-        validate_instance_uniqueness(self.repository, application.id, environment.id)
+        if application.organization_id != organization_id:
+            raise ApplicationNotFoundError(
+                "Application not found or does not belong to this organization"
+            )
+        if environment.organization_id != organization_id:
+            raise EnvironmentNotFoundError(
+                "Environment not found or does not belong to this organization"
+            )
 
+        validate_instance_uniqueness(self.repository, application.id, environment.id)
         instance = self._build_instance_entity(dto, application.id, environment.id)
         return self.repository.create(instance)
 
@@ -94,11 +114,14 @@ class InstanceService:
         instance = self.repository.find_by_uuid(uuid, load_components=True)
         return self._strip_secrets_from_instance(instance)
 
-    def get_instances(self, skip: int = 0, limit: int = 100) -> List[Instance]:
-        """Get all instances."""
-        instances = self.repository.find_all(
-            skip=skip, limit=limit, load_components=True
-        )
+    def get_instances(self, skip: int = 0, limit: int = 100, organization_id: int | None = None) -> List[Instance]:
+        """Get all instances. Optionally filter by organization_id."""
+        if organization_id is not None:
+            instances = self.repository.find_by_organization_id(organization_id, skip=skip, limit=limit)
+        else:
+            instances = self.repository.find_all(
+                skip=skip, limit=limit, load_components=True
+            )
         return [self._strip_secrets_from_instance(i) for i in instances]
 
     def _strip_secrets_from_instance(self, instance: InstanceModel) -> InstanceModel:
@@ -192,12 +215,38 @@ class InstanceService:
                         f"Failed to delete component '{component_name}': {error_msg}. Database error: {db_error_msg}"
                     )
 
+        # Store application_id before deleting instance (for possible application cleanup)
+        application_id = instance.application_id
+
         # Delete instance
         try:
             self.repository.delete_by_id(instance.id)
         except Exception as e:
             self.repository.rollback()
             raise Exception(f"Failed to delete instance: {str(e)}")
+
+        # If no instances remain for the application, delete the application
+        if self.repository.count_by_application_id(application_id) == 0:
+            from app.applications.infra.application_repository import ApplicationRepository
+            from app.applications.infra.application_model import Application as ApplicationModel
+            app_repository = ApplicationRepository(database_session)
+            try:
+                # Verify application still exists before attempting to delete
+                # (it may have been deleted already via delete_application endpoint)
+                application_exists = (
+                    database_session.query(ApplicationModel)
+                    .filter(ApplicationModel.id == application_id)
+                    .first()
+                    is not None
+                )
+                if application_exists:
+                    app_repository.delete_by_id(application_id)
+            except Exception as e:
+                # Log but do not fail the request - instance was already deleted
+                # Application may have been deleted already (e.g., via delete_application endpoint)
+                error_msg = str(e)
+                if "has been deleted" not in error_msg.lower() and "not present" not in error_msg.lower():
+                    print(f"Instance deleted; failed to delete orphan application {application_id}: {error_msg}")
 
         return {"detail": "Instance deleted successfully"}
 
@@ -268,10 +317,7 @@ class InstanceService:
 
             return formatted_events
         except Exception as e:
-            # If there's an error getting events, return empty list
-            # Log the error but don't fail the request
-            print(f"Error getting instance events: {e}")
-            return []
+            raise RuntimeError(f"Error getting instance events: {e!s}") from e
 
     def sync_instance(self, uuid: UUID) -> dict:
         """Sync instance components with Kubernetes."""

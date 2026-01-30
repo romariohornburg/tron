@@ -58,7 +58,7 @@ def load_dev_environment():
         # Get k3s token - for dev environment we'll use a placeholder
         # The actual token should be set via the Tron UI or API
         k3s_token = get_k3s_token()
-        
+
         if not k3s_token:
             print("⚠ K3s token not found. Creating cluster with placeholder token.")
             print("  Please update the cluster token via the Tron UI.")

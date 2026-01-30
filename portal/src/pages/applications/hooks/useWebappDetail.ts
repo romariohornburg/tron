@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useWebappPods, useDeleteWebappPod, useWebappPodLogs, useExecWebappPodCommand } from '../../../features/components'
 import type { PodCommandResponse } from '../../../features/components'
 
-export const useWebappDetail = (componentUuid: string | undefined, refreshInterval: number) => {
+export const useWebappDetail = (organizationUuid: string | undefined, componentUuid: string | undefined, refreshInterval: number) => {
   const [selectedPod, setSelectedPod] = useState<string | undefined>(undefined)
   const [isLogsModalOpen, setIsLogsModalOpen] = useState(false)
   const [isConsoleModalOpen, setIsConsoleModalOpen] = useState(false)
@@ -13,14 +13,16 @@ export const useWebappDetail = (componentUuid: string | undefined, refreshInterv
   const [currentCommand, setCurrentCommand] = useState('')
 
   const { data: pods = [], isLoading: isLoadingPods } = useWebappPods(
+    organizationUuid,
     componentUuid,
     refreshInterval > 0 ? refreshInterval : false
   )
 
-  const deletePodMutation = useDeleteWebappPod()
-  const execCommandMutation = useExecWebappPodCommand()
+  const deletePodMutation = useDeleteWebappPod(organizationUuid)
+  const execCommandMutation = useExecWebappPodCommand(organizationUuid)
 
   const { data: podLogs, isLoading: isLoadingLogs } = useWebappPodLogs(
+    organizationUuid,
     componentUuid,
     selectedPod,
     undefined,
@@ -139,5 +141,8 @@ export const useWebappDetail = (componentUuid: string | undefined, refreshInterv
     handleCommandChange,
     setIsLiveTail,
     handleKeyDown,
+    isDeletePodError: deletePodMutation.isError,
+    deletePodError: deletePodMutation.error,
+    resetDeletePodError: deletePodMutation.reset,
   }
 }

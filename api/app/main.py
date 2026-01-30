@@ -1,10 +1,11 @@
 import os
+import logging
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.openapi.docs import get_redoc_html
 
-from app.shared.database.database import Base, engine
+from app.shared.database.database import Base, engine, SessionLocal
 
 # Also import Base from old database to ensure compatibility
 from app.database import Base as OldBase
@@ -13,20 +14,25 @@ from app.database import Base as OldBase
 from app.applications.api.application_handlers import router as applications_router
 from app.instances.api.instance_handlers import router as instances_router
 from app.environments.api.environment_handlers import router as environments_router
-from app.clusters.api.cluster_handlers import router as clusters_router
+from app.clusters.api.cluster_handlers import (
+    router as clusters_router,
+    router_env_clusters as clusters_by_environment_router,
+)
 from app.templates.api.template_handlers import router as templates_router
 from app.templates.api.component_template_config_handlers import (
     router as component_template_config_router,
 )
 from app.users.api.user_handlers import router as users_router
 from app.auth.api.auth_handlers import router as auth_router
-from app.auth.api.token_handlers import router as tokens_router
 from app.settings.api.settings_handlers import router as settings_router
 from app.dashboard.api.dashboard_handlers import router as dashboard_router
 from app.webapps.api.webapp_handlers import router as webapps_router
 from app.workers.api.worker_handlers import router as workers_router
 from app.cron.api.cron_handlers import router as crons_router
 from app.setup.api.setup_handlers import router as setup_router
+from app.organizations.api.organization_handlers import router as organizations_router
+from app.organizations.api.group_handlers import router as groups_router
+from app.organizations.api.group_member_handlers import router as group_members_router
 
 # Version is injected at build time via APP_VERSION environment variable
 APP_VERSION = os.getenv("APP_VERSION", "dev")
@@ -38,17 +44,22 @@ assert Base is OldBase, (
 
 # Import all models to ensure they are registered with SQLAlchemy
 # Import order matters for SQLAlchemy relationships
-# 1. Base models first (no dependencies)
-
-# 2. Models that depend on above
-
-# 3. Models that depend on multiple above - IMPORTANT: ApplicationComponent before ClusterInstance
-
-# Import ClusterInstance from new structure (uses same Base now)
-
-# 4. Cluster must be imported after ClusterInstance for relationships to work
-
-# Import component_template_config model
+# Models referenced by relationships must be imported before models that reference them
+from app.users.infra.user_model import User  # noqa: F401
+from app.organizations.infra.organization_model import Organization  # noqa: F401
+from app.organizations.infra.organization_member_model import OrganizationMember  # noqa: F401
+from app.organizations.infra.group_model import Group  # noqa: F401
+from app.organizations.infra.group_member_model import GroupMember  # noqa: F401
+from app.environments.infra.environment_model import Environment  # noqa: F401
+from app.applications.infra.application_model import Application  # noqa: F401
+from app.instances.infra.instance_model import Instance  # noqa: F401
+from app.clusters.infra.cluster_model import Cluster  # noqa: F401
+from app.templates.infra.template_model import Template  # noqa: F401
+from app.templates.infra.component_template_config_model import ComponentTemplateConfig  # noqa: F401
+from app.settings.infra.settings_model import Settings  # noqa: F401
+from app.auth.infra.token_model import Token  # noqa: F401
+from app.webapps.infra.application_component_model import ApplicationComponent  # noqa: F401
+from app.shared.infra.cluster_instance_model import ClusterInstance  # noqa: F401
 
 Base.metadata.create_all(bind=engine)
 
@@ -92,17 +103,20 @@ app.include_router(applications_router)
 app.include_router(instances_router)
 app.include_router(environments_router)
 app.include_router(clusters_router)
+app.include_router(clusters_by_environment_router)
 app.include_router(templates_router)
 app.include_router(component_template_config_router)
 app.include_router(users_router)
 app.include_router(auth_router)
-app.include_router(tokens_router)
 app.include_router(settings_router)
 app.include_router(dashboard_router)
 app.include_router(webapps_router)
 app.include_router(workers_router)
 app.include_router(crons_router)
 app.include_router(setup_router)
+app.include_router(organizations_router)
+app.include_router(groups_router)
+app.include_router(group_members_router)
 
 # Legacy routers removed - all features migrated to new structure
 

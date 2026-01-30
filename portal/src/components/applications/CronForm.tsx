@@ -11,10 +11,11 @@ interface CronFormProps {
   settings: CronSettings
   onChange: (settings: CronSettings) => void
   isAdmin?: boolean
+  organizationUuid?: string
   componentUuid?: string
 }
 
-export function CronForm({ settings, onChange, isAdmin = false, componentUuid }: CronFormProps) {
+export function CronForm({ settings, onChange, isAdmin = false, organizationUuid, componentUuid }: CronFormProps) {
   const [showAdvanced, setShowAdvanced] = useState(false)
   
   const updateField = <K extends keyof CronSettings>(field: K, value: CronSettings[K]) => {
@@ -76,6 +77,7 @@ export function CronForm({ settings, onChange, isAdmin = false, componentUuid }:
             secrets={settings.secrets || []}
             onChange={(secrets) => updateField('secrets', secrets)}
             isAdmin={isAdmin}
+            organizationUuid={organizationUuid}
             componentUuid={componentUuid}
             componentType="cron"
           />

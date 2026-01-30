@@ -132,10 +132,36 @@ class ClusterService:
         return self._build_cluster_completed_response(cluster)
 
     def get_clusters(
-        self, skip: int = 0, limit: int = 100
+        self, skip: int = 0, limit: int = 100, organization_id: int | None = None
     ) -> List[ClusterResponseWithValidation]:
-        """Get all clusters with validation details."""
-        clusters = self.repository.find_all(skip=skip, limit=limit)
+        """Get all clusters with validation details. Optionally filter by organization_id."""
+        if organization_id is not None:
+            clusters = self.repository.find_by_organization_id(organization_id, skip=skip, limit=limit)
+        else:
+            clusters = self.repository.find_all(skip=skip, limit=limit)
+        return [
+            self._build_cluster_response_with_validation(cluster)
+            for cluster in clusters
+        ]
+
+    def get_clusters_by_environment(
+        self,
+        organization_id: int,
+        environment_uuid: UUID,
+        skip: int = 0,
+        limit: int = 100,
+    ) -> List[ClusterResponseWithValidation]:
+        """Get clusters for an environment. Environment must belong to the organization."""
+        environment = self.repository.find_environment_by_uuid(environment_uuid)
+        if not environment:
+            raise EnvironmentNotFoundError(f"Environment with UUID '{environment_uuid}' not found")
+        if environment.organization_id != organization_id:
+            raise EnvironmentNotFoundError(
+                "Environment not found or does not belong to this organization"
+            )
+        clusters = self.repository.find_by_environment_id(
+            environment.id, skip=skip, limit=limit
+        )
         return [
             self._build_cluster_response_with_validation(cluster)
             for cluster in clusters

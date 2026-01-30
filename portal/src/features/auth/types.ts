@@ -1,6 +1,6 @@
 import type { Token } from '../../shared/types'
 
-export type UserRole = 'admin' | 'user' | 'viewer'
+export type UserRole = 'admin' | 'user'
 
 export interface User {
   uuid: string

@@ -31,24 +31,28 @@ class ApplicationService:
         self.repository = repository
         self.instance_service = instance_service
 
-    def create_application(self, dto: ApplicationCreate) -> Application:
+    def create_application(self, dto: ApplicationCreate, organization_id: int) -> Application:
         """Create a new application."""
         validate_application_create_dto(dto)
-        validate_application_name_uniqueness(self.repository, dto.name)
+        validate_application_name_uniqueness(self.repository, dto.name, organization_id=organization_id)
 
-        application = self._build_application_entity(dto)
+        application = self._build_application_entity(dto, organization_id)
         return self.repository.create(application)
 
-    def update_application(self, uuid: UUID, dto: ApplicationUpdate) -> Application:
+    def update_application(self, uuid: UUID, dto: ApplicationUpdate, organization_id: int | None = None) -> Application:
         """Update an existing application."""
         validate_application_update_dto(dto)
         validate_application_exists(self.repository, uuid)
 
         application = self.repository.find_by_uuid(uuid)
 
+        # If organization_id is provided, ensure it matches
+        if organization_id is not None and application.organization_id != organization_id:
+            raise ValueError("Application does not belong to the specified organization")
+
         if dto.name is not None:
             validate_application_name_uniqueness(
-                self.repository, dto.name, exclude_uuid=uuid
+                self.repository, dto.name, exclude_uuid=uuid, organization_id=application.organization_id
             )
             application.name = dto.name
 
@@ -65,9 +69,15 @@ class ApplicationService:
         validate_application_exists(self.repository, uuid)
         return self.repository.find_by_uuid(uuid)
 
-    def get_applications(self, skip: int = 0, limit: int = 100) -> List[Application]:
-        """Get all applications."""
+    def get_applications(self, skip: int = 0, limit: int = 100, organization_id: int | None = None) -> List[Application]:
+        """Get all applications. Optionally filter by organization_id."""
+        if organization_id is not None:
+            return self.repository.find_by_organization_id(organization_id, skip=skip, limit=limit)
         return self.repository.find_all(skip=skip, limit=limit)
+
+    def get_all_applications_by_organization(self, organization_id: int) -> List[ApplicationModel]:
+        """Get all applications for an organization without pagination."""
+        return self.repository.find_all_by_organization_id(organization_id)
 
     def delete_application(self, uuid: UUID, database_session: Session) -> dict:
         """Delete an application and all its instances."""
@@ -111,7 +121,7 @@ class ApplicationService:
 
         return {"detail": "Application deleted successfully"}
 
-    def _build_application_entity(self, dto: ApplicationCreate) -> ApplicationModel:
+    def _build_application_entity(self, dto: ApplicationCreate, organization_id: int) -> ApplicationModel:
         """Build Application entity from DTO.
 
         New applications automatically get the 'tron-ns-' namespace prefix.
@@ -126,4 +136,5 @@ class ApplicationService:
             namespace=namespace,
             repository=dto.repository,
             enabled=dto.enabled,
+            organization_id=organization_id,
         )

@@ -13,10 +13,10 @@ import {
   User,
   Settings,
   Users,
-  Key,
   Search,
   ChevronLeft,
   ChevronRight,
+  Building2,
 } from 'lucide-react'
 import { Logo } from './Logo'
 import { useAuth } from '../contexts/AuthContext'
@@ -28,11 +28,11 @@ const generalNavItems = [
 ]
 
 const adminNavItems = [
+  { label: 'Organizations', path: '/organizations', icon: Building2 },
   { label: 'Clusters', path: '/clusters', icon: Cloud },
   { label: 'Environments', path: '/environments', icon: Globe },
   { label: 'Templates', path: '/templates', icon: FileCode },
   { label: 'Users', path: '/users', icon: Users },
-  { label: 'Tokens', path: '/tokens', icon: Key },
 ]
 
 function Layout() {
@@ -102,10 +102,10 @@ function Layout() {
               <button
                 onClick={handleLogout}
                 className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-neutral-600 hover:bg-neutral-100 transition-colors"
-                title="Sair"
+                title="Log out"
               >
                 <LogOut size={16} />
-                <span className="hidden md:inline">Sair</span>
+                <span className="hidden md:inline">Log out</span>
               </button>
             </div>
           )}
@@ -126,7 +126,7 @@ function Layout() {
           `}
         >
           <nav className="p-4 space-y-6 flex-1">
-            {/* Barra de Pesquisa */}
+            {/* Search bar */}
             {!sidebarCollapsed && (
               <div className="relative">
               <Search size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-neutral-400" />
@@ -141,7 +141,7 @@ function Layout() {
               </div>
             )}
 
-            {/* Menu Geral */}
+            {/* General menu */}
             <div>
               {!sidebarCollapsed && (
                 <div className="flex items-center gap-2 px-3 mb-3">
@@ -181,7 +181,7 @@ function Layout() {
               </ul>
             </div>
 
-            {/* Menu Administrativo - Apenas para admins */}
+            {/* Administrative menu (admins only) */}
             {user?.role === 'admin' && (
               <div>
                 {!sidebarCollapsed && (
@@ -244,7 +244,7 @@ function Layout() {
           </div>
         </aside>
 
-        {/* Overlay para mobile */}
+        {/* Mobile overlay */}
         {sidebarOpen && (
           <div
             className="fixed inset-0 bg-black/30 backdrop-blur-sm z-30 md:hidden"

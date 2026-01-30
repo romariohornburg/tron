@@ -1,7 +1,10 @@
 import { Eye, EyeOff, X, Lock, Loader2 } from 'lucide-react'
 import { useState, useCallback, useEffect } from 'react'
-import axios from 'axios'
-import { API_BASE_URL } from '../../../config/api'
+import {
+  webappComponentsApi,
+  cronComponentsApi,
+  workerComponentsApi,
+} from '../../../features/components/api'
 
 interface Secret {
   key: string
@@ -12,11 +15,12 @@ interface SecretsInputProps {
   secrets: Secret[]
   onChange: (secrets: Secret[]) => void
   isAdmin?: boolean
+  organizationUuid?: string
   componentUuid?: string
   componentType?: 'webapp' | 'worker' | 'cron'
 }
 
-export function SecretsInput({ secrets, onChange, isAdmin = false, componentUuid, componentType }: SecretsInputProps) {
+export function SecretsInput({ secrets, onChange, isAdmin = false, organizationUuid, componentUuid, componentType }: SecretsInputProps) {
   const [showValues, setShowValues] = useState<Record<number, boolean>>({})
   const [decryptedSecrets, setDecryptedSecrets] = useState<Secret[]>([])
   const [loadingSecrets, setLoadingSecrets] = useState<Record<number, boolean>>({})
@@ -63,25 +67,23 @@ export function SecretsInput({ secrets, onChange, isAdmin = false, componentUuid
   }
 
   const fetchDecryptedSecrets = useCallback(async () => {
-    if (!componentUuid || !componentType) {
+    if (!componentUuid || !componentType || !organizationUuid) {
       return null
     }
-    
     try {
-      const token = localStorage.getItem('access_token')
-      const url = `${API_BASE_URL}/application_components/${componentType}/${componentUuid}/secrets`
-      
-      const response = await axios.get<{ secrets: Secret[] }>(url, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        }
-      })
-      return response.data.secrets
+      const api =
+        componentType === 'webapp'
+          ? webappComponentsApi
+          : componentType === 'cron'
+            ? cronComponentsApi
+            : workerComponentsApi
+      const { secrets: list } = await api.getSecrets(organizationUuid, componentUuid)
+      return list
     } catch (error) {
       console.error('Failed to fetch decrypted secrets', error)
     }
     return null
-  }, [componentUuid, componentType])
+  }, [componentUuid, componentType, organizationUuid])
 
   const toggleShowValue = async (index: number) => {
     const secret = safeSecrets[index]

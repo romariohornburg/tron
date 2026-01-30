@@ -207,6 +207,13 @@ class CronService:
             cron, cluster, self.db, self.repository, delete_from_kubernetes, "cron"
         )
 
+    def get_crons_by_organization(
+        self, organization_id: int, skip: int = 0, limit: int = 100
+    ) -> List[Cron]:
+        """Get all crons for applications in a specific organization."""
+        crons = self.repository.find_by_organization_id(organization_id, skip=skip, limit=limit)
+        return [self._serialize_cron(c) for c in crons]
+
     def _serialize_cron(self, cron: ApplicationComponentModel) -> Cron:
         """Serialize cron to DTO with secrets stripped."""
         # Strip secret values before returning to API

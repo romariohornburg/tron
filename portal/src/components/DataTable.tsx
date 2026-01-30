@@ -182,7 +182,7 @@ function DataTable<T>({
               })}
               {actions && (
                 <th className="px-6 py-3.5 text-right text-xs font-semibold text-neutral-700 uppercase tracking-wider">
-                  Ações
+                  Actions
                 </th>
               )}
             </tr>

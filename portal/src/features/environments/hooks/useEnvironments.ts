@@ -1,52 +1,59 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { environmentsApi } from '../api'
 
-export const useEnvironments = () => {
+export const useEnvironments = (organizationUuid: string | undefined) => {
   return useQuery({
-    queryKey: ['environments'],
-    queryFn: environmentsApi.list,
+    queryKey: ['environments', organizationUuid],
+    queryFn: () => {
+      if (!organizationUuid) {
+        throw new Error('Organization UUID is required to fetch environments')
+      }
+      return environmentsApi.list(organizationUuid)
+    },
+    enabled: !!organizationUuid,
   })
 }
 
-export const useEnvironment = (uuid: string | undefined) => {
+export const useEnvironment = (organizationUuid: string | undefined, uuid: string | undefined) => {
   return useQuery({
-    queryKey: ['environment', uuid],
-    queryFn: () => environmentsApi.get(uuid!),
-    enabled: !!uuid,
+    queryKey: ['environment', organizationUuid, uuid],
+    queryFn: () => environmentsApi.get(organizationUuid!, uuid!),
+    enabled: !!organizationUuid && !!uuid,
   })
 }
 
-export const useCreateEnvironment = () => {
+export const useCreateEnvironment = (organizationUuid: string | undefined) => {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: environmentsApi.create,
+    mutationFn: (data: import('../types').EnvironmentCreate) =>
+      environmentsApi.create(organizationUuid!, data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['environments'] })
+      queryClient.invalidateQueries({ queryKey: ['environments', organizationUuid] })
     },
   })
 }
 
-export const useUpdateEnvironment = () => {
+export const useUpdateEnvironment = (organizationUuid: string | undefined) => {
   const queryClient = useQueryClient()
 
   return useMutation({
     mutationFn: ({ uuid, data }: { uuid: string; data: Partial<import('../types').EnvironmentCreate> }) =>
-      environmentsApi.update(uuid, data),
+      environmentsApi.update(organizationUuid!, uuid, data),
     onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['environments'] })
-      queryClient.invalidateQueries({ queryKey: ['environment', variables.uuid] })
+      queryClient.invalidateQueries({ queryKey: ['environments', organizationUuid] })
+      queryClient.invalidateQueries({ queryKey: ['environment', organizationUuid, variables.uuid] })
     },
   })
 }
 
-export const useDeleteEnvironment = () => {
+export const useDeleteEnvironment = (organizationUuid: string | undefined) => {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: environmentsApi.delete,
+    mutationFn: (uuid: string) => environmentsApi.delete(organizationUuid!, uuid),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['environments'] })
+      queryClient.invalidateQueries({ queryKey: ['environments', organizationUuid] })
     },
   })
 }

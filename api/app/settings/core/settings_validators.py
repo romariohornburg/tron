@@ -38,9 +38,11 @@ def validate_settings_update_dto(dto) -> None:
         raise ValueError("Settings key cannot be empty")
 
 
-def validate_settings_exists(repository: SettingsRepository, uuid: UUID) -> None:
+def validate_settings_exists(
+    repository: SettingsRepository, uuid: UUID, organization_id: int | None = None
+) -> None:
     """Validate that settings exists. Raises SettingsNotFoundError if not found."""
-    settings = repository.find_by_uuid(uuid)
+    settings = repository.find_by_uuid(uuid, organization_id=organization_id)
     if not settings:
         raise SettingsNotFoundError(f"Settings with UUID '{uuid}' not found")
 
@@ -57,9 +59,12 @@ def validate_settings_key_uniqueness(
     key: str,
     environment_id: int,
     exclude_uuid: UUID = None,
+    organization_id: int | None = None,
 ) -> None:
     """Validate that settings key is unique for environment."""
-    existing_settings = repository.find_by_key_and_environment_id(key, environment_id)
+    existing_settings = repository.find_by_key_and_environment_id(
+        key, environment_id, organization_id=organization_id
+    )
     if existing_settings:
         if exclude_uuid and existing_settings.uuid == exclude_uuid:
             return  # Same settings, OK

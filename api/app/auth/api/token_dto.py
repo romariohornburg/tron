@@ -6,7 +6,6 @@ from uuid import UUID
 
 class TokenBase(BaseModel):
     name: str
-    role: str
     expires_at: Optional[datetime] = None
 
 
@@ -16,7 +15,6 @@ class TokenCreate(TokenBase):
 
 class TokenUpdate(BaseModel):
     name: Optional[str] = None
-    role: Optional[str] = None
     is_active: Optional[bool] = None
     expires_at: Optional[datetime] = None
 
@@ -28,6 +26,7 @@ class TokenResponse(TokenBase):
     created_at: str
     updated_at: str
     user_id: Optional[int] = None
+    user_uuid: Optional[str] = None
 
     @model_validator(mode="before")
     @classmethod
@@ -67,6 +66,5 @@ class TokenCreateResponse(BaseModel):
     uuid: str
     name: str
     token: str  # Generated token (only appears on creation)
-    role: str
     expires_at: Optional[str] = None
     created_at: str

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { X, Trash2, Plus } from 'lucide-react'
 import { useEnvironments, useCreateEnvironment, useDeleteEnvironment } from '../../features/environments'
+import { useOrganization } from '../../contexts/OrganizationContext'
 import type { Environment, EnvironmentCreate } from '../../features/environments'
 import { DataTable, Breadcrumbs, PageHeader } from '../../shared/components'
 
@@ -8,9 +9,11 @@ function Environments() {
   const [isOpen, setIsOpen] = useState(false)
   const [notification, setNotification] = useState<{ type: 'success' | 'error'; message: string } | null>(null)
 
-  const { data: environments = [], isLoading } = useEnvironments()
-  const createMutation = useCreateEnvironment()
-  const deleteMutation = useDeleteEnvironment()
+  const { selectedOrganizationUuid, isLoading: isLoadingOrg } = useOrganization()
+
+  const { data: environments = [], isLoading } = useEnvironments(selectedOrganizationUuid)
+  const createMutation = useCreateEnvironment(selectedOrganizationUuid)
+  const deleteMutation = useDeleteEnvironment(selectedOrganizationUuid)
 
   const [formData, setFormData] = useState<EnvironmentCreate>({
     name: '',
@@ -72,6 +75,38 @@ function Environments() {
     if (confirm('Are you sure you want to delete this environment?')) {
       deleteMutation.mutate(uuid)
     }
+  }
+
+  if (isLoadingOrg) {
+    return (
+      <div className="space-y-6">
+        <Breadcrumbs
+          items={[
+            { label: 'Home', path: '/' },
+            { label: 'Environments', path: '/environments' },
+          ]}
+        />
+        <div className="flex items-center justify-center p-8">
+          <div className="text-slate-600">Loading organizations...</div>
+        </div>
+      </div>
+    )
+  }
+
+  if (!selectedOrganizationUuid) {
+    return (
+      <div className="space-y-6">
+        <Breadcrumbs
+          items={[
+            { label: 'Home', path: '/' },
+            { label: 'Environments', path: '/environments' },
+          ]}
+        />
+        <div className="rounded-lg p-4 bg-yellow-50 border border-yellow-200 text-yellow-800">
+          <p>No organization found. Please create an organization first.</p>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -137,7 +172,7 @@ function Environments() {
         getRowKey={(env) => env.uuid}
         actions={(env) => [
           {
-            label: 'Deletar',
+            label: 'Delete',
             icon: <Trash2 size={14} />,
             onClick: () => handleDelete(env.uuid),
             variant: 'danger',

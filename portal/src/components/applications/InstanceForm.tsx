@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { environmentsApi } from '../../services/api'
+import { useOrganization } from '../../contexts/OrganizationContext'
 import { InfoCard } from './InfoCard'
 import type { InstanceCreate } from '../../types'
 
@@ -10,9 +11,12 @@ interface InstanceFormProps {
 }
 
 export function InstanceForm({ data, onChange, showInfoCard = true }: InstanceFormProps) {
+  const { selectedOrganizationUuid } = useOrganization()
+
   const { data: environments = [] } = useQuery({
-    queryKey: ['environments'],
-    queryFn: environmentsApi.list,
+    queryKey: ['environments', selectedOrganizationUuid],
+    queryFn: () => environmentsApi.list(selectedOrganizationUuid!),
+    enabled: !!selectedOrganizationUuid,
   })
 
   return (

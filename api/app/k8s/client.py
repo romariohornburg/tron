@@ -471,7 +471,7 @@ class K8sClient:
             api_version = document.get("apiVersion")
             metadata = document.get("metadata")
 
-            # Verificar se metadata existe
+            # Check if metadata exists
             if not metadata or not isinstance(metadata, dict):
                 continue
 

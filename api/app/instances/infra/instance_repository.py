@@ -47,6 +47,14 @@ class InstanceRepository:
             .first()
         )
 
+    def count_by_application_id(self, application_id: int) -> int:
+        """Count instances for an application."""
+        return (
+            self.db.query(InstanceModel)
+            .filter(InstanceModel.application_id == application_id)
+            .count()
+        )
+
     def find_all(
         self, skip: int = 0, limit: int = 100, load_components: bool = False
     ) -> List[InstanceModel]:
@@ -92,6 +100,24 @@ class InstanceRepository:
         stmt = delete(InstanceModel).where(InstanceModel.id == instance_id)
         self.db.execute(stmt)
         self.db.commit()
+
+    def find_by_organization_id(
+        self, organization_id: int, skip: int = 0, limit: int = 100
+    ) -> List[InstanceModel]:
+        """Find all instances for applications in a specific organization."""
+        return (
+            self.db.query(InstanceModel)
+            .join(ApplicationModel, InstanceModel.application_id == ApplicationModel.id)
+            .options(
+                joinedload(InstanceModel.application),
+                joinedload(InstanceModel.environment),
+                joinedload(InstanceModel.components),
+            )
+            .filter(ApplicationModel.organization_id == organization_id)
+            .offset(skip)
+            .limit(limit)
+            .all()
+        )
 
     def rollback(self) -> None:
         """Rollback current transaction."""

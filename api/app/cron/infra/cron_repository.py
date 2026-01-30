@@ -52,6 +52,22 @@ class CronRepository:
             .all()
         )
 
+    def find_by_organization_id(
+        self, organization_id: int, skip: int = 0, limit: int = 100
+    ) -> List[ApplicationComponentModel]:
+        """Find all crons for applications in a specific organization."""
+        from app.applications.infra.application_model import Application as ApplicationModel
+        return (
+            self.db.query(ApplicationComponentModel)
+            .join(InstanceModel, ApplicationComponentModel.instance_id == InstanceModel.id)
+            .join(ApplicationModel, InstanceModel.application_id == ApplicationModel.id)
+            .filter(ApplicationComponentModel.type == WebappType.cron)
+            .filter(ApplicationModel.organization_id == organization_id)
+            .offset(skip)
+            .limit(limit)
+            .all()
+        )
+
     def find_instance_by_uuid(self, uuid: UUID) -> Optional[InstanceModel]:
         """Find instance by UUID."""
         return self.db.query(InstanceModel).filter(InstanceModel.uuid == uuid).first()

@@ -114,7 +114,7 @@ function ActionMenu({ items }: ActionMenuProps) {
         ref={buttonRef}
         onClick={handleButtonClick}
         className="p-1.5 rounded-md text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors"
-        aria-label="Ações"
+        aria-label="Actions"
       >
         <MoreVertical size={18} />
       </button>

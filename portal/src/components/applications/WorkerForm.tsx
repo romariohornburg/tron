@@ -13,10 +13,11 @@ interface WorkerFormProps {
   settings: WorkerSettings
   onChange: (settings: WorkerSettings) => void
   isAdmin?: boolean
+  organizationUuid?: string
   componentUuid?: string
 }
 
-export function WorkerForm({ settings, onChange, isAdmin = false, componentUuid }: WorkerFormProps) {
+export function WorkerForm({ settings, onChange, isAdmin = false, organizationUuid, componentUuid }: WorkerFormProps) {
   const [showAdvanced, setShowAdvanced] = useState(false)
   
   const updateField = <K extends keyof WorkerSettings>(field: K, value: WorkerSettings[K]) => {
@@ -27,7 +28,12 @@ export function WorkerForm({ settings, onChange, isAdmin = false, componentUuid 
   const hasAdvancedChanges = () => {
     const hasEnvs = settings.envs && settings.envs.length > 0
     const hasSecrets = settings.secrets && settings.secrets.length > 0
-    const hasCommand = settings.command && settings.command.trim() !== ''
+    const commandStr = typeof settings.command === 'string'
+      ? settings.command
+      : Array.isArray(settings.command)
+        ? settings.command.join(' ').trim()
+        : ''
+    const hasCommand = commandStr !== ''
     const hasCustomCpu = settings.cpu !== undefined && settings.cpu !== 0.5
     const hasCustomMemory = settings.memory !== undefined && settings.memory !== 512
     return hasEnvs || hasSecrets || hasCommand || hasCustomCpu || hasCustomMemory
@@ -86,6 +92,7 @@ export function WorkerForm({ settings, onChange, isAdmin = false, componentUuid 
             secrets={settings.secrets || []}
             onChange={(secrets) => updateField('secrets', secrets)}
             isAdmin={isAdmin}
+            organizationUuid={organizationUuid}
             componentUuid={componentUuid}
             componentType="worker"
           />

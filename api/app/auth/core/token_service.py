@@ -52,7 +52,6 @@ class TokenService:
             uuid=str(token.uuid),
             name=token.name,
             token=plain_token,  # Plain text token - only appears here
-            role=token.role,
             expires_at=token.expires_at.isoformat() if token.expires_at else None,
             created_at=token.created_at.isoformat(),
         )
@@ -81,7 +80,6 @@ class TokenService:
         return TokenModel(
             name=dto.name,
             token_hash=token_hash,
-            role=dto.role,
             expires_at=dto.expires_at,
             user_id=user_id,
         )
@@ -90,8 +88,6 @@ class TokenService:
         """Update token fields from DTO."""
         if dto.name is not None:
             token.name = dto.name
-        if dto.role is not None:
-            token.role = dto.role
         if dto.is_active is not None:
             token.is_active = dto.is_active
         if dto.expires_at is not None:
@@ -99,4 +95,23 @@ class TokenService:
 
     def _serialize_token(self, token: TokenModel) -> TokenResponse:
         """Serialize token to DTO."""
-        return TokenResponse.model_validate(token)
+        token_dict = {
+            "uuid": str(token.uuid),
+            "name": token.name,
+            "expires_at": token.expires_at,
+            "is_active": token.is_active,
+            "last_used_at": token.last_used_at.isoformat() if token.last_used_at else None,
+            "created_at": token.created_at.isoformat(),
+            "updated_at": token.updated_at.isoformat(),
+            "user_id": token.user_id,
+            "user_uuid": None,
+        }
+        
+        # Get user_uuid if user_id exists
+        if token.user_id:
+            from app.users.infra.user_model import User as UserModel
+            user = self.db.query(UserModel).filter(UserModel.id == token.user_id).first()
+            if user:
+                token_dict["user_uuid"] = str(user.uuid)
+        
+        return TokenResponse(**token_dict)

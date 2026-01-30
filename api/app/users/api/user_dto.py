@@ -1,5 +1,5 @@
 from pydantic import BaseModel, ConfigDict, model_validator, field_validator
-from typing import Optional, Any
+from typing import Optional, Any, List
 from datetime import datetime
 from uuid import UUID
 
@@ -66,3 +66,29 @@ class UserResponse(UserBase):
     model_config = ConfigDict(
         from_attributes=True,
     )
+
+
+class UserOrganizationInfo(BaseModel):
+    """Organization information for user response."""
+    uuid: str
+    name: str
+    is_owner: bool
+    is_admin: bool
+    status: str
+
+
+class UserWithOrganizationsResponse(UserResponse):
+    """User response with organizations the user has access to."""
+    organizations: List[UserOrganizationInfo] = []
+
+    @model_validator(mode="before")
+    @classmethod
+    def add_organizations(cls, data: Any) -> Any:
+        """Add organizations list to user data."""
+        if isinstance(data, dict):
+            if "organizations" not in data:
+                data["organizations"] = []
+        elif hasattr(data, "__dict__"):
+            if not hasattr(data, "organizations"):
+                data.organizations = []
+        return data

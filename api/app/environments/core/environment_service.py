@@ -20,49 +20,85 @@ class EnvironmentService:
     def __init__(self, repository: EnvironmentRepository):
         self.repository = repository
 
-    def create_environment(self, dto: EnvironmentCreate) -> Environment:
-        """Create a new environment."""
+    def create_environment(
+        self, dto: EnvironmentCreate, organization_id: int
+    ) -> Environment:
+        """Create a new environment within an organization."""
         validate_environment_create_dto(dto)
 
-        environment = self._build_environment_entity(dto)
+        environment = self._build_environment_entity(dto, organization_id)
         return self.repository.create(environment)
 
-    def update_environment(self, uuid: UUID, dto: EnvironmentCreate) -> Environment:
-        """Update an existing environment."""
+    def update_environment(
+        self, uuid: UUID, dto: EnvironmentCreate, organization_id: int
+    ) -> Environment:
+        """Update an existing environment within an organization."""
         validate_environment_create_dto(dto)
-        validate_environment_exists(self.repository, uuid)
 
-        environment = self.repository.find_by_uuid(uuid)
+        environment = self.repository.find_by_uuid_and_organization(uuid, organization_id)
+        if not environment:
+            raise ValueError(f"Environment with UUID {uuid} not found in organization")
+
         environment.name = dto.name
 
         return self.repository.update(environment)
 
-    def get_environment(self, uuid: UUID) -> EnvironmentWithClusters:
-        """Get environment by UUID with clusters and settings."""
-        validate_environment_exists(self.repository, uuid)
+    def get_environment_id_for_organization(
+        self, organization_id: int, environment_uuid: UUID
+    ) -> int:
+        """Resolve environment UUID to ID. Validates that environment belongs to organization.
+        Raises ValueError if not found or does not belong to organization.
+        Use this when you need environment_id (e.g. for authorization) from (org_id, env_uuid).
+        """
+        environment = self.repository.find_by_uuid_and_organization(
+            environment_uuid, organization_id
+        )
+        if not environment:
+            raise ValueError(
+                f"Environment with UUID {environment_uuid} not found in organization"
+            )
+        return environment.id
 
-        environment = self.repository.find_by_uuid(uuid)
+    def get_environment(
+        self, uuid: UUID, organization_id: int
+    ) -> EnvironmentWithClusters:
+        """Get environment by UUID with clusters and settings within an organization."""
+        environment = self.repository.find_by_uuid_and_organization(uuid, organization_id)
+        if not environment:
+            raise ValueError(f"Environment with UUID {uuid} not found in organization")
+
         return self._serialize_environment_with_clusters(environment)
 
     def get_environments(
-        self, skip: int = 0, limit: int = 100
+        self, organization_id: int, skip: int = 0, limit: int = 100
     ) -> List[EnvironmentWithClusters]:
-        """Get all environments with clusters and settings."""
-        environments = self.repository.find_all(skip=skip, limit=limit)
+        """Get all environments with clusters and settings within an organization."""
+        environments = self.repository.find_all(
+            organization_id=organization_id, skip=skip, limit=limit
+        )
         return [self._serialize_environment_with_clusters(env) for env in environments]
 
-    def delete_environment(self, uuid: UUID) -> dict:
-        """Delete an environment."""
+    def delete_environment(self, uuid: UUID, organization_id: int) -> dict:
+        """Delete an environment within an organization."""
+        environment = self.repository.find_by_uuid_and_organization(uuid, organization_id)
+        if not environment:
+            raise ValueError(f"Environment with UUID {uuid} not found in organization")
+
         validate_environment_can_be_deleted(self.repository, uuid)
 
-        environment = self.repository.find_by_uuid(uuid)
         self.repository.delete(environment)
 
         return {"detail": "Environment deleted successfully"}
 
-    def _build_environment_entity(self, dto: EnvironmentCreate) -> EnvironmentModel:
+    def _build_environment_entity(
+        self, dto: EnvironmentCreate, organization_id: int
+    ) -> EnvironmentModel:
         """Build Environment entity from DTO."""
-        return EnvironmentModel(uuid=uuid4(), name=dto.name)
+        return EnvironmentModel(
+            uuid=uuid4(),
+            name=dto.name,
+            organization_id=organization_id,
+        )
 
     def _serialize_environment_with_clusters(
         self, environment: EnvironmentModel

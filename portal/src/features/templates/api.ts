@@ -2,52 +2,85 @@ import { api } from '../../shared/api'
 import type { Template, TemplateCreate, TemplateUpdate, ComponentTemplateConfig, ComponentTemplateConfigCreate, ComponentTemplateConfigUpdate } from './types'
 
 export const templatesApi = {
-  list: async (category?: string): Promise<Template[]> => {
+  list: async (organizationUuid: string, category?: string): Promise<Template[]> => {
+    if (!organizationUuid) {
+      throw new Error('Organization UUID is required')
+    }
     const params = category ? { category } : {}
-    const response = await api.get<Template[]>('/templates/', { params })
+    const response = await api.get<Template[]>(`/organizations/${organizationUuid}/templates/`, { params })
     return response.data
   },
-  get: async (uuid: string): Promise<Template> => {
-    const response = await api.get<Template>(`/templates/${uuid}`)
+  get: async (organizationUuid: string, uuid: string): Promise<Template> => {
+    if (!organizationUuid) {
+      throw new Error('Organization UUID is required')
+    }
+    const response = await api.get<Template>(`/organizations/${organizationUuid}/templates/${uuid}`)
     return response.data
   },
-  create: async (data: TemplateCreate): Promise<Template> => {
-    const response = await api.post<Template>('/templates/', data)
+  create: async (organizationUuid: string, data: TemplateCreate): Promise<Template> => {
+    if (!organizationUuid) {
+      throw new Error('Organization UUID is required')
+    }
+    const response = await api.post<Template>(`/organizations/${organizationUuid}/templates/`, data)
     return response.data
   },
-  update: async (uuid: string, data: TemplateUpdate): Promise<Template> => {
-    const response = await api.put<Template>(`/templates/${uuid}`, data)
+  update: async (organizationUuid: string, uuid: string, data: TemplateUpdate): Promise<Template> => {
+    if (!organizationUuid) {
+      throw new Error('Organization UUID is required')
+    }
+    const response = await api.put<Template>(`/organizations/${organizationUuid}/templates/${uuid}`, data)
     return response.data
   },
-  delete: async (uuid: string): Promise<void> => {
-    await api.delete(`/templates/${uuid}`)
+  delete: async (organizationUuid: string, uuid: string): Promise<void> => {
+    if (!organizationUuid) {
+      throw new Error('Organization UUID is required')
+    }
+    await api.delete(`/organizations/${organizationUuid}/templates/${uuid}`)
   },
 }
 
 export const componentTemplateConfigsApi = {
-  list: async (component_type?: string): Promise<ComponentTemplateConfig[]> => {
+  list: async (organizationUuid: string, component_type?: string): Promise<ComponentTemplateConfig[]> => {
+    if (!organizationUuid) {
+      throw new Error('Organization UUID is required')
+    }
     const params = component_type ? { component_type } : {}
-    const response = await api.get<ComponentTemplateConfig[]>('/component-template-configs/', { params })
+    const response = await api.get<ComponentTemplateConfig[]>(`/organizations/${organizationUuid}/component-template-configs/`, { params })
     return response.data
   },
-  get: async (uuid: string): Promise<ComponentTemplateConfig> => {
-    const response = await api.get<ComponentTemplateConfig>(`/component-template-configs/${uuid}`)
+  get: async (organizationUuid: string, uuid: string): Promise<ComponentTemplateConfig> => {
+    if (!organizationUuid) {
+      throw new Error('Organization UUID is required')
+    }
+    const response = await api.get<ComponentTemplateConfig>(`/organizations/${organizationUuid}/component-template-configs/${uuid}`)
     return response.data
   },
-  create: async (data: ComponentTemplateConfigCreate): Promise<ComponentTemplateConfig> => {
-    const response = await api.post<ComponentTemplateConfig>('/component-template-configs/', data)
+  create: async (organizationUuid: string, data: ComponentTemplateConfigCreate): Promise<ComponentTemplateConfig> => {
+    if (!organizationUuid) {
+      throw new Error('Organization UUID is required')
+    }
+    const response = await api.post<ComponentTemplateConfig>(`/organizations/${organizationUuid}/component-template-configs/`, data)
     return response.data
   },
-  update: async (uuid: string, data: ComponentTemplateConfigUpdate): Promise<ComponentTemplateConfig> => {
-    const response = await api.put<ComponentTemplateConfig>(`/component-template-configs/${uuid}`, data)
+  update: async (organizationUuid: string, uuid: string, data: ComponentTemplateConfigUpdate): Promise<ComponentTemplateConfig> => {
+    if (!organizationUuid) {
+      throw new Error('Organization UUID is required')
+    }
+    const response = await api.put<ComponentTemplateConfig>(`/organizations/${organizationUuid}/component-template-configs/${uuid}`, data)
     return response.data
   },
-  delete: async (uuid: string): Promise<void> => {
-    await api.delete(`/component-template-configs/${uuid}`)
+  delete: async (organizationUuid: string, uuid: string): Promise<void> => {
+    if (!organizationUuid) {
+      throw new Error('Organization UUID is required')
+    }
+    await api.delete(`/organizations/${organizationUuid}/component-template-configs/${uuid}`)
   },
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  getTemplatesForComponent: async (component_type: string): Promise<any[]> => {
-    const response = await api.get(`/component-template-configs/component/${component_type}/templates`)
+  getTemplatesForComponent: async (organizationUuid: string, component_type: string): Promise<any[]> => {
+    if (!organizationUuid) {
+      throw new Error('Organization UUID is required')
+    }
+    const response = await api.get(`/organizations/${organizationUuid}/component-template-configs/component/${component_type}/templates`)
     return response.data
   },
 }

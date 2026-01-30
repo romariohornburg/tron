@@ -1,0 +1,37 @@
+services:
+  k3s-server2:
+    image: "rancher/k3s:${K3S_VERSION:-latest}"
+    command: server --https-listen-port 5444
+    tmpfs:
+    - /run
+    - /var/run
+    ulimits:
+      nproc: 65535
+      nofile:
+        soft: 65535
+        hard: 65535
+    privileged: true
+    environment:
+    - K3S_TOKEN=something
+    - K3S_KUBECONFIG_OUTPUT=/output/kubeconfig2.yaml
+    - K3S_KUBECONFIG_MODE=666
+    volumes:
+    - ./volumes/kubeconfig2:/output
+    - ./manifests:/var/lib/rancher/k3s/server/manifests
+    ports:
+    - 5444:5444
+
+  k3s-agent2:
+    image: "rancher/k3s:${K3S_VERSION:-latest}"
+    tmpfs:
+    - /run
+    - /var/run
+    ulimits:
+      nproc: 65535
+      nofile:
+        soft: 65535
+        hard: 65535
+    privileged: true
+    environment:
+    - K3S_URL=https://k3s-server2:5444
+    - K3S_TOKEN=something
