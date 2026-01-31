@@ -1,7 +1,7 @@
 import { useState, useMemo, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { X, Trash2, Plus, Pencil, ChevronDown, ChevronRight, Server, ChevronUp, AlertCircle, MoreVertical, RefreshCw } from 'lucide-react'
+import { X, Trash2, Plus, Pencil, ChevronDown, ChevronRight, Server, ChevronUp, AlertCircle, MoreVertical, RefreshCw, Globe } from 'lucide-react'
 import { instancesApi } from '../../services/api'
 import { useClustersByEnvironment } from '../../features/clusters/hooks/useClusters'
 import type { ApplicationComponentCreate, InstanceComponent } from '../../types'
@@ -10,6 +10,32 @@ import { useUpdateWebappComponent, useDeleteWebappComponent, useCreateWebappComp
 import { Breadcrumbs, PageHeader, DataTable } from '../../shared/components'
 import { useAuth } from '../../contexts/AuthContext'
 import { useOrganization } from '../../contexts/OrganizationContext'
+
+// Palette for environment colors
+const ENV_COLOR_PALETTE = [
+  { bg: 'bg-primary-100', text: 'text-primary-800', border: 'border-primary-200' },
+  { bg: 'bg-accent-100', text: 'text-accent-800', border: 'border-accent-200' },
+  { bg: 'bg-blue-100', text: 'text-blue-800', border: 'border-blue-200' },
+  { bg: 'bg-emerald-100', text: 'text-emerald-800', border: 'border-emerald-200' },
+  { bg: 'bg-violet-100', text: 'text-violet-800', border: 'border-violet-200' },
+  { bg: 'bg-amber-100', text: 'text-amber-800', border: 'border-amber-200' },
+  { bg: 'bg-rose-100', text: 'text-rose-800', border: 'border-rose-200' },
+  { bg: 'bg-sky-100', text: 'text-sky-800', border: 'border-sky-200' },
+  { bg: 'bg-indigo-100', text: 'text-indigo-800', border: 'border-indigo-200' },
+  { bg: 'bg-pink-100', text: 'text-pink-800', border: 'border-pink-200' },
+  { bg: 'bg-teal-100', text: 'text-teal-800', border: 'border-teal-200' },
+  { bg: 'bg-orange-100', text: 'text-orange-800', border: 'border-orange-200' },
+]
+
+function getEnvironmentColor(uuid: string) {
+  let hash = 0
+  for (let i = 0; i < uuid.length; i++) {
+    hash = (hash << 5) - hash + uuid.charCodeAt(i)
+    hash = hash & hash
+  }
+  const index = Math.abs(hash) % ENV_COLOR_PALETTE.length
+  return ENV_COLOR_PALETTE[index]
+}
 
 function InstanceDetail() {
   const { uuid: applicationUuid, instanceUuid } = useParams<{ uuid: string; instanceUuid: string }>()
@@ -729,10 +755,70 @@ function InstanceDetail() {
         ]}
       />
 
+      {/* Instance Summary Card */}
+      {instance.environment && (() => {
+        const envColor = getEnvironmentColor(instance.environment.uuid)
+        return (
+          <div className="glass-effect rounded-lg p-4 border border-neutral-200/50">
+            <div className="flex items-center gap-8 flex-wrap">
+              {/* Environment - Highlighted */}
+              <div className="flex items-center gap-2.5">
+                <div className={`p-1.5 ${envColor.bg} rounded-md`}>
+                  <Globe size={16} className={envColor.text} />
+                </div>
+                <div>
+                  <p className="text-xs text-neutral-500 mb-0.5">Environment</p>
+                  <p className={`text-base font-semibold ${envColor.text}`}>
+                    {instance.environment.name}
+                  </p>
+                </div>
+              </div>
+
+              {/* Divider */}
+              <div className="h-8 w-px bg-neutral-200"></div>
+
+              {/* Application */}
+              <div>
+                <p className="text-xs text-neutral-500 mb-0.5">Application</p>
+                <p className="text-sm font-medium text-neutral-900">{instance.application?.name || 'N/A'}</p>
+              </div>
+
+              {/* Image:Version */}
+              <div className="flex-1 min-w-[200px]">
+                <p className="text-xs text-neutral-500 mb-0.5">Image</p>
+                <p className="text-sm text-neutral-700 truncate" title={`${instance.image}:${instance.version}`}>
+                  {instance.image}:{instance.version}
+                </p>
+              </div>
+
+              {/* Status */}
+              <div>
+                <p className="text-xs text-neutral-500 mb-1">Status</p>
+                {instance.enabled ? (
+                  <span className="badge-success text-xs">
+                    Enabled
+                  </span>
+                ) : (
+                  <span className="badge-error text-xs">
+                    Disabled
+                  </span>
+                )}
+              </div>
+
+              {/* Components Count */}
+              <div>
+                <p className="text-xs text-neutral-500 mb-0.5">Components</p>
+                <p className="text-base font-semibold text-neutral-900">{instance.components?.length || 0}</p>
+              </div>
+            </div>
+          </div>
+        )
+      })()}
+
       <div className="flex items-center justify-between">
         <PageHeader
           title="Components"
-          description={`${instance.application?.name || 'Application'} • ${instance.environment.name} • ${instance.image}:${instance.version}`}
+          description={`Manage components for this instance`}
         />
         <div className="flex items-center gap-3">
           <button
