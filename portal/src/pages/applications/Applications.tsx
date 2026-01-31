@@ -305,7 +305,7 @@ function Applications() {
               <tr>
                 <th className="px-6 py-3.5 text-left text-xs font-semibold text-neutral-700 uppercase tracking-wider w-12"></th>
                 <th className="px-6 py-3.5 text-left text-xs font-semibold text-neutral-700 uppercase tracking-wider">
-                  Name
+                  Application
                 </th>
                 <th className="px-6 py-3.5 text-left text-xs font-semibold text-neutral-700 uppercase tracking-wider">
                   Repository / Image:Version
