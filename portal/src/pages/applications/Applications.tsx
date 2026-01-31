@@ -357,10 +357,10 @@ function Applications() {
                             <ChevronRight className="h-4 w-4 text-neutral-500" />
                           )}
                         </td>
-                        <td className="pl-2 pr-6 py-4 whitespace-nowrap">
-                          <div className="flex items-center gap-3">
-                            <div className="flex-shrink-0 w-10 h-10 rounded-full bg-purple-100 flex items-center justify-center">
-                              <AppWindow className="h-5 w-5 text-purple-600" />
+                        <td className="pl-0 pr-6 py-4 whitespace-nowrap">
+                          <div className="flex items-center gap-4">
+                            <div className="flex-shrink-0 w-10 h-10 rounded-full bg-neutral-100 flex items-center justify-center">
+                              <AppWindow className="h-5 w-5 text-neutral-500" />
                             </div>
                             <div>
                               <div className="text-sm font-medium text-slate-800">{row.application.name}</div>
