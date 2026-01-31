@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Trash2, Plus, X, RefreshCw, Server, ChevronRight, ChevronDown, Layers, Globe, Clock, Cpu, Search } from 'lucide-react'
+import { Trash2, Plus, X, RefreshCw, Server, ChevronRight, ChevronDown, Layers, Globe, Clock, Cpu, Search, AppWindow } from 'lucide-react'
 import { useInstances } from '../../features/instances'
 import { useDeleteApplication } from '../../features/applications'
 import { useOrganization } from '../../contexts/OrganizationContext'
@@ -190,6 +190,75 @@ function Applications() {
         </button>
       </div>
 
+      {/* Concepts Explanation Card */}
+      <div className="bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 rounded-xl p-5 border border-blue-100/50 shadow-soft">
+        <div className="mb-4">
+          <h2 className="text-lg font-bold text-slate-900 mb-1">
+            Understanding Applications
+          </h2>
+          <p className="text-slate-700 text-xs leading-relaxed">
+            Applications in Tron represent your containerized software projects. Each application can have multiple instances deployed across different environments, and each instance contains one or more components that define how your application runs.
+          </p>
+        </div>
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
+          <div className="bg-white/60 backdrop-blur-sm rounded-lg p-2.5 border border-white/50">
+            <div className="flex items-center gap-2 mb-1">
+              <div className="p-1.5 bg-purple-100 rounded-lg">
+                <AppWindow className="text-purple-600" size={16} />
+              </div>
+              <h3 className="text-xs font-semibold text-slate-800">Application</h3>
+            </div>
+            <p className="text-xs text-slate-600 leading-tight">
+              Containerized software project with repository and image
+            </p>
+          </div>
+          <div className="bg-white/60 backdrop-blur-sm rounded-lg p-2.5 border border-white/50">
+            <div className="flex items-center gap-2 mb-1">
+              <div className="p-1.5 bg-green-100 rounded-lg">
+                <Server className="text-green-600" size={16} />
+              </div>
+              <h3 className="text-xs font-semibold text-slate-800">Instance</h3>
+            </div>
+            <p className="text-xs text-slate-600 leading-tight">
+              Deployment in a specific environment with components
+            </p>
+          </div>
+          <div className="bg-white/60 backdrop-blur-sm rounded-lg p-2.5 border border-white/50">
+            <div className="flex items-center gap-2 mb-1">
+              <div className="p-1.5 bg-blue-100 rounded-lg">
+                <Globe className="text-blue-600" size={16} />
+              </div>
+              <h3 className="text-xs font-semibold text-slate-800">Webapp</h3>
+            </div>
+            <p className="text-xs text-slate-600 leading-tight">
+              HTTP/HTTPS service exposed via ingress
+            </p>
+          </div>
+          <div className="bg-white/60 backdrop-blur-sm rounded-lg p-2.5 border border-white/50">
+            <div className="flex items-center gap-2 mb-1">
+              <div className="p-1.5 bg-orange-100 rounded-lg">
+                <Clock className="text-orange-600" size={16} />
+              </div>
+              <h3 className="text-xs font-semibold text-slate-800">Cron</h3>
+            </div>
+            <p className="text-xs text-slate-600 leading-tight">
+              Scheduled job running at specified intervals
+            </p>
+          </div>
+          <div className="bg-white/60 backdrop-blur-sm rounded-lg p-2.5 border border-white/50">
+            <div className="flex items-center gap-2 mb-1">
+              <div className="p-1.5 bg-indigo-100 rounded-lg">
+                <Cpu className="text-indigo-600" size={16} />
+              </div>
+              <h3 className="text-xs font-semibold text-slate-800">Worker</h3>
+            </div>
+            <p className="text-xs text-slate-600 leading-tight">
+              Background process for queue processing and tasks
+            </p>
+          </div>
+        </div>
+      </div>
+
       {/* Search Bar */}
       <div className="glass-effect rounded-lg p-4">
         <div className="relative">
@@ -288,10 +357,15 @@ function Applications() {
                             <ChevronRight className="h-4 w-4 text-neutral-500" />
                           )}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div>
-                            <div className="text-sm font-medium text-slate-800">{row.application.name}</div>
-                            <small className="text-xs text-slate-500">{row.application.uuid}</small>
+                        <td className="pl-2 pr-6 py-4 whitespace-nowrap">
+                          <div className="flex items-center gap-3">
+                            <div className="flex-shrink-0 w-10 h-10 rounded-full bg-purple-100 flex items-center justify-center">
+                              <AppWindow className="h-5 w-5 text-purple-600" />
+                            </div>
+                            <div>
+                              <div className="text-sm font-medium text-slate-800">{row.application.name}</div>
+                              <small className="text-xs text-slate-500">{row.application.uuid}</small>
+                            </div>
                           </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
@@ -356,7 +430,8 @@ function Applications() {
                         >
                           <td className="px-6 py-3"></td>
                           <td className="px-6 py-3">
-                            <div className="pl-4">
+                            <div className="pl-4 flex items-center gap-2">
+                              <Server className="h-4 w-4 text-neutral-500" />
                               <span className={getEnvironmentBadgeColor(instance.environment.uuid)}>
                                 Environment: {instance.environment.name}
                               </span>
