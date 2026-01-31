@@ -202,58 +202,58 @@ function Applications() {
         </div>
         <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
           <div className="bg-white/60 backdrop-blur-sm rounded-lg p-2.5 border border-white/50">
-            <div className="flex items-center gap-2 mb-1">
+            <div className="flex items-center gap-2 mb-3">
               <div className="p-1.5 bg-purple-100 rounded-lg">
                 <AppWindow className="text-purple-600" size={16} />
               </div>
               <h3 className="text-xs font-semibold text-slate-800">Application</h3>
             </div>
             <p className="text-xs text-slate-600 leading-tight">
-              Containerized software project with repository and image
+              Containerized software project<br />with repository and image
             </p>
           </div>
           <div className="bg-white/60 backdrop-blur-sm rounded-lg p-2.5 border border-white/50">
-            <div className="flex items-center gap-2 mb-1">
+            <div className="flex items-center gap-2 mb-3">
               <div className="p-1.5 bg-green-100 rounded-lg">
                 <Server className="text-green-600" size={16} />
               </div>
               <h3 className="text-xs font-semibold text-slate-800">Instance</h3>
             </div>
             <p className="text-xs text-slate-600 leading-tight">
-              Deployment in a specific environment with components
+              Deployment in a specific<br />environment with components
             </p>
           </div>
           <div className="bg-white/60 backdrop-blur-sm rounded-lg p-2.5 border border-white/50">
-            <div className="flex items-center gap-2 mb-1">
+            <div className="flex items-center gap-2 mb-3">
               <div className="p-1.5 bg-blue-100 rounded-lg">
                 <Globe className="text-blue-600" size={16} />
               </div>
               <h3 className="text-xs font-semibold text-slate-800">Webapp</h3>
             </div>
             <p className="text-xs text-slate-600 leading-tight">
-              HTTP/HTTPS service exposed via ingress
+              HTTP/HTTPS service<br />exposed via ingress
             </p>
           </div>
           <div className="bg-white/60 backdrop-blur-sm rounded-lg p-2.5 border border-white/50">
-            <div className="flex items-center gap-2 mb-1">
+            <div className="flex items-center gap-2 mb-3">
               <div className="p-1.5 bg-orange-100 rounded-lg">
                 <Clock className="text-orange-600" size={16} />
               </div>
               <h3 className="text-xs font-semibold text-slate-800">Cron</h3>
             </div>
             <p className="text-xs text-slate-600 leading-tight">
-              Scheduled job running at specified intervals
+              Scheduled job running<br />at specified intervals
             </p>
           </div>
           <div className="bg-white/60 backdrop-blur-sm rounded-lg p-2.5 border border-white/50">
-            <div className="flex items-center gap-2 mb-1">
+            <div className="flex items-center gap-2 mb-3">
               <div className="p-1.5 bg-indigo-100 rounded-lg">
                 <Cpu className="text-indigo-600" size={16} />
               </div>
               <h3 className="text-xs font-semibold text-slate-800">Worker</h3>
             </div>
             <p className="text-xs text-slate-600 leading-tight">
-              Background process for queue processing and tasks
+              Background process for<br />queue processing and tasks
             </p>
           </div>
         </div>
