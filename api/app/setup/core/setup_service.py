@@ -68,7 +68,9 @@ class SetupService:
         self.db.refresh(admin_user)
 
         # Create default organization with groups and initial templates for the new user
-        from app.organizations.infra.organization_repository import OrganizationRepository
+        from app.organizations.infra.organization_repository import (
+            OrganizationRepository,
+        )
         from app.users.infra.user_repository import UserRepository
         from app.organizations.core.organization_service import OrganizationService
 

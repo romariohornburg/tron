@@ -4,7 +4,9 @@ from uuid import UUID
 from typing import Optional, List
 from app.organizations.infra.group_model import Group as GroupModel
 from app.organizations.infra.group_member_model import GroupMember as GroupMemberModel
-from app.organizations.infra.organization_member_model import OrganizationMember as OrganizationMemberModel
+from app.organizations.infra.organization_member_model import (
+    OrganizationMember as OrganizationMemberModel,
+)
 
 
 class GroupRepository:
@@ -21,7 +23,9 @@ class GroupRepository:
                 joinedload(GroupModel.organization),
                 joinedload(GroupModel.environment),
                 joinedload(GroupModel.application),
-                joinedload(GroupModel.members).joinedload(GroupMemberModel.organization_member).joinedload(OrganizationMemberModel.user)
+                joinedload(GroupModel.members)
+                .joinedload(GroupMemberModel.organization_member)
+                .joinedload(OrganizationMemberModel.user),
             )
             .filter(GroupModel.uuid == uuid)
             .first()
@@ -36,7 +40,7 @@ class GroupRepository:
             .options(
                 joinedload(GroupModel.organization),
                 joinedload(GroupModel.environment),
-                joinedload(GroupModel.application)
+                joinedload(GroupModel.application),
             )
             .filter(GroupModel.organization_id == organization_id)
             .offset(skip)
@@ -44,16 +48,14 @@ class GroupRepository:
             .all()
         )
 
-    def find_all(
-        self, skip: int = 0, limit: int = 100
-    ) -> List[GroupModel]:
+    def find_all(self, skip: int = 0, limit: int = 100) -> List[GroupModel]:
         """Find all groups."""
         return (
             self.db.query(GroupModel)
             .options(
                 joinedload(GroupModel.organization),
                 joinedload(GroupModel.environment),
-                joinedload(GroupModel.application)
+                joinedload(GroupModel.application),
             )
             .offset(skip)
             .limit(limit)
@@ -71,7 +73,7 @@ class GroupRepository:
             .options(
                 joinedload(GroupModel.organization),
                 joinedload(GroupModel.environment),
-                joinedload(GroupModel.application)
+                joinedload(GroupModel.application),
             )
             .filter(GroupModel.id == group.id)
             .first()
@@ -87,7 +89,7 @@ class GroupRepository:
             .options(
                 joinedload(GroupModel.organization),
                 joinedload(GroupModel.environment),
-                joinedload(GroupModel.application)
+                joinedload(GroupModel.application),
             )
             .filter(GroupModel.id == group.id)
             .first()

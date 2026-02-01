@@ -5,7 +5,9 @@ from sqlalchemy.orm import Session
 from app.organizations.infra.group_member_repository import GroupMemberRepository
 from app.organizations.infra.group_member_model import GroupMember as GroupMemberModel
 from app.organizations.infra.group_repository import GroupRepository
-from app.organizations.infra.organization_member_repository import OrganizationMemberRepository
+from app.organizations.infra.organization_member_repository import (
+    OrganizationMemberRepository,
+)
 from app.organizations.api.group_member_dto import (
     GroupMemberCreate,
     GroupMember,
@@ -15,16 +17,19 @@ from app.organizations.core.group_validators import GroupNotFoundError
 
 class GroupMemberNotFoundError(Exception):
     """Raised when group member is not found."""
+
     pass
 
 
 class GroupMemberAlreadyExistsError(Exception):
     """Raised when group member already exists."""
+
     pass
 
 
 class OrganizationMemberNotFoundError(Exception):
     """Raised when organization member is not found."""
+
     pass
 
 
@@ -51,7 +56,9 @@ class GroupMemberService:
             raise GroupNotFoundError(f"Group with UUID '{dto.group_id}' not found")
 
         # Validate organization member exists
-        org_member = self.organization_member_repository.find_by_uuid(dto.organization_member_id)
+        org_member = self.organization_member_repository.find_by_uuid(
+            dto.organization_member_id
+        )
         if not org_member:
             raise OrganizationMemberNotFoundError(
                 f"Organization member with UUID '{dto.organization_member_id}' not found"

@@ -4,8 +4,12 @@ from sqlalchemy.orm import Session
 
 from app.organizations.infra.organization_repository import OrganizationRepository
 from app.organizations.infra.organization_model import Organization as OrganizationModel
-from app.organizations.infra.organization_member_model import OrganizationMember as OrganizationMemberModel
-from app.organizations.infra.organization_member_repository import OrganizationMemberRepository
+from app.organizations.infra.organization_member_model import (
+    OrganizationMember as OrganizationMemberModel,
+)
+from app.organizations.infra.organization_member_repository import (
+    OrganizationMemberRepository,
+)
 from app.organizations.api.organization_dto import (
     OrganizationCreate,
     OrganizationUpdate,
@@ -38,13 +42,17 @@ class OrganizationService:
         self.user_repository = user_repository
         self.db = database_session
 
-    def create_organization(self, dto: OrganizationCreate, owner_user_id: int) -> Organization:
+    def create_organization(
+        self, dto: OrganizationCreate, owner_user_id: int
+    ) -> Organization:
         """Create a new organization with default groups. The given user becomes the owner."""
         validate_organization_create_dto(dto)
         validate_organization_name_uniqueness(self.repository, dto.name)
 
         # Use create_organization_with_defaults to create organization with default groups
-        organization_model = self.create_organization_with_defaults(dto.name, owner_user_id)
+        organization_model = self.create_organization_with_defaults(
+            dto.name, owner_user_id
+        )
 
         # Reload organization with relationships for DTO serialization
         organization = self.repository.find_by_uuid(organization_model.uuid)
@@ -90,7 +98,9 @@ class OrganizationService:
             validate_user_exists(self.user_repository, dto.owner_user_id)
             new_owner_user = self.user_repository.find_by_uuid(dto.owner_user_id)
             if not new_owner_user:
-                raise UserNotFoundError(f"User with UUID '{dto.owner_user_id}' not found")
+                raise UserNotFoundError(
+                    f"User with UUID '{dto.owner_user_id}' not found"
+                )
             new_owner_user_id = new_owner_user.id
             old_owner_user_id = organization.owner_user_id
 
@@ -174,7 +184,9 @@ class OrganizationService:
     ) -> List[Organization]:
         """Get organizations. If user_id is provided, returns only organizations where user is a member."""
         if user_id is not None:
-            orgs = self.repository.find_by_user_membership(user_id, skip=skip, limit=limit)
+            orgs = self.repository.find_by_user_membership(
+                user_id, skip=skip, limit=limit
+            )
         else:
             orgs = self.repository.find_all(skip=skip, limit=limit)
         # Ensure owner relationships are loaded
@@ -265,8 +277,16 @@ class OrganizationService:
 
         # Create default groups - all organization-level groups
         default_groups = [
-            (GroupRole.ORG_ADMIN, "Organization Admin", "Administrative access to organization"),
-            (GroupRole.ORG_BILLING, "Organization Billing", "Access to billing information"),
+            (
+                GroupRole.ORG_ADMIN,
+                "Organization Admin",
+                "Administrative access to organization",
+            ),
+            (
+                GroupRole.ORG_BILLING,
+                "Organization Billing",
+                "Access to billing information",
+            ),
             (GroupRole.ORG_MEMBER, "Organization Member", "Basic member access"),
         ]
 
@@ -278,7 +298,7 @@ class OrganizationService:
                 organization_id=organization.id,
                 name=name,
                 description=description,
-                scope_level='org',  # Use string literal directly
+                scope_level="org",  # Use string literal directly
                 environment_id=None,
                 application_id=None,
                 role=role.value,  # Use enum value (e.g., 'ORG_ADMIN')
@@ -299,7 +319,10 @@ class OrganizationService:
             self.db.add(group_member)
 
         # Seed initial Kubernetes templates for the organization (same transaction)
-        from app.templates.core.initial_templates_service import seed_templates_for_organization
+        from app.templates.core.initial_templates_service import (
+            seed_templates_for_organization,
+        )
+
         seed_templates_for_organization(self.db, organization.id)
 
         # Commit all changes
@@ -329,7 +352,9 @@ class OrganizationService:
 
         # Check if user is already a member
         member_repo = OrganizationMemberRepository(self.db)
-        existing_member = member_repo.find_by_user_and_organization(user.id, organization.id)
+        existing_member = member_repo.find_by_user_and_organization(
+            user.id, organization.id
+        )
         if existing_member:
             raise ValueError("User is already a member of this organization")
 
@@ -363,19 +388,24 @@ class OrganizationService:
             .filter(
                 OrganizationMemberModel.organization_id == organization_id,
                 OrganizationMemberModel.is_owner == True,  # noqa: E712
-                OrganizationMemberModel.id != exclude_member_id
+                OrganizationMemberModel.id != exclude_member_id,
             )
             .count()
         )
         return other_owners_count > 0
 
     def _validate_owner_status_change(
-        self, member: OrganizationMemberModel, organization: OrganizationModel, new_is_owner: bool
+        self,
+        member: OrganizationMemberModel,
+        organization: OrganizationModel,
+        new_is_owner: bool,
     ) -> None:
         """Validate that removing owner status is allowed."""
         if member.is_owner and not new_is_owner:
             if not self._check_has_other_owners(organization.id, member.id):
-                raise ValueError("Cannot remove owner status: organization must have at least one owner")
+                raise ValueError(
+                    "Cannot remove owner status: organization must have at least one owner"
+                )
 
     def update_member(
         self, organization_uuid: UUID, member_uuid: UUID, dto
@@ -395,13 +425,20 @@ class OrganizationService:
 
         # Do not allow deactivating the organization owner
         if dto.status is not None:
-            new_status = dto.status.value if hasattr(dto.status, 'value') else dto.status
-            if member.is_owner and new_status == OrganizationMemberStatus.DISABLED.value:
+            new_status = (
+                dto.status.value if hasattr(dto.status, "value") else dto.status
+            )
+            if (
+                member.is_owner
+                and new_status == OrganizationMemberStatus.DISABLED.value
+            ):
                 raise ValueError("Cannot deactivate the organization owner")
 
         # Update status if provided
         if dto.status is not None:
-            member.status = dto.status.value if hasattr(dto.status, 'value') else dto.status
+            member.status = (
+                dto.status.value if hasattr(dto.status, "value") else dto.status
+            )
 
         # Update owner status if provided
         if dto.is_owner is not None:
@@ -412,15 +449,16 @@ class OrganizationService:
 
     def _remove_member_from_all_groups(self, member_id: int) -> None:
         """Remove member from all groups."""
-        from app.organizations.infra.group_member_repository import GroupMemberRepository
+        from app.organizations.infra.group_member_repository import (
+            GroupMemberRepository,
+        )
+
         group_member_repo = GroupMemberRepository(self.db)
         group_members = group_member_repo.find_by_organization_member_id(member_id)
         for gm in group_members:
             group_member_repo.delete_by_id(gm.id)
 
-    def remove_member(
-        self, organization_uuid: UUID, member_uuid: UUID
-    ) -> dict:
+    def remove_member(self, organization_uuid: UUID, member_uuid: UUID) -> dict:
         """Remove a member from an organization."""
         organization = self.repository.find_by_uuid(organization_uuid)
         if not organization:
@@ -434,7 +472,9 @@ class OrganizationService:
         self._validate_member_belongs_to_organization(member, organization)
 
         # Prevent removing the only owner
-        if member.is_owner and not self._check_has_other_owners(organization.id, member.id):
+        if member.is_owner and not self._check_has_other_owners(
+            organization.id, member.id
+        ):
             raise ValueError("Cannot remove the only owner of the organization")
 
         # Remove member from all groups first

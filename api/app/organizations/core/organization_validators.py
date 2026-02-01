@@ -5,20 +5,25 @@ from app.users.infra.user_repository import UserRepository
 
 class OrganizationNotFoundError(Exception):
     """Raised when organization is not found."""
+
     pass
 
 
 class OrganizationNameAlreadyExistsError(Exception):
     """Raised when organization name already exists."""
+
     pass
 
 
 class UserNotFoundError(Exception):
     """Raised when user is not found."""
+
     pass
 
 
-def validate_organization_exists(repository: OrganizationRepository, uuid: UUID) -> None:
+def validate_organization_exists(
+    repository: OrganizationRepository, uuid: UUID
+) -> None:
     """Validate that organization exists. Raises OrganizationNotFoundError if not found."""
     organization = repository.find_by_uuid(uuid)
     if not organization:

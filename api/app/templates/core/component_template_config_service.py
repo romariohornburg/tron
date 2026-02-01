@@ -98,18 +98,27 @@ class ComponentTemplateConfigService:
         return config
 
     def get_component_template_configs(
-        self, component_type: Optional[str] = None, skip: int = 0, limit: int = 100, organization_id: int | None = None
+        self,
+        component_type: Optional[str] = None,
+        skip: int = 0,
+        limit: int = 100,
+        organization_id: int | None = None,
     ) -> List[ComponentTemplateConfigModel]:
         """Get all component template configs, optionally filtered by component type and organization_id."""
         return self.config_repository.find_all(
-            component_type=component_type, skip=skip, limit=limit, organization_id=organization_id
+            component_type=component_type,
+            skip=skip,
+            limit=limit,
+            organization_id=organization_id,
         )
 
     def get_templates_for_component_type(
         self, component_type: str, organization_id: int | None = None
     ) -> List[TemplateModel]:
         """Get templates ordered by render_order for a component type, optionally filtered by organization_id."""
-        return self.config_repository.find_templates_for_component_type(component_type, organization_id=organization_id)
+        return self.config_repository.find_templates_for_component_type(
+            component_type, organization_id=organization_id
+        )
 
     def delete_component_template_config(self, config_uuid: UUID) -> dict:
         """Delete a component template config."""

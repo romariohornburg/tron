@@ -12,7 +12,11 @@ from app.auth.api.auth_dto import (
     RefreshTokenRequest,
     UpdateProfileRequest,
 )
-from app.users.api.user_dto import UserResponse, UserCreate, UserWithOrganizationsResponse
+from app.users.api.user_dto import (
+    UserResponse,
+    UserCreate,
+    UserWithOrganizationsResponse,
+)
 from app.users.core.user_validators import UserEmailAlreadyExistsError
 from app.users.infra.user_model import User
 from app.shared.dependencies.auth import get_current_user
@@ -210,7 +214,7 @@ async def get_current_user_info(
                 )
 
     organizations = list(orgs_by_uuid.values())
-    
+
     # Create response with organizations
     user_dict = {
         "uuid": str(current_user.uuid),
@@ -219,11 +223,15 @@ async def get_current_user_info(
         "is_active": current_user.is_active,
         "role": current_user.role,
         "avatar_url": getattr(current_user, "avatar_url", None),
-        "created_at": current_user.created_at.isoformat() if hasattr(current_user.created_at, "isoformat") else str(current_user.created_at),
-        "updated_at": current_user.updated_at.isoformat() if hasattr(current_user.updated_at, "isoformat") else str(current_user.updated_at),
+        "created_at": current_user.created_at.isoformat()
+        if hasattr(current_user.created_at, "isoformat")
+        else str(current_user.created_at),
+        "updated_at": current_user.updated_at.isoformat()
+        if hasattr(current_user.updated_at, "isoformat")
+        else str(current_user.updated_at),
         "organizations": organizations,
     }
-    
+
     return UserWithOrganizationsResponse(**user_dict)
 
 

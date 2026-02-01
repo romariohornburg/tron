@@ -100,18 +100,23 @@ class TokenService:
             "name": token.name,
             "expires_at": token.expires_at,
             "is_active": token.is_active,
-            "last_used_at": token.last_used_at.isoformat() if token.last_used_at else None,
+            "last_used_at": token.last_used_at.isoformat()
+            if token.last_used_at
+            else None,
             "created_at": token.created_at.isoformat(),
             "updated_at": token.updated_at.isoformat(),
             "user_id": token.user_id,
             "user_uuid": None,
         }
-        
+
         # Get user_uuid if user_id exists
         if token.user_id:
             from app.users.infra.user_model import User as UserModel
-            user = self.db.query(UserModel).filter(UserModel.id == token.user_id).first()
+
+            user = (
+                self.db.query(UserModel).filter(UserModel.id == token.user_id).first()
+            )
             if user:
                 token_dict["user_uuid"] = str(user.uuid)
-        
+
         return TokenResponse(**token_dict)

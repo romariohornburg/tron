@@ -18,7 +18,9 @@ from app.clusters.core.cluster_validators import (
 )
 from app.environments.infra.environment_repository import EnvironmentRepository
 from app.environments.core.environment_service import EnvironmentService
-from app.organizations.api.dependencies.organization_context import getOrganizationContext
+from app.organizations.api.dependencies.organization_context import (
+    getOrganizationContext,
+)
 from app.organizations.core.authorization import (
     OrganizationAccessContext,
     isOrgAdmin,
@@ -28,7 +30,9 @@ from app.organizations.core.authorization import (
 )
 
 
-router = APIRouter(prefix="/organizations/{organization_uuid}/clusters", tags=["clusters"])
+router = APIRouter(
+    prefix="/organizations/{organization_uuid}/clusters", tags=["clusters"]
+)
 
 # Clusters by environment: /organizations/{org_uuid}/environments/{env_uuid}/clusters
 router_env_clusters = APIRouter(
@@ -43,7 +47,9 @@ def get_cluster_service(database_session: Session = Depends(get_db)) -> ClusterS
     return ClusterService(cluster_repository)
 
 
-def get_environment_service(database_session: Session = Depends(get_db)) -> EnvironmentService:
+def get_environment_service(
+    database_session: Session = Depends(get_db),
+) -> EnvironmentService:
     """Dependency to get EnvironmentService instance."""
     environment_repository = EnvironmentRepository(database_session)
     return EnvironmentService(environment_repository)
@@ -59,7 +65,9 @@ def create_cluster(
     """Create a new cluster within an organization."""
     # Only org admins can create clusters
     if not isOrgAdmin(ctx):
-        raise HTTPException(status_code=403, detail="Only organization admins can create clusters")
+        raise HTTPException(
+            status_code=403, detail="Only organization admins can create clusters"
+        )
 
     try:
         return service.create_cluster(cluster)
@@ -80,7 +88,9 @@ def update_cluster(
     """Update an existing cluster."""
     # Only org admins can update clusters
     if not isOrgAdmin(ctx):
-        raise HTTPException(status_code=403, detail="Only organization admins can update clusters")
+        raise HTTPException(
+            status_code=403, detail="Only organization admins can update clusters"
+        )
 
     try:
         return service.update_cluster(uuid, cluster)
@@ -102,9 +112,13 @@ def list_clusters(
 ):
     """List all clusters for an organization."""
     if not isOrgMember(ctx):
-        raise HTTPException(status_code=403, detail="Only organization admins can list clusters")
+        raise HTTPException(
+            status_code=403, detail="Only organization admins can list clusters"
+        )
 
-    return service.get_clusters(skip=skip, limit=limit, organization_id=ctx.organization.id)
+    return service.get_clusters(
+        skip=skip, limit=limit, organization_id=ctx.organization.id
+    )
 
 
 @router.get("/{uuid}", response_model=ClusterCompletedResponse)
@@ -142,17 +156,18 @@ def list_clusters_by_environment(
 
     # Check if user can view environment
     can_view_env = canViewEnvironment(ctx, environment_id)
-    
+
     # Check if user can view any application with instances in this environment
     can_view_app = False
     if not isOrgMember(ctx) and not can_view_env:
         from app.instances.infra.instance_model import Instance as InstanceModel
+
         instances_in_env = (
             db.query(InstanceModel)
             .filter(InstanceModel.environment_id == environment_id)
             .all()
         )
-        
+
         for instance in instances_in_env:
             if canViewApplication(ctx, instance.application_id):
                 can_view_app = True
@@ -182,7 +197,9 @@ def delete_cluster(
     """Delete a cluster."""
     # Only org admins can delete clusters
     if not isOrgAdmin(ctx):
-        raise HTTPException(status_code=403, detail="Only organization admins can delete clusters")
+        raise HTTPException(
+            status_code=403, detail="Only organization admins can delete clusters"
+        )
 
     try:
         return service.delete_cluster(uuid)

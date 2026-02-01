@@ -11,7 +11,9 @@ class SettingsRepository:
     def __init__(self, database_session: Session):
         self.db = database_session
 
-    def find_by_uuid(self, uuid: UUID, organization_id: int | None = None) -> Optional[SettingsModel]:
+    def find_by_uuid(
+        self, uuid: UUID, organization_id: int | None = None
+    ) -> Optional[SettingsModel]:
         """Find settings by UUID, optionally filtered by organization_id."""
         query = self.db.query(SettingsModel).filter(SettingsModel.uuid == uuid)
         if organization_id is not None:
@@ -22,11 +24,8 @@ class SettingsRepository:
         self, key: str, environment_id: int, organization_id: int | None = None
     ) -> Optional[SettingsModel]:
         """Find settings by key and environment ID, optionally filtered by organization_id."""
-        query = (
-            self.db.query(SettingsModel)
-            .filter(
-                SettingsModel.key == key, SettingsModel.environment_id == environment_id
-            )
+        query = self.db.query(SettingsModel).filter(
+            SettingsModel.key == key, SettingsModel.environment_id == environment_id
         )
         if organization_id is not None:
             query = query.filter(SettingsModel.organization_id == organization_id)
@@ -40,7 +39,7 @@ class SettingsRepository:
         if organization_id is not None:
             query = query.filter(SettingsModel.organization_id == organization_id)
         return query.offset(skip).limit(limit).all()
-    
+
     def find_by_organization_id(
         self, organization_id: int, skip: int = 0, limit: int = 100
     ) -> List[SettingsModel]:

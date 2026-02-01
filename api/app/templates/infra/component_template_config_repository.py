@@ -36,7 +36,11 @@ class ComponentTemplateConfigRepository:
         )
 
     def find_all(
-        self, component_type: Optional[str] = None, skip: int = 0, limit: int = 100, organization_id: int | None = None
+        self,
+        component_type: Optional[str] = None,
+        skip: int = 0,
+        limit: int = 100,
+        organization_id: int | None = None,
     ) -> List[ComponentTemplateConfigModel]:
         """Find all component template configs, optionally filtered by component type and organization_id."""
         query = (
@@ -45,7 +49,9 @@ class ComponentTemplateConfigRepository:
             .order_by(ComponentTemplateConfigModel.render_order)
         )
         if organization_id is not None:
-            query = query.filter(ComponentTemplateConfigModel.organization_id == organization_id)
+            query = query.filter(
+                ComponentTemplateConfigModel.organization_id == organization_id
+            )
         if component_type:
             query = query.filter(
                 ComponentTemplateConfigModel.component_type == component_type
@@ -65,7 +71,9 @@ class ComponentTemplateConfigRepository:
             )
         )
         if organization_id is not None:
-            query = query.filter(ComponentTemplateConfigModel.organization_id == organization_id)
+            query = query.filter(
+                ComponentTemplateConfigModel.organization_id == organization_id
+            )
         configs = query.order_by(ComponentTemplateConfigModel.render_order).all()
         return [config.template for config in configs]
 

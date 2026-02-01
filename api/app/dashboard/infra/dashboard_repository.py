@@ -39,50 +39,73 @@ class DashboardRepository:
         query = self.db.query(func.count(ApplicationComponentModel.id))
         if organization_id is not None:
             query = (
-                query.join(InstanceModel, ApplicationComponentModel.instance_id == InstanceModel.id)
-                .join(ApplicationModel, InstanceModel.application_id == ApplicationModel.id)
+                query.join(
+                    InstanceModel,
+                    ApplicationComponentModel.instance_id == InstanceModel.id,
+                )
+                .join(
+                    ApplicationModel,
+                    InstanceModel.application_id == ApplicationModel.id,
+                )
                 .filter(ApplicationModel.organization_id == organization_id)
             )
         return query.scalar() or 0
 
-    def count_components_by_type(self, component_type: str, organization_id: int | None = None) -> int:
+    def count_components_by_type(
+        self, component_type: str, organization_id: int | None = None
+    ) -> int:
         """Count components by type. Optionally filter by organization_id."""
-        query = (
-            self.db.query(func.count(ApplicationComponentModel.id))
-            .filter(ApplicationComponentModel.type == component_type)
+        query = self.db.query(func.count(ApplicationComponentModel.id)).filter(
+            ApplicationComponentModel.type == component_type
         )
         if organization_id is not None:
             query = (
-                query.join(InstanceModel, ApplicationComponentModel.instance_id == InstanceModel.id)
-                .join(ApplicationModel, InstanceModel.application_id == ApplicationModel.id)
+                query.join(
+                    InstanceModel,
+                    ApplicationComponentModel.instance_id == InstanceModel.id,
+                )
+                .join(
+                    ApplicationModel,
+                    InstanceModel.application_id == ApplicationModel.id,
+                )
                 .filter(ApplicationModel.organization_id == organization_id)
             )
         return query.scalar() or 0
 
     def count_enabled_components(self, organization_id: int | None = None) -> int:
         """Count enabled components. Optionally filter by organization_id."""
-        query = (
-            self.db.query(func.count(ApplicationComponentModel.id))
-            .filter(ApplicationComponentModel.enabled.is_(True))
+        query = self.db.query(func.count(ApplicationComponentModel.id)).filter(
+            ApplicationComponentModel.enabled.is_(True)
         )
         if organization_id is not None:
             query = (
-                query.join(InstanceModel, ApplicationComponentModel.instance_id == InstanceModel.id)
-                .join(ApplicationModel, InstanceModel.application_id == ApplicationModel.id)
+                query.join(
+                    InstanceModel,
+                    ApplicationComponentModel.instance_id == InstanceModel.id,
+                )
+                .join(
+                    ApplicationModel,
+                    InstanceModel.application_id == ApplicationModel.id,
+                )
                 .filter(ApplicationModel.organization_id == organization_id)
             )
         return query.scalar() or 0
 
     def count_disabled_components(self, organization_id: int | None = None) -> int:
         """Count disabled components. Optionally filter by organization_id."""
-        query = (
-            self.db.query(func.count(ApplicationComponentModel.id))
-            .filter(ApplicationComponentModel.enabled.is_(False))
+        query = self.db.query(func.count(ApplicationComponentModel.id)).filter(
+            ApplicationComponentModel.enabled.is_(False)
         )
         if organization_id is not None:
             query = (
-                query.join(InstanceModel, ApplicationComponentModel.instance_id == InstanceModel.id)
-                .join(ApplicationModel, InstanceModel.application_id == ApplicationModel.id)
+                query.join(
+                    InstanceModel,
+                    ApplicationComponentModel.instance_id == InstanceModel.id,
+                )
+                .join(
+                    ApplicationModel,
+                    InstanceModel.application_id == ApplicationModel.id,
+                )
                 .filter(ApplicationModel.organization_id == organization_id)
             )
         return query.scalar() or 0
@@ -91,10 +114,9 @@ class DashboardRepository:
         """Count total clusters. Optionally filter by organization_id through environment."""
         query = self.db.query(func.count(ClusterModel.id))
         if organization_id is not None:
-            query = (
-                query.join(EnvironmentModel, ClusterModel.environment_id == EnvironmentModel.id)
-                .filter(EnvironmentModel.organization_id == organization_id)
-            )
+            query = query.join(
+                EnvironmentModel, ClusterModel.environment_id == EnvironmentModel.id
+            ).filter(EnvironmentModel.organization_id == organization_id)
         return query.scalar() or 0
 
     def count_environments(self, organization_id: int | None = None) -> int:
@@ -134,10 +156,9 @@ class DashboardRepository:
             )
         )
         if organization_id is not None:
-            query = (
-                query.join(EnvironmentModel, ClusterModel.environment_id == EnvironmentModel.id)
-                .filter(EnvironmentModel.organization_id == organization_id)
-            )
+            query = query.join(
+                EnvironmentModel, ClusterModel.environment_id == EnvironmentModel.id
+            ).filter(EnvironmentModel.organization_id == organization_id)
         return query.group_by(ClusterModel.name).all()
 
     def find_all_applications_by_organization(self, organization_id: int) -> list:
@@ -155,7 +176,8 @@ class DashboardRepository:
         return (
             self.db.query(func.count(InstanceModel.id))
             .filter(InstanceModel.application_id.in_(application_ids))
-            .scalar() or 0
+            .scalar()
+            or 0
         )
 
     def count_components_by_application_ids(self, application_ids: list[int]) -> int:
@@ -164,9 +186,12 @@ class DashboardRepository:
             return 0
         return (
             self.db.query(func.count(ApplicationComponentModel.id))
-            .join(InstanceModel, ApplicationComponentModel.instance_id == InstanceModel.id)
+            .join(
+                InstanceModel, ApplicationComponentModel.instance_id == InstanceModel.id
+            )
             .filter(InstanceModel.application_id.in_(application_ids))
-            .scalar() or 0
+            .scalar()
+            or 0
         )
 
     def count_components_by_type_and_application_ids(
@@ -177,43 +202,58 @@ class DashboardRepository:
             return 0
         return (
             self.db.query(func.count(ApplicationComponentModel.id))
-            .join(InstanceModel, ApplicationComponentModel.instance_id == InstanceModel.id)
+            .join(
+                InstanceModel, ApplicationComponentModel.instance_id == InstanceModel.id
+            )
             .filter(
                 ApplicationComponentModel.type == component_type,
-                InstanceModel.application_id.in_(application_ids)
+                InstanceModel.application_id.in_(application_ids),
             )
-            .scalar() or 0
+            .scalar()
+            or 0
         )
 
-    def count_enabled_components_by_application_ids(self, application_ids: list[int]) -> int:
+    def count_enabled_components_by_application_ids(
+        self, application_ids: list[int]
+    ) -> int:
         """Count enabled components for specific application IDs."""
         if not application_ids:
             return 0
         return (
             self.db.query(func.count(ApplicationComponentModel.id))
-            .join(InstanceModel, ApplicationComponentModel.instance_id == InstanceModel.id)
+            .join(
+                InstanceModel, ApplicationComponentModel.instance_id == InstanceModel.id
+            )
             .filter(
                 ApplicationComponentModel.enabled.is_(True),
-                InstanceModel.application_id.in_(application_ids)
+                InstanceModel.application_id.in_(application_ids),
             )
-            .scalar() or 0
+            .scalar()
+            or 0
         )
 
-    def count_disabled_components_by_application_ids(self, application_ids: list[int]) -> int:
+    def count_disabled_components_by_application_ids(
+        self, application_ids: list[int]
+    ) -> int:
         """Count disabled components for specific application IDs."""
         if not application_ids:
             return 0
         return (
             self.db.query(func.count(ApplicationComponentModel.id))
-            .join(InstanceModel, ApplicationComponentModel.instance_id == InstanceModel.id)
+            .join(
+                InstanceModel, ApplicationComponentModel.instance_id == InstanceModel.id
+            )
             .filter(
                 ApplicationComponentModel.enabled.is_(False),
-                InstanceModel.application_id.in_(application_ids)
+                InstanceModel.application_id.in_(application_ids),
             )
-            .scalar() or 0
+            .scalar()
+            or 0
         )
 
-    def get_environment_ids_by_application_ids(self, application_ids: list[int]) -> list[int]:
+    def get_environment_ids_by_application_ids(
+        self, application_ids: list[int]
+    ) -> list[int]:
         """Get distinct environment IDs for specific application IDs."""
         if not application_ids:
             return []
@@ -232,7 +272,8 @@ class DashboardRepository:
         return (
             self.db.query(func.count(ClusterModel.id))
             .filter(ClusterModel.environment_id.in_(environment_ids))
-            .scalar() or 0
+            .scalar()
+            or 0
         )
 
     def get_components_by_environment_for_application_ids(
@@ -242,12 +283,17 @@ class DashboardRepository:
         if not application_ids or not environment_ids:
             return []
         return (
-            self.db.query(EnvironmentModel.name, func.count(ApplicationComponentModel.id))
+            self.db.query(
+                EnvironmentModel.name, func.count(ApplicationComponentModel.id)
+            )
             .join(InstanceModel, InstanceModel.environment_id == EnvironmentModel.id)
-            .join(ApplicationComponentModel, ApplicationComponentModel.instance_id == InstanceModel.id)
+            .join(
+                ApplicationComponentModel,
+                ApplicationComponentModel.instance_id == InstanceModel.id,
+            )
             .filter(
                 InstanceModel.application_id.in_(application_ids),
-                EnvironmentModel.id.in_(environment_ids)
+                EnvironmentModel.id.in_(environment_ids),
             )
             .group_by(EnvironmentModel.name)
             .all()
@@ -261,12 +307,20 @@ class DashboardRepository:
             return []
         return (
             self.db.query(ClusterModel.name, func.count(ApplicationComponentModel.id))
-            .join(ClusterInstanceModel, ClusterInstanceModel.cluster_id == ClusterModel.id)
-            .join(ApplicationComponentModel, ApplicationComponentModel.id == ClusterInstanceModel.application_component_id)
-            .join(InstanceModel, ApplicationComponentModel.instance_id == InstanceModel.id)
+            .join(
+                ClusterInstanceModel, ClusterInstanceModel.cluster_id == ClusterModel.id
+            )
+            .join(
+                ApplicationComponentModel,
+                ApplicationComponentModel.id
+                == ClusterInstanceModel.application_component_id,
+            )
+            .join(
+                InstanceModel, ApplicationComponentModel.instance_id == InstanceModel.id
+            )
             .filter(
                 InstanceModel.application_id.in_(application_ids),
-                ClusterModel.environment_id.in_(environment_ids)
+                ClusterModel.environment_id.in_(environment_ids),
             )
             .group_by(ClusterModel.name)
             .all()
@@ -282,9 +336,10 @@ class DashboardRepository:
             self.db.query(func.count(InstanceModel.id))
             .filter(
                 InstanceModel.application_id.in_(application_ids),
-                InstanceModel.environment_id.in_(environment_ids)
+                InstanceModel.environment_id.in_(environment_ids),
             )
-            .scalar() or 0
+            .scalar()
+            or 0
         )
 
     def count_components_by_application_ids_and_environment_ids(
@@ -295,29 +350,38 @@ class DashboardRepository:
             return 0
         return (
             self.db.query(func.count(ApplicationComponentModel.id))
-            .join(InstanceModel, ApplicationComponentModel.instance_id == InstanceModel.id)
+            .join(
+                InstanceModel, ApplicationComponentModel.instance_id == InstanceModel.id
+            )
             .filter(
                 InstanceModel.application_id.in_(application_ids),
-                InstanceModel.environment_id.in_(environment_ids)
+                InstanceModel.environment_id.in_(environment_ids),
             )
-            .scalar() or 0
+            .scalar()
+            or 0
         )
 
     def count_components_by_type_and_application_ids_and_environment_ids(
-        self, component_type: str, application_ids: list[int], environment_ids: list[int]
+        self,
+        component_type: str,
+        application_ids: list[int],
+        environment_ids: list[int],
     ) -> int:
         """Count components by type for specific application IDs and environment IDs."""
         if not application_ids or not environment_ids:
             return 0
         return (
             self.db.query(func.count(ApplicationComponentModel.id))
-            .join(InstanceModel, ApplicationComponentModel.instance_id == InstanceModel.id)
+            .join(
+                InstanceModel, ApplicationComponentModel.instance_id == InstanceModel.id
+            )
             .filter(
                 ApplicationComponentModel.type == component_type,
                 InstanceModel.application_id.in_(application_ids),
-                InstanceModel.environment_id.in_(environment_ids)
+                InstanceModel.environment_id.in_(environment_ids),
             )
-            .scalar() or 0
+            .scalar()
+            or 0
         )
 
     def count_enabled_components_by_application_ids_and_environment_ids(
@@ -328,13 +392,16 @@ class DashboardRepository:
             return 0
         return (
             self.db.query(func.count(ApplicationComponentModel.id))
-            .join(InstanceModel, ApplicationComponentModel.instance_id == InstanceModel.id)
+            .join(
+                InstanceModel, ApplicationComponentModel.instance_id == InstanceModel.id
+            )
             .filter(
                 ApplicationComponentModel.enabled.is_(True),
                 InstanceModel.application_id.in_(application_ids),
-                InstanceModel.environment_id.in_(environment_ids)
+                InstanceModel.environment_id.in_(environment_ids),
             )
-            .scalar() or 0
+            .scalar()
+            or 0
         )
 
     def count_disabled_components_by_application_ids_and_environment_ids(
@@ -345,11 +412,14 @@ class DashboardRepository:
             return 0
         return (
             self.db.query(func.count(ApplicationComponentModel.id))
-            .join(InstanceModel, ApplicationComponentModel.instance_id == InstanceModel.id)
+            .join(
+                InstanceModel, ApplicationComponentModel.instance_id == InstanceModel.id
+            )
             .filter(
                 ApplicationComponentModel.enabled.is_(False),
                 InstanceModel.application_id.in_(application_ids),
-                InstanceModel.environment_id.in_(environment_ids)
+                InstanceModel.environment_id.in_(environment_ids),
             )
-            .scalar() or 0
+            .scalar()
+            or 0
         )

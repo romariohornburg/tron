@@ -13,6 +13,7 @@ class OrganizationBase(BaseModel):
 
 class OrganizationCreate(OrganizationBase):
     """Create organization. Optional owner_user_id; if omitted, the authenticated user becomes the owner."""
+
     owner_user_id: UUID | None = None
 
 
@@ -40,9 +41,13 @@ class Organization(OrganizationBase):
             result = {
                 "uuid": data.uuid,
                 "name": data.name,
-                "created_at": data.created_at.isoformat() if isinstance(data.created_at, datetime) else data.created_at,
+                "created_at": data.created_at.isoformat()
+                if isinstance(data.created_at, datetime)
+                else data.created_at,
                 "owner_user_id": data.owner.uuid if data.owner else None,
-                "owner_email": getattr(data.owner, "email", None) if data.owner else None,
+                "owner_email": getattr(data.owner, "email", None)
+                if data.owner
+                else None,
             }
             # Include members if loaded - Pydantic will serialize them using OrganizationMember DTO
             if hasattr(data, "members") and data.members is not None:
@@ -51,7 +56,9 @@ class Organization(OrganizationBase):
                 result["members"] = []
             # Include environments if loaded - Pydantic will serialize them using Environment DTO
             if hasattr(data, "environments") and data.environments is not None:
-                result["environments"] = list(data.environments) if data.environments else []
+                result["environments"] = (
+                    list(data.environments) if data.environments else []
+                )
             else:
                 result["environments"] = []
             # Include groups if loaded - Pydantic will serialize them using Group DTO

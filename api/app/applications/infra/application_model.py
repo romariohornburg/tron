@@ -1,4 +1,12 @@
-from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey, UniqueConstraint
+from sqlalchemy import (
+    Column,
+    Integer,
+    String,
+    Boolean,
+    DateTime,
+    ForeignKey,
+    UniqueConstraint,
+)
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
 from sqlalchemy.dialects.postgresql import UUID
@@ -31,4 +39,6 @@ class Application(Base):
     instances = relationship("Instance", back_populates="application")
     groups = relationship("Group", back_populates="application")
 
-    __table_args__ = (UniqueConstraint("organization_id", "name", name="uix_application_org_name"),)
+    __table_args__ = (
+        UniqueConstraint("organization_id", "name", name="uix_application_org_name"),
+    )

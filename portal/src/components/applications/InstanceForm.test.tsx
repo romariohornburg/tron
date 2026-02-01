@@ -2,6 +2,8 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { InstanceForm } from './InstanceForm'
+import { OrganizationProvider } from '../../contexts/OrganizationContext'
+import { AuthProvider } from '../../contexts/AuthContext'
 import * as api from '../../services/api'
 import * as organizationsApi from '../../features/organizations/api'
 
@@ -9,6 +11,20 @@ import * as organizationsApi from '../../features/organizations/api'
 vi.mock('../../services/api', () => ({
   environmentsApi: {
     list: vi.fn(),
+  },
+  authApi: {
+    getMe: vi.fn(() => Promise.resolve({
+      uuid: 'user-1',
+      email: 'test@example.com',
+      full_name: 'Test User',
+      role: 'admin',
+      organizations: [
+        { uuid: 'org-1', name: 'Default Organization' },
+      ],
+    })),
+    login: vi.fn(),
+    register: vi.fn(),
+    refresh: vi.fn(),
   },
 }))
 
@@ -27,7 +43,11 @@ const createWrapper = () => {
   })
 
   return ({ children }: { children: React.ReactNode }) => (
-    <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+    <QueryClientProvider client={queryClient}>
+      <AuthProvider>
+        <OrganizationProvider>{children}</OrganizationProvider>
+      </AuthProvider>
+    </QueryClientProvider>
   )
 }
 
@@ -48,8 +68,16 @@ describe('InstanceForm', () => {
   }
 
   beforeEach(() => {
+    // Set up localStorage for auth
+    localStorage.setItem('access_token', 'test-token')
+    sessionStorage.setItem('selected_organization_uuid', 'org-1')
     vi.mocked(organizationsApi.organizationsApi.list).mockResolvedValue(mockOrganizations)
     vi.mocked(api.environmentsApi.list).mockResolvedValue(mockEnvironments)
+  })
+
+  afterEach(() => {
+    localStorage.clear()
+    sessionStorage.clear()
   })
 
   it('renders form fields', async () => {

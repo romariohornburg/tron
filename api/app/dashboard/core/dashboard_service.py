@@ -38,7 +38,9 @@ class DashboardService:
         if viewable_application_ids is not None:
             if not isinstance(viewable_application_ids, list):
                 raise ValueError("viewable_application_ids must be a list")
-            if any(not isinstance(id, int) or id <= 0 for id in viewable_application_ids):
+            if any(
+                not isinstance(id, int) or id <= 0 for id in viewable_application_ids
+            ):
                 raise ValueError(
                     "viewable_application_ids must contain positive integers"
                 )
@@ -110,13 +112,9 @@ class DashboardService:
         worker_count = self.repository.count_components_by_type(
             "worker", organization_id
         )
-        cron_count = self.repository.count_components_by_type(
-            "cron", organization_id
-        )
+        cron_count = self.repository.count_components_by_type("cron", organization_id)
         enabled_components = self.repository.count_enabled_components(organization_id)
-        disabled_components = self.repository.count_disabled_components(
-            organization_id
-        )
+        disabled_components = self.repository.count_disabled_components(organization_id)
         clusters_count = self.repository.count_clusters(organization_id)
         environments_count = self.repository.count_environments(organization_id)
 
@@ -180,8 +178,10 @@ class DashboardService:
     ) -> int:
         """Count instances for given application and environment IDs."""
         if environment_ids is not None:
-            return self.repository.count_instances_by_application_ids_and_environment_ids(
-                application_ids, environment_ids
+            return (
+                self.repository.count_instances_by_application_ids_and_environment_ids(
+                    application_ids, environment_ids
+                )
             )
         return self.repository.count_instances_by_application_ids(application_ids)
 
@@ -190,33 +190,25 @@ class DashboardService:
     ) -> ComponentStats:
         """Get component statistics for given application and environment IDs."""
         if environment_ids is not None:
-            total = self.repository.count_components_by_application_ids_and_environment_ids(
+            total = (
+                self.repository.count_components_by_application_ids_and_environment_ids(
+                    application_ids, environment_ids
+                )
+            )
+            webapp = self.repository.count_components_by_type_and_application_ids_and_environment_ids(
+                "webapp", application_ids, environment_ids
+            )
+            worker = self.repository.count_components_by_type_and_application_ids_and_environment_ids(
+                "worker", application_ids, environment_ids
+            )
+            cron = self.repository.count_components_by_type_and_application_ids_and_environment_ids(
+                "cron", application_ids, environment_ids
+            )
+            enabled = self.repository.count_enabled_components_by_application_ids_and_environment_ids(
                 application_ids, environment_ids
             )
-            webapp = (
-                self.repository.count_components_by_type_and_application_ids_and_environment_ids(
-                    "webapp", application_ids, environment_ids
-                )
-            )
-            worker = (
-                self.repository.count_components_by_type_and_application_ids_and_environment_ids(
-                    "worker", application_ids, environment_ids
-                )
-            )
-            cron = (
-                self.repository.count_components_by_type_and_application_ids_and_environment_ids(
-                    "cron", application_ids, environment_ids
-                )
-            )
-            enabled = (
-                self.repository.count_enabled_components_by_application_ids_and_environment_ids(
-                    application_ids, environment_ids
-                )
-            )
-            disabled = (
-                self.repository.count_disabled_components_by_application_ids_and_environment_ids(
-                    application_ids, environment_ids
-                )
+            disabled = self.repository.count_disabled_components_by_application_ids_and_environment_ids(
+                application_ids, environment_ids
             )
         else:
             total = self.repository.count_components_by_application_ids(application_ids)

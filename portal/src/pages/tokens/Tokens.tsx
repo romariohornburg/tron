@@ -110,7 +110,6 @@ function Tokens() {
     setFormData({
       name: token.name,
       expires_at: token.expires_at || null,
-      user_uuid: token.user_uuid || null,
     })
     setIsOpen(true)
   }

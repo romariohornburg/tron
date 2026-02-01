@@ -29,11 +29,13 @@ class SettingsService:
         validate_environment_exists(self.repository, dto.environment_uuid)
 
         environment = self.repository.find_environment_by_uuid(dto.environment_uuid)
-        
+
         # Verify environment belongs to organization
         if environment.organization_id != organization_id:
-            raise ValueError("Environment does not belong to the specified organization")
-        
+            raise ValueError(
+                "Environment does not belong to the specified organization"
+            )
+
         validate_settings_key_uniqueness(
             self.repository, dto.key, environment.id, organization_id=organization_id
         )
@@ -50,7 +52,9 @@ class SettingsService:
 
         settings = self.repository.find_by_uuid(uuid, organization_id=organization_id)
         if not settings:
-            raise ValueError("Settings not found or does not belong to the organization")
+            raise ValueError(
+                "Settings not found or does not belong to the organization"
+            )
 
         if dto.key is not None:
             validate_settings_key_uniqueness(
@@ -70,15 +74,15 @@ class SettingsService:
 
         return self.repository.update(settings)
 
-    def get_settings(
-        self, uuid: UUID, organization_id: int
-    ) -> SettingsWithEnvironment:
+    def get_settings(self, uuid: UUID, organization_id: int) -> SettingsWithEnvironment:
         """Get settings by UUID with environment."""
         validate_settings_exists(self.repository, uuid, organization_id=organization_id)
 
         settings = self.repository.find_by_uuid(uuid, organization_id=organization_id)
         if not settings:
-            raise ValueError("Settings not found or does not belong to the organization")
+            raise ValueError(
+                "Settings not found or does not belong to the organization"
+            )
         return self._serialize_settings_with_environment(settings)
 
     def get_settings_list(
@@ -96,7 +100,9 @@ class SettingsService:
 
         settings = self.repository.find_by_uuid(uuid, organization_id=organization_id)
         if not settings:
-            raise ValueError("Settings not found or does not belong to the organization")
+            raise ValueError(
+                "Settings not found or does not belong to the organization"
+            )
         self.repository.delete(settings)
 
         return {"detail": "Settings deleted successfully"}

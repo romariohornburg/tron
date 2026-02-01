@@ -14,7 +14,9 @@ from app.environments.api.environment_dto import (
 from app.environments.core.environment_validators import (
     EnvironmentHasComponentsError,
 )
-from app.organizations.api.dependencies.organization_context import getOrganizationContext
+from app.organizations.api.dependencies.organization_context import (
+    getOrganizationContext,
+)
 from app.organizations.core.authorization import (
     OrganizationAccessContext,
     canViewEnvironment,
@@ -24,7 +26,9 @@ from app.organizations.core.authorization import (
 )
 
 
-router = APIRouter(prefix="/organizations/{organization_uuid}/environments", tags=["environments"])
+router = APIRouter(
+    prefix="/organizations/{organization_uuid}/environments", tags=["environments"]
+)
 
 
 def get_environment_service(
@@ -45,7 +49,9 @@ def create_environment(
     """Create a new environment within an organization."""
     # Only org admins can create environments
     if not isOrgAdmin(ctx):
-        raise HTTPException(status_code=403, detail="Only organization admins can create environments")
+        raise HTTPException(
+            status_code=403, detail="Only organization admins can create environments"
+        )
 
     try:
         return service.create_environment(environment, ctx.organization.id)
@@ -53,7 +59,8 @@ def create_environment(
         # Handle unique constraint violations (e.g., duplicate name)
         service.repository.rollback()
         raise HTTPException(
-            status_code=400, detail="Environment with this name already exists in this organization"
+            status_code=400,
+            detail="Environment with this name already exists in this organization",
         )
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -71,7 +78,9 @@ def update_environment(
     """Update an existing environment within an organization."""
     # Verify user has permission to manage this environment (helper also verifies it belongs to org)
     if not (isOrgAdmin(ctx) or canManageEnvironmentByUuid(ctx, uuid, db)):
-        raise HTTPException(status_code=403, detail="Not allowed to update this environment")
+        raise HTTPException(
+            status_code=403, detail="Not allowed to update this environment"
+        )
 
     try:
         return service.update_environment(uuid, environment, ctx.organization.id)
@@ -83,7 +92,8 @@ def update_environment(
         # Handle unique constraint violations (e.g., duplicate name)
         service.repository.rollback()
         raise HTTPException(
-            status_code=400, detail="Environment with this name already exists in this organization"
+            status_code=400,
+            detail="Environment with this name already exists in this organization",
         )
 
 
@@ -97,7 +107,9 @@ def list_environments(
 ):
     """List all environments within an organization."""
     if not isOrgMember(ctx):
-        raise HTTPException(status_code=403, detail="Only organization admins can list environments")
+        raise HTTPException(
+            status_code=403, detail="Only organization admins can list environments"
+        )
 
     return service.get_environments(ctx.organization.id, skip=skip, limit=limit)
 
@@ -113,17 +125,24 @@ def get_environment(
     """Get environment by UUID within an organization."""
     # First check if environment exists and belongs to organization
     from app.environments.infra.environment_model import Environment as EnvironmentModel
-    environment_model = db.query(EnvironmentModel).filter(
-        EnvironmentModel.uuid == uuid,
-        EnvironmentModel.organization_id == ctx.organization.id
-    ).first()
+
+    environment_model = (
+        db.query(EnvironmentModel)
+        .filter(
+            EnvironmentModel.uuid == uuid,
+            EnvironmentModel.organization_id == ctx.organization.id,
+        )
+        .first()
+    )
 
     if not environment_model:
         raise HTTPException(status_code=404, detail="Environment not found")
 
     # Then verify user has permission to view this environment
     if not canViewEnvironment(ctx, environment_model.id):
-        raise HTTPException(status_code=403, detail="Not allowed to view this environment")
+        raise HTTPException(
+            status_code=403, detail="Not allowed to view this environment"
+        )
 
     try:
         environment = service.get_environment(uuid, ctx.organization.id)
@@ -145,7 +164,9 @@ def delete_environment(
     """Delete an environment within an organization."""
     # Verify user has permission to manage this environment (helper also verifies it belongs to org)
     if not (isOrgAdmin(ctx) or canManageEnvironmentByUuid(ctx, uuid, db)):
-        raise HTTPException(status_code=403, detail="Not allowed to delete this environment")
+        raise HTTPException(
+            status_code=403, detail="Not allowed to delete this environment"
+        )
 
     try:
         return service.delete_environment(uuid, ctx.organization.id)

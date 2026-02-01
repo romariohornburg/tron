@@ -277,7 +277,9 @@ class WebappService:
         self, organization_id: int, skip: int = 0, limit: int = 100
     ) -> List[Webapp]:
         """Get all webapps for applications in a specific organization."""
-        webapps = self.repository.find_by_organization_id(organization_id, skip=skip, limit=limit)
+        webapps = self.repository.find_by_organization_id(
+            organization_id, skip=skip, limit=limit
+        )
         return [self._serialize_webapp(w) for w in webapps]
 
     def get_webapps_by_environment(

@@ -141,7 +141,7 @@ async def list_user_tokens(
     if current_user.uuid != user_uuid and current_user.role != UserRole.ADMIN:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="You can only access your own tokens"
+            detail="You can only access your own tokens",
         )
 
     # Verify user exists
@@ -154,7 +154,9 @@ async def list_user_tokens(
     user_repository = UserRepository(token_service.db)
     user = user_repository.find_by_uuid(user_uuid)
     if not user:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="User not found"
+        )
 
     # List tokens filtered by user
     tokens = token_service.list_tokens(skip=skip, limit=limit, search=search)
@@ -175,7 +177,7 @@ async def get_user_token(
     if current_user.uuid != user_uuid and current_user.role != UserRole.ADMIN:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="You can only access your own tokens"
+            detail="You can only access your own tokens",
         )
 
     # Verify user exists
@@ -190,14 +192,18 @@ async def get_user_token(
         user_repository = UserRepository(token_service.db)
         user = user_repository.find_by_uuid(user_uuid)
         if not user or token.user_id != user.id:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Token not found")
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Token not found"
+            )
         return token
     except TokenNotFoundError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
 
 
 @router.post(
-    "/{user_uuid}/tokens", response_model=TokenCreateResponse, status_code=status.HTTP_201_CREATED
+    "/{user_uuid}/tokens",
+    response_model=TokenCreateResponse,
+    status_code=status.HTTP_201_CREATED,
 )
 async def create_user_token(
     user_uuid: UUID,
@@ -220,7 +226,9 @@ async def create_user_token(
     user_repository = UserRepository(token_service.db)
     user = user_repository.find_by_uuid(target_user_uuid)
     if not user:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="User not found"
+        )
 
     return token_service.create_token(token_data, user.id)
 
@@ -239,7 +247,7 @@ async def update_user_token(
     if current_user.uuid != user_uuid and current_user.role != UserRole.ADMIN:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="You can only update your own tokens"
+            detail="You can only update your own tokens",
         )
 
     # Verify user exists
@@ -254,14 +262,18 @@ async def update_user_token(
         user_repository = UserRepository(token_service.db)
         user = user_repository.find_by_uuid(user_uuid)
         if not user or token.user_id != user.id:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Token not found")
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Token not found"
+            )
 
         return token_service.update_token(token_uuid, token_data)
     except TokenNotFoundError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
 
 
-@router.delete("/{user_uuid}/tokens/{token_uuid}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete(
+    "/{user_uuid}/tokens/{token_uuid}", status_code=status.HTTP_204_NO_CONTENT
+)
 async def delete_user_token(
     user_uuid: UUID,
     token_uuid: str,
@@ -274,7 +286,7 @@ async def delete_user_token(
     if current_user.uuid != user_uuid and current_user.role != UserRole.ADMIN:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="You can only delete your own tokens"
+            detail="You can only delete your own tokens",
         )
 
     # Verify user exists
@@ -289,7 +301,9 @@ async def delete_user_token(
         user_repository = UserRepository(token_service.db)
         user = user_repository.find_by_uuid(user_uuid)
         if not user or token.user_id != user.id:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Token not found")
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Token not found"
+            )
 
         token_service.delete_token(token_uuid)
     except TokenNotFoundError as e:

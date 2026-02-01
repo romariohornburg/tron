@@ -31,7 +31,9 @@ from app.webapps.core.webapp_pods_service import (
     get_webapp_pod_logs_from_cluster,
     exec_webapp_pod_command_from_cluster,
 )
-from app.organizations.api.dependencies.organization_context import getOrganizationContext
+from app.organizations.api.dependencies.organization_context import (
+    getOrganizationContext,
+)
 from app.organizations.core.authorization import (
     OrganizationAccessContext,
     canViewApplication,
@@ -47,7 +49,10 @@ from app.users.infra.user_model import User
 from app.shared.dependencies.auth import get_current_user
 
 
-router = APIRouter(prefix="/organizations/{organization_uuid}/application_components/webapp", tags=["webapp"])
+router = APIRouter(
+    prefix="/organizations/{organization_uuid}/application_components/webapp",
+    tags=["webapp"],
+)
 
 
 def get_webapp_service(database_session: Session = Depends(get_db)) -> WebappService:
@@ -56,7 +61,9 @@ def get_webapp_service(database_session: Session = Depends(get_db)) -> WebappSer
     return WebappService(webapp_repository, database_session)
 
 
-def get_environment_service(database_session: Session = Depends(get_db)) -> EnvironmentService:
+def get_environment_service(
+    database_session: Session = Depends(get_db),
+) -> EnvironmentService:
     """Dependency to get EnvironmentService instance."""
     environment_repository = EnvironmentRepository(database_session)
     return EnvironmentService(environment_repository)
@@ -72,15 +79,20 @@ def create_webapp(
     """Create a new webapp."""
     # Validate instance belongs to organization
     from app.instances.infra.instance_repository import InstanceRepository
+
     instance_repo = InstanceRepository(service.db)
     instance = instance_repo.find_by_uuid(webapp.instance_uuid)
     if not instance:
         raise HTTPException(status_code=404, detail="Instance not found")
     if instance.application.organization_id != ctx.organization.id:
-        raise HTTPException(status_code=403, detail="Instance does not belong to this organization")
+        raise HTTPException(
+            status_code=403, detail="Instance does not belong to this organization"
+        )
 
     if not canManageApplication(ctx, instance.application_id):
-        raise HTTPException(status_code=403, detail="Insufficient permissions to manage applications")
+        raise HTTPException(
+            status_code=403, detail="Insufficient permissions to manage applications"
+        )
 
     try:
         return service.create_webapp(webapp)
@@ -145,9 +157,9 @@ def get_webapp(
         if webapp_model.instance and webapp_model.instance.application:
             if webapp_model.instance.application.organization_id != ctx.organization.id:
                 raise HTTPException(status_code=404, detail="Webapp not found")
-            if not canViewApplication(ctx, webapp_model.instance.application_id) and not canViewEnvironment(
-                ctx, webapp_model.instance.environment_id
-            ):
+            if not canViewApplication(
+                ctx, webapp_model.instance.application_id
+            ) and not canViewEnvironment(ctx, webapp_model.instance.environment_id):
                 raise HTTPException(status_code=403, detail="Insufficient permissions")
 
         return service.get_webapp(uuid)
@@ -175,9 +187,11 @@ def update_webapp(
         if webapp_model.instance and webapp_model.instance.application:
             if webapp_model.instance.application.organization_id != ctx.organization.id:
                 raise HTTPException(status_code=404, detail="Webapp not found")
-            if not canManageApplication(ctx, webapp_model.instance.application_id) and not isEnvOperator(
-                ctx, webapp_model.instance.environment_id
-            ) and not isAppDeveloper(ctx, webapp_model.instance.application_id):
+            if (
+                not canManageApplication(ctx, webapp_model.instance.application_id)
+                and not isEnvOperator(ctx, webapp_model.instance.environment_id)
+                and not isAppDeveloper(ctx, webapp_model.instance.application_id)
+            ):
                 raise HTTPException(status_code=403, detail="Insufficient permissions")
 
         return service.update_webapp(uuid, webapp)
@@ -208,9 +222,11 @@ def delete_webapp(
         if webapp_model.instance and webapp_model.instance.application:
             if webapp_model.instance.application.organization_id != ctx.organization.id:
                 raise HTTPException(status_code=404, detail="Webapp not found")
-            if not canManageApplication(ctx, webapp_model.instance.application_id) and not isEnvMaintainer(
-                ctx, webapp_model.instance.environment_id
-            ) and not isAppMaintainer(ctx, webapp_model.instance.application_id):
+            if (
+                not canManageApplication(ctx, webapp_model.instance.application_id)
+                and not isEnvMaintainer(ctx, webapp_model.instance.environment_id)
+                and not isAppMaintainer(ctx, webapp_model.instance.application_id)
+            ):
                 raise HTTPException(status_code=403, detail="Insufficient permissions")
 
         return service.delete_webapp(uuid)
@@ -302,9 +318,9 @@ def get_webapp_pods(
     if webapp.instance and webapp.instance.application:
         if webapp.instance.application.organization_id != ctx.organization.id:
             raise HTTPException(status_code=404, detail="Webapp not found")
-        if not canViewApplication(ctx, webapp.instance.application_id) and not canViewEnvironment(
-            ctx, webapp.instance.environment_id
-        ):
+        if not canViewApplication(
+            ctx, webapp.instance.application_id
+        ) and not canViewEnvironment(ctx, webapp.instance.environment_id):
             raise HTTPException(status_code=403, detail="Insufficient permissions")
 
     cluster_instance = repository.find_cluster_instance_by_component_id(webapp.id)
@@ -348,9 +364,11 @@ def delete_webapp_pod(
     if webapp.instance and webapp.instance.application:
         if webapp.instance.application.organization_id != ctx.organization.id:
             raise HTTPException(status_code=404, detail="Webapp not found")
-        if not canManageApplication(ctx, webapp.instance.application_id) and not isEnvMaintainer(
-            ctx, webapp.instance.environment_id
-        ) and not isAppMaintainer(ctx, webapp.instance.application_id):
+        if (
+            not canManageApplication(ctx, webapp.instance.application_id)
+            and not isEnvMaintainer(ctx, webapp.instance.environment_id)
+            and not isAppMaintainer(ctx, webapp.instance.application_id)
+        ):
             raise HTTPException(status_code=403, detail="Insufficient permissions")
 
     cluster_instance = repository.find_cluster_instance_by_component_id(webapp.id)
@@ -397,9 +415,9 @@ def get_webapp_pod_logs(
     if webapp.instance and webapp.instance.application:
         if webapp.instance.application.organization_id != ctx.organization.id:
             raise HTTPException(status_code=404, detail="Webapp not found")
-        if not canViewApplication(ctx, webapp.instance.application_id) and not canViewEnvironment(
-            ctx, webapp.instance.environment_id
-        ):
+        if not canViewApplication(
+            ctx, webapp.instance.application_id
+        ) and not canViewEnvironment(ctx, webapp.instance.environment_id):
             raise HTTPException(status_code=403, detail="Insufficient permissions")
 
     cluster_instance = repository.find_cluster_instance_by_component_id(webapp.id)

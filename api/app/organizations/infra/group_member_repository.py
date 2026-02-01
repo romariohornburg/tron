@@ -3,7 +3,9 @@ from sqlalchemy import delete
 from uuid import UUID
 from typing import Optional, List
 from app.organizations.infra.group_member_model import GroupMember as GroupMemberModel
-from app.organizations.infra.organization_member_model import OrganizationMember as OrganizationMemberModel
+from app.organizations.infra.organization_member_model import (
+    OrganizationMember as OrganizationMemberModel,
+)
 
 
 class GroupMemberRepository:
@@ -18,7 +20,9 @@ class GroupMemberRepository:
             self.db.query(GroupMemberModel)
             .options(
                 joinedload(GroupMemberModel.group),
-                joinedload(GroupMemberModel.organization_member).joinedload(OrganizationMemberModel.user)
+                joinedload(GroupMemberModel.organization_member).joinedload(
+                    OrganizationMemberModel.user
+                ),
             )
             .filter(GroupMemberModel.uuid == uuid)
             .first()
@@ -30,7 +34,9 @@ class GroupMemberRepository:
             self.db.query(GroupMemberModel)
             .options(
                 joinedload(GroupMemberModel.group),
-                joinedload(GroupMemberModel.organization_member).joinedload(OrganizationMemberModel.user)
+                joinedload(GroupMemberModel.organization_member).joinedload(
+                    OrganizationMemberModel.user
+                ),
             )
             .filter(GroupMemberModel.group_id == group_id)
             .all()
@@ -44,12 +50,14 @@ class GroupMemberRepository:
             self.db.query(GroupMemberModel)
             .filter(
                 GroupMemberModel.group_id == group_id,
-                GroupMemberModel.organization_member_id == organization_member_id
+                GroupMemberModel.organization_member_id == organization_member_id,
             )
             .first()
         )
 
-    def find_by_organization_member_id(self, organization_member_id: int) -> List[GroupMemberModel]:
+    def find_by_organization_member_id(
+        self, organization_member_id: int
+    ) -> List[GroupMemberModel]:
         """Find all group members for an organization member."""
         return (
             self.db.query(GroupMemberModel)

@@ -22,13 +22,15 @@ class EnvironmentRepository:
             .first()
         )
 
-    def find_by_name(self, name: str, organization_id: int) -> Optional[EnvironmentModel]:
+    def find_by_name(
+        self, name: str, organization_id: int
+    ) -> Optional[EnvironmentModel]:
         """Find environment by name within an organization."""
         return (
             self.db.query(EnvironmentModel)
             .filter(
                 EnvironmentModel.name == name,
-                EnvironmentModel.organization_id == organization_id
+                EnvironmentModel.organization_id == organization_id,
             )
             .first()
         )
@@ -42,7 +44,7 @@ class EnvironmentRepository:
             .filter(
                 EnvironmentModel.name == name,
                 EnvironmentModel.organization_id == organization_id,
-                EnvironmentModel.uuid != exclude_uuid
+                EnvironmentModel.uuid != exclude_uuid,
             )
             .first()
         )
@@ -67,7 +69,7 @@ class EnvironmentRepository:
             self.db.query(EnvironmentModel)
             .filter(
                 EnvironmentModel.uuid == uuid,
-                EnvironmentModel.organization_id == organization_id
+                EnvironmentModel.organization_id == organization_id,
             )
             .first()
         )

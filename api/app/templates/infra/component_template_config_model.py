@@ -15,7 +15,9 @@ class ComponentTemplateConfig(Base):
     component_type = Column(String, nullable=False, index=True)  # webapp, cron, worker
     template_id = Column(Integer, ForeignKey("templates.id"), nullable=False)
     template = relationship("Template", back_populates="component_configs")
-    organization_id = Column(Integer, ForeignKey("organizations.id"), nullable=False, index=True)
+    organization_id = Column(
+        Integer, ForeignKey("organizations.id"), nullable=False, index=True
+    )
 
     render_order = Column(Integer, nullable=False, default=0)  # Render order
     enabled = Column(
@@ -27,7 +29,9 @@ class ComponentTemplateConfig(Base):
         DateTime, server_default=func.now(), server_onupdate=func.now(), nullable=False
     )
 
-    organization = relationship("Organization", back_populates="component_template_configs")
+    organization = relationship(
+        "Organization", back_populates="component_template_configs"
+    )
 
     __table_args__ = (
         UniqueConstraint(

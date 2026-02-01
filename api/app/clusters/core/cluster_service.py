@@ -137,7 +137,9 @@ class ClusterService:
     ) -> List[ClusterResponseWithValidation]:
         """Get all clusters with validation details. Optionally filter by organization_id."""
         if organization_id is not None:
-            clusters = self.repository.find_by_organization_id(organization_id, skip=skip, limit=limit)
+            clusters = self.repository.find_by_organization_id(
+                organization_id, skip=skip, limit=limit
+            )
         else:
             clusters = self.repository.find_all(skip=skip, limit=limit)
         return [
@@ -155,7 +157,9 @@ class ClusterService:
         """Get clusters for an environment. Environment must belong to the organization."""
         environment = self.repository.find_environment_by_uuid(environment_uuid)
         if not environment:
-            raise EnvironmentNotFoundError(f"Environment with UUID '{environment_uuid}' not found")
+            raise EnvironmentNotFoundError(
+                f"Environment with UUID '{environment_uuid}' not found"
+            )
         if environment.organization_id != organization_id:
             raise EnvironmentNotFoundError(
                 "Environment not found or does not belong to this organization"

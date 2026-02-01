@@ -18,7 +18,9 @@ export function NoOrganizationScreen() {
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-b from-slate-50 to-slate-100 px-4">
       <div className="w-full max-w-md text-center space-y-6">
-        <Logo className="mb-8" />
+        <div className="mb-8">
+          <Logo />
+        </div>
         <div className="p-8 rounded-2xl bg-white/80 backdrop-blur border border-slate-200/80 shadow-soft-lg">
           <div className="flex justify-center mb-4">
             <div className="p-4 rounded-full bg-amber-100 text-amber-700">

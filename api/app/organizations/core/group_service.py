@@ -51,7 +51,9 @@ class GroupService:
         # Get organization to get the ID
         organization = self.organization_repository.find_by_uuid(dto.organization_id)
         if not organization:
-            raise OrganizationNotFoundError(f"Organization with UUID '{dto.organization_id}' not found")
+            raise OrganizationNotFoundError(
+                f"Organization with UUID '{dto.organization_id}' not found"
+            )
 
         # Validate scope-specific requirements
         environment_id = None
@@ -63,7 +65,9 @@ class GroupService:
             validate_environment_exists(self.environment_repository, dto.environment_id)
             environment = self.environment_repository.find_by_uuid(dto.environment_id)
             if not environment:
-                raise EnvironmentNotFoundError(f"Environment with UUID '{dto.environment_id}' not found")
+                raise EnvironmentNotFoundError(
+                    f"Environment with UUID '{dto.environment_id}' not found"
+                )
             environment_id = environment.id
 
         elif dto.scope_level == ScopeLevel.APPLICATION:
@@ -72,11 +76,15 @@ class GroupService:
             validate_application_exists(self.application_repository, dto.application_id)
             application = self.application_repository.find_by_uuid(dto.application_id)
             if not application:
-                raise ApplicationNotFoundError(f"Application with UUID '{dto.application_id}' not found")
+                raise ApplicationNotFoundError(
+                    f"Application with UUID '{dto.application_id}' not found"
+                )
             application_id = application.id
 
         # Create group
-        group = self._build_group_entity(dto, organization.id, environment_id, application_id)
+        group = self._build_group_entity(
+            dto, organization.id, environment_id, application_id
+        )
         group = self.repository.create(group)
         # Ensure organization relationship is loaded for DTO serialization
         if group and group.organization:
@@ -99,17 +107,30 @@ class GroupService:
 
         # Handle scope_level and role updates
         if dto.scope_level is not None:
-            group.scope_level = dto.scope_level.value if hasattr(dto.scope_level, 'value') else dto.scope_level
+            group.scope_level = (
+                dto.scope_level.value
+                if hasattr(dto.scope_level, "value")
+                else dto.scope_level
+            )
         if dto.role is not None:
-            group.role = dto.role.value if hasattr(dto.role, 'value') else dto.role
+            group.role = dto.role.value if hasattr(dto.role, "value") else dto.role
 
         # Handle environment_id and application_id updates
         if dto.environment_id is not None:
-            if dto.scope_level == ScopeLevel.ENVIRONMENT or group.scope_level == ScopeLevel.ENVIRONMENT.value:
-                validate_environment_exists(self.environment_repository, dto.environment_id)
-                environment = self.environment_repository.find_by_uuid(dto.environment_id)
+            if (
+                dto.scope_level == ScopeLevel.ENVIRONMENT
+                or group.scope_level == ScopeLevel.ENVIRONMENT.value
+            ):
+                validate_environment_exists(
+                    self.environment_repository, dto.environment_id
+                )
+                environment = self.environment_repository.find_by_uuid(
+                    dto.environment_id
+                )
                 if not environment:
-                    raise EnvironmentNotFoundError(f"Environment with UUID '{dto.environment_id}' not found")
+                    raise EnvironmentNotFoundError(
+                        f"Environment with UUID '{dto.environment_id}' not found"
+                    )
                 group.environment_id = environment.id
             else:
                 group.environment_id = None
@@ -117,11 +138,20 @@ class GroupService:
             group.environment_id = None
 
         if dto.application_id is not None:
-            if dto.scope_level == ScopeLevel.APPLICATION or group.scope_level == ScopeLevel.APPLICATION.value:
-                validate_application_exists(self.application_repository, dto.application_id)
-                application = self.application_repository.find_by_uuid(dto.application_id)
+            if (
+                dto.scope_level == ScopeLevel.APPLICATION
+                or group.scope_level == ScopeLevel.APPLICATION.value
+            ):
+                validate_application_exists(
+                    self.application_repository, dto.application_id
+                )
+                application = self.application_repository.find_by_uuid(
+                    dto.application_id
+                )
                 if not application:
-                    raise ApplicationNotFoundError(f"Application with UUID '{dto.application_id}' not found")
+                    raise ApplicationNotFoundError(
+                        f"Application with UUID '{dto.application_id}' not found"
+                    )
                 group.application_id = application.id
             else:
                 group.application_id = None
@@ -158,9 +188,13 @@ class GroupService:
         validate_organization_exists(self.organization_repository, organization_uuid)
         organization = self.organization_repository.find_by_uuid(organization_uuid)
         if not organization:
-            raise OrganizationNotFoundError(f"Organization with UUID '{organization_uuid}' not found")
+            raise OrganizationNotFoundError(
+                f"Organization with UUID '{organization_uuid}' not found"
+            )
 
-        groups = self.repository.find_by_organization_id(organization.id, skip=skip, limit=limit)
+        groups = self.repository.find_by_organization_id(
+            organization.id, skip=skip, limit=limit
+        )
         # Ensure organization relationships are loaded for DTO serialization
         for group in groups:
             if group.organization:
@@ -171,9 +205,7 @@ class GroupService:
                 _ = group.application.uuid
         return groups
 
-    def get_groups(
-        self, skip: int = 0, limit: int = 100
-    ) -> List[Group]:
+    def get_groups(self, skip: int = 0, limit: int = 100) -> List[Group]:
         """Get all groups."""
         groups = self.repository.find_all(skip=skip, limit=limit)
         # Ensure organization relationships are loaded for DTO serialization
@@ -200,7 +232,11 @@ class GroupService:
             raise Exception(f"Failed to delete group: {str(e)}")
 
     def _build_group_entity(
-        self, dto: GroupCreate, organization_id: int, environment_id: int | None, application_id: int | None
+        self,
+        dto: GroupCreate,
+        organization_id: int,
+        environment_id: int | None,
+        application_id: int | None,
     ) -> GroupModel:
         """Build Group entity from DTO."""
         return GroupModel(
@@ -208,8 +244,10 @@ class GroupService:
             organization_id=organization_id,
             name=dto.name,
             description=dto.description,
-            scope_level=dto.scope_level.value if hasattr(dto.scope_level, 'value') else dto.scope_level,
-            role=dto.role.value if hasattr(dto.role, 'value') else dto.role,
+            scope_level=dto.scope_level.value
+            if hasattr(dto.scope_level, "value")
+            else dto.scope_level,
+            role=dto.role.value if hasattr(dto.role, "value") else dto.role,
             environment_id=environment_id,
             application_id=application_id,
             is_default=dto.is_default,

@@ -10,7 +10,9 @@ from uuid import UUID
 from sqlalchemy.orm import Session
 
 from app.shared.database.database import get_db
-from app.organizations.api.dependencies.organization_context import getOrganizationContext
+from app.organizations.api.dependencies.organization_context import (
+    getOrganizationContext,
+)
 from app.organizations.core.authorization import (
     OrganizationAccessContext,
     canViewEnvironment,
@@ -35,25 +37,31 @@ def getEnvironment(
 ):
     """
     Example: Check permission to view environment.
-    
+
     Note: You will need to convert environment_uuid to environment_id
     using the repository before calling canViewEnvironment.
     """
     # First, fetch the environment by UUID and verify it belongs to the organization
     from app.environments.infra.environment_model import Environment
-    
-    environment = db.query(Environment).filter(
-        Environment.uuid == environment_uuid,
-        Environment.organization_id == ctx.organization.id
-    ).first()
-    
+
+    environment = (
+        db.query(Environment)
+        .filter(
+            Environment.uuid == environment_uuid,
+            Environment.organization_id == ctx.organization.id,
+        )
+        .first()
+    )
+
     if not environment:
         raise HTTPException(status_code=404, detail="Environment not found")
-    
+
     # Check permission using the environment ID
     if not canViewEnvironment(ctx, environment.id):
-        raise HTTPException(status_code=403, detail="Not allowed to view this environment")
-    
+        raise HTTPException(
+            status_code=403, detail="Not allowed to view this environment"
+        )
+
     # Return the environment
     return environment
 
@@ -69,18 +77,24 @@ def deployToEnvironment(
     Example: Check permission to deploy to environment.
     """
     from app.environments.infra.environment_model import Environment
-    
-    environment = db.query(Environment).filter(
-        Environment.uuid == environment_uuid,
-        Environment.organization_id == ctx.organization.id
-    ).first()
-    
+
+    environment = (
+        db.query(Environment)
+        .filter(
+            Environment.uuid == environment_uuid,
+            Environment.organization_id == ctx.organization.id,
+        )
+        .first()
+    )
+
     if not environment:
         raise HTTPException(status_code=404, detail="Environment not found")
-    
+
     if not canDeployToEnvironment(ctx, environment.id):
-        raise HTTPException(status_code=403, detail="Not allowed to deploy to this environment")
-    
+        raise HTTPException(
+            status_code=403, detail="Not allowed to deploy to this environment"
+        )
+
     # Deploy logic here
     return {"message": "Deploy initiated"}
 
@@ -96,18 +110,24 @@ def getApplication(
     Example: Check permission to view application.
     """
     from app.applications.infra.application_model import Application
-    
-    application = db.query(Application).filter(
-        Application.uuid == application_uuid,
-        Application.organization_id == ctx.organization.id
-    ).first()
-    
+
+    application = (
+        db.query(Application)
+        .filter(
+            Application.uuid == application_uuid,
+            Application.organization_id == ctx.organization.id,
+        )
+        .first()
+    )
+
     if not application:
         raise HTTPException(status_code=404, detail="Application not found")
-    
+
     if not canViewApplication(ctx, application.id):
-        raise HTTPException(status_code=403, detail="Not allowed to view this application")
-    
+        raise HTTPException(
+            status_code=403, detail="Not allowed to view this application"
+        )
+
     return application
 
 
@@ -122,18 +142,24 @@ def deployApplication(
     Example: Check permission to deploy application.
     """
     from app.applications.infra.application_model import Application
-    
-    application = db.query(Application).filter(
-        Application.uuid == application_uuid,
-        Application.organization_id == ctx.organization.id
-    ).first()
-    
+
+    application = (
+        db.query(Application)
+        .filter(
+            Application.uuid == application_uuid,
+            Application.organization_id == ctx.organization.id,
+        )
+        .first()
+    )
+
     if not application:
         raise HTTPException(status_code=404, detail="Application not found")
-    
+
     if not canDeployApplication(ctx, application.id):
-        raise HTTPException(status_code=403, detail="Not allowed to deploy this application")
-    
+        raise HTTPException(
+            status_code=403, detail="Not allowed to deploy this application"
+        )
+
     # Deploy logic here
     return {"message": "Deploy initiated"}
 
@@ -149,18 +175,24 @@ def updateApplication(
     Example: Check permission to manage (edit) application.
     """
     from app.applications.infra.application_model import Application
-    
-    application = db.query(Application).filter(
-        Application.uuid == application_uuid,
-        Application.organization_id == ctx.organization.id
-    ).first()
-    
+
+    application = (
+        db.query(Application)
+        .filter(
+            Application.uuid == application_uuid,
+            Application.organization_id == ctx.organization.id,
+        )
+        .first()
+    )
+
     if not application:
         raise HTTPException(status_code=404, detail="Application not found")
-    
+
     if not canManageApplication(ctx, application.id):
-        raise HTTPException(status_code=403, detail="Not allowed to manage this application")
-    
+        raise HTTPException(
+            status_code=403, detail="Not allowed to manage this application"
+        )
+
     # Update logic here
     return application
 
@@ -175,7 +207,7 @@ def getBilling(
     """
     if not canViewBilling(ctx):
         raise HTTPException(status_code=403, detail="Not allowed to view billing")
-    
+
     # Billing logic here
     return {"billing": "data"}
 
@@ -190,6 +222,6 @@ def adminOnlyEndpoint(
     """
     if not isOrgAdmin(ctx):
         raise HTTPException(status_code=403, detail="Admin access required")
-    
+
     # Admin logic here
     return {"admin": "data"}

@@ -261,10 +261,11 @@ function InstanceDetail() {
       setIsAddComponentsModalOpen(false)
       setTimeout(() => setNotification(null), 5000)
     }
-    const onError = (error: AxiosError<{ detail?: string }>) => {
+    const onError = (error: Error) => {
+      const axiosError = error as AxiosError<{ detail?: string }>
       setModalNotification({
         type: 'error',
-        message: error.response?.data?.detail || 'Error updating component',
+        message: axiosError.response?.data?.detail || 'Error updating component',
       })
       setTimeout(() => {
         modalContentRef.current?.scrollTo({ top: 0, behavior: 'smooth' })
@@ -288,10 +289,11 @@ function InstanceDetail() {
       queryClient.invalidateQueries({ queryKey: ['application-components'] })
       setTimeout(() => setNotification(null), 5000)
     }
-    const onError = (error: AxiosError<{ detail?: string }>) => {
+    const onError = (error: Error) => {
+      const axiosError = error as AxiosError<{ detail?: string }>
       setNotification({
         type: 'error',
-        message: error.response?.data?.detail || 'Error deleting component',
+        message: axiosError.response?.data?.detail || 'Error deleting component',
       })
       setTimeout(() => setNotification(null), 5000)
     }
@@ -335,10 +337,11 @@ function InstanceDetail() {
         setIsAddComponentsModalOpen(false)
         setTimeout(() => setNotification(null), 5000)
       }
-      const onError = (error: AxiosError<{ detail?: string }>) => {
+      const onError = (error: Error) => {
+        const axiosError = error as AxiosError<{ detail?: string }>
         setModalNotification({
           type: 'error',
-          message: error.response?.data?.detail || 'Error adding component',
+          message: axiosError.response?.data?.detail || 'Error adding component',
         })
         setTimeout(() => {
           modalContentRef.current?.scrollTo({ top: 0, behavior: 'smooth' })

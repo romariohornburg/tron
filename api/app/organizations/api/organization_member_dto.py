@@ -16,7 +16,9 @@ class OrganizationMemberCreate(BaseModel):
     organization_id: UUID
     user_id: UUID
     is_owner: bool = False
-    status: OrganizationMemberStatus | None = None  # Optional, defaults to ACTIVE in service
+    status: OrganizationMemberStatus | None = (
+        None  # Optional, defaults to ACTIVE in service
+    )
 
 
 class OrganizationMemberUpdate(BaseModel):
@@ -39,13 +41,19 @@ class OrganizationMember(OrganizationMemberBase):
             # Convert to dict with user UUID, email, and full_name
             result = {
                 "uuid": data.uuid,
-                "organization_id": data.organization.uuid if hasattr(data, "organization") and data.organization else None,
+                "organization_id": data.organization.uuid
+                if hasattr(data, "organization") and data.organization
+                else None,
                 "user_id": data.user.uuid if data.user else None,
                 "is_owner": data.is_owner,
                 "status": data.status,
-                "created_at": data.created_at.isoformat() if isinstance(data.created_at, datetime) else data.created_at,
+                "created_at": data.created_at.isoformat()
+                if isinstance(data.created_at, datetime)
+                else data.created_at,
                 "email": getattr(data.user, "email", None) if data.user else None,
-                "full_name": getattr(data.user, "full_name", None) if data.user else None,
+                "full_name": getattr(data.user, "full_name", None)
+                if data.user
+                else None,
             }
             return result
         # Handle dict
@@ -63,7 +71,11 @@ class OrganizationMember(OrganizationMemberBase):
                 if hasattr(u, "full_name"):
                     data["full_name"] = u.full_name
             # Convert organization_id (int) to organization UUID if organization relationship is loaded
-            if "organization" in data and data["organization"] and hasattr(data["organization"], "uuid"):
+            if (
+                "organization" in data
+                and data["organization"]
+                and hasattr(data["organization"], "uuid")
+            ):
                 data["organization_id"] = data["organization"].uuid
         elif hasattr(data, "__dict__"):
             if hasattr(data, "created_at") and isinstance(data.created_at, datetime):

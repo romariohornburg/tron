@@ -56,10 +56,15 @@ class CronRepository:
         self, organization_id: int, skip: int = 0, limit: int = 100
     ) -> List[ApplicationComponentModel]:
         """Find all crons for applications in a specific organization."""
-        from app.applications.infra.application_model import Application as ApplicationModel
+        from app.applications.infra.application_model import (
+            Application as ApplicationModel,
+        )
+
         return (
             self.db.query(ApplicationComponentModel)
-            .join(InstanceModel, ApplicationComponentModel.instance_id == InstanceModel.id)
+            .join(
+                InstanceModel, ApplicationComponentModel.instance_id == InstanceModel.id
+            )
             .join(ApplicationModel, InstanceModel.application_id == ApplicationModel.id)
             .filter(ApplicationComponentModel.type == WebappType.cron)
             .filter(ApplicationModel.organization_id == organization_id)

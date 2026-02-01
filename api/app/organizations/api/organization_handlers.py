@@ -32,9 +32,20 @@ from app.organizations.core.group_member_service import (
 from app.organizations.core.group_validators import GroupNotFoundError
 from app.users.infra.user_repository import UserRepository
 from app.users.infra.user_model import User, UserRole
-from app.shared.dependencies.auth import get_current_user, get_current_user_or_token, require_role, TokenUser
-from app.organizations.api.dependencies.organization_context import getOrganizationContext
-from app.organizations.core.authorization import OrganizationAccessContext, isOrgAdmin, isOrgOwner
+from app.shared.dependencies.auth import (
+    get_current_user,
+    get_current_user_or_token,
+    require_role,
+    TokenUser,
+)
+from app.organizations.api.dependencies.organization_context import (
+    getOrganizationContext,
+)
+from app.organizations.core.authorization import (
+    OrganizationAccessContext,
+    isOrgAdmin,
+    isOrgOwner,
+)
 from app.auth.infra.token_model import Token
 
 
@@ -66,7 +77,9 @@ def create_organization(
                 service.user_repository,
                 organization.owner_user_id,
             )
-            owner_user = service.user_repository.find_by_uuid(organization.owner_user_id)
+            owner_user = service.user_repository.find_by_uuid(
+                organization.owner_user_id
+            )
             if owner_user:
                 owner_user_id = owner_user.id
         return service.create_organization(organization, owner_user_id=owner_user_id)
@@ -113,7 +126,7 @@ def list_organizations(
         if current_user.role == UserRole.ADMIN.value:
             return service.get_organizations(skip=skip, limit=limit, user_id=None)
         # Get user_id from token to find organizations where user is admin
-        token = getattr(current_user, '_token', None)
+        token = getattr(current_user, "_token", None)
         if token and isinstance(token, Token) and token.user_id:
             return service.get_organizations_where_user_is_admin(
                 token.user_id, skip=skip, limit=limit
@@ -140,7 +153,9 @@ def get_organization(
 ):
     """Get organization by UUID. User must be a member of the organization."""
     if not isOrgAdmin(ctx):
-        raise HTTPException(status_code=403, detail="Only organization admins can get organizations")
+        raise HTTPException(
+            status_code=403, detail="Only organization admins can get organizations"
+        )
 
     try:
         return service.get_organization(uuid)
@@ -171,7 +186,9 @@ def list_organization_members(
 ):
     """List organization members. Only the organization owner can access."""
     if not isOrgOwner(ctx):
-        raise HTTPException(status_code=403, detail="Only the organization owner can list members")
+        raise HTTPException(
+            status_code=403, detail="Only the organization owner can list members"
+        )
 
     try:
         org = service.get_organization(uuid)
@@ -191,7 +208,9 @@ def add_member_to_organization(
     """Add a user as a member to an organization. Only organization admins can add members."""
     # Verify user has permission to add members
     if not isOrgAdmin(ctx):
-        raise HTTPException(status_code=403, detail="Only organization admins can add members")
+        raise HTTPException(
+            status_code=403, detail="Only organization admins can add members"
+        )
 
     # Ensure organization_uuid matches
     if member.organization_id != uuid:
@@ -200,7 +219,10 @@ def add_member_to_organization(
     try:
         member_model = service.add_member_to_organization(uuid, member.user_id)
         # Reload with relationships for DTO serialization
-        from app.organizations.infra.organization_member_repository import OrganizationMemberRepository
+        from app.organizations.infra.organization_member_repository import (
+            OrganizationMemberRepository,
+        )
+
         member_repo = OrganizationMemberRepository(db)
         return member_repo.find_by_uuid(member_model.uuid)
     except ValueError as e:
@@ -223,12 +245,17 @@ def update_organization_member(
     """Update an organization member. Only organization admins can update members."""
     # Verify user has permission to update members
     if not isOrgAdmin(ctx):
-        raise HTTPException(status_code=403, detail="Only organization admins can update members")
+        raise HTTPException(
+            status_code=403, detail="Only organization admins can update members"
+        )
 
     try:
         member_model = service.update_member(uuid, member_uuid, member_update)
         # Reload with relationships for DTO serialization
-        from app.organizations.infra.organization_member_repository import OrganizationMemberRepository
+        from app.organizations.infra.organization_member_repository import (
+            OrganizationMemberRepository,
+        )
+
         member_repo = OrganizationMemberRepository(db)
         return member_repo.find_by_uuid(member_model.uuid)
     except ValueError as e:
@@ -249,7 +276,9 @@ def remove_organization_member(
     """Remove a member from an organization. Only organization admins can remove members."""
     # Verify user has permission to remove members
     if not isOrgAdmin(ctx):
-        raise HTTPException(status_code=403, detail="Only organization admins can remove members")
+        raise HTTPException(
+            status_code=403, detail="Only organization admins can remove members"
+        )
 
     try:
         return service.remove_member(uuid, member_uuid)
@@ -267,7 +296,9 @@ def get_group_member_service(
     """Dependency to get GroupMemberService instance."""
     from app.organizations.infra.group_member_repository import GroupMemberRepository
     from app.organizations.infra.group_repository import GroupRepository
-    from app.organizations.infra.organization_member_repository import OrganizationMemberRepository
+    from app.organizations.infra.organization_member_repository import (
+        OrganizationMemberRepository,
+    )
 
     group_member_repository = GroupMemberRepository(database_session)
     group_repository = GroupRepository(database_session)
@@ -284,7 +315,10 @@ def _validate_member_belongs_to_org(
     member_uuid: UUID, organization_id: int, db: Session
 ):
     """Helper to validate member belongs to organization and return member."""
-    from app.organizations.infra.organization_member_repository import OrganizationMemberRepository
+    from app.organizations.infra.organization_member_repository import (
+        OrganizationMemberRepository,
+    )
+
     member_repo = OrganizationMemberRepository(db)
     member = member_repo.find_by_uuid(member_uuid)
     if not member:
@@ -305,7 +339,9 @@ def add_member_to_group(
 ):
     """Add an organization member to a group. Only organization admins can add members to groups."""
     if not isOrgAdmin(ctx):
-        raise HTTPException(status_code=403, detail="Only organization admins can add members to groups")
+        raise HTTPException(
+            status_code=403, detail="Only organization admins can add members to groups"
+        )
 
     _validate_member_belongs_to_org(member_uuid, ctx.organization.id, db)
 
@@ -335,20 +371,26 @@ def remove_member_from_group(
 ):
     """Remove an organization member from a group. Only organization admins can remove members from groups."""
     if not isOrgAdmin(ctx):
-        raise HTTPException(status_code=403, detail="Only organization admins can remove members from groups")
+        raise HTTPException(
+            status_code=403,
+            detail="Only organization admins can remove members from groups",
+        )
 
     member = _validate_member_belongs_to_org(member_uuid, ctx.organization.id, db)
 
     # Find group and group member
     from app.organizations.infra.group_repository import GroupRepository
     from app.organizations.infra.group_member_repository import GroupMemberRepository
+
     group_repo = GroupRepository(db)
     group = group_repo.find_by_uuid(group_uuid)
     if not group:
         raise HTTPException(status_code=404, detail="Group not found")
 
     group_member_repo = GroupMemberRepository(db)
-    group_member = group_member_repo.find_by_group_and_organization_member(group.id, member.id)
+    group_member = group_member_repo.find_by_group_and_organization_member(
+        group.id, member.id
+    )
     if not group_member:
         raise HTTPException(status_code=404, detail="Member is not in this group")
 
@@ -370,7 +412,10 @@ def get_member_groups(
 ):
     """Get all groups for an organization member."""
     # Verify member belongs to organization
-    from app.organizations.infra.organization_member_repository import OrganizationMemberRepository
+    from app.organizations.infra.organization_member_repository import (
+        OrganizationMemberRepository,
+    )
+
     member_repo = OrganizationMemberRepository(db)
     member = member_repo.find_by_uuid(member_uuid)
     if not member:
@@ -381,6 +426,7 @@ def get_member_groups(
     # Get groups for this member
     from app.organizations.infra.group_member_repository import GroupMemberRepository
     from app.organizations.infra.group_repository import GroupRepository
+
     group_member_repo = GroupMemberRepository(db)
     group_repo = GroupRepository(db)
     group_members = group_member_repo.find_by_organization_member_id(member.id)

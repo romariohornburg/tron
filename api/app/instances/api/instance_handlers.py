@@ -20,7 +20,9 @@ from app.instances.core.instance_validators import (
 )
 from app.users.infra.user_model import User
 from app.shared.dependencies.auth import get_current_user
-from app.organizations.api.dependencies.organization_context import getOrganizationContext
+from app.organizations.api.dependencies.organization_context import (
+    getOrganizationContext,
+)
 from app.organizations.core.authorization import (
     OrganizationAccessContext,
     canCreateInstance,
@@ -31,7 +33,9 @@ from app.organizations.core.authorization import (
     isOrgMember,
 )
 
-router = APIRouter(prefix="/organizations/{organization_uuid}/instances", tags=["instances"])
+router = APIRouter(
+    prefix="/organizations/{organization_uuid}/instances", tags=["instances"]
+)
 
 
 def get_instance_service(
@@ -85,18 +89,18 @@ def update_instance(
     # First check if instance exists and belongs to organization
     repository = InstanceRepository(service.db)
     instance_model = repository.find_by_uuid_with_relations(uuid)
-    
+
     if not instance_model:
         raise HTTPException(status_code=404, detail="Instance not found")
-    
+
     # Verify instance belongs to organization
     if instance_model.application.organization_id != ctx.organization.id:
         raise HTTPException(status_code=404, detail="Instance not found")
-    
+
     # Then verify user has permission to operate this instance
     if not canOperateInstanceByUuid(ctx, uuid, service.db):
         raise HTTPException(status_code=403, detail="Insufficient permissions")
-    
+
     try:
         return service.update_instance(uuid, instance)
     except InstanceNotFoundError as e:
@@ -116,39 +120,44 @@ def list_instances(
 ):
     """List all instances for the organization."""
     repository = InstanceRepository(service.db)
-    
+
     # Get all instance models with relations for the organization
     instance_models = repository.find_by_organization_id(
         ctx.organization.id, skip=0, limit=10000
     )
-    
+
     # If user is organization member, return all instances
     if isOrgMember(ctx):
         # Use service method to serialize (handles secrets stripping)
-        all_instances = service.get_instances(skip=0, limit=10000, organization_id=ctx.organization.id)
-        return all_instances[skip:skip+limit]
-    
+        all_instances = service.get_instances(
+            skip=0, limit=10000, organization_id=ctx.organization.id
+        )
+        return all_instances[skip : skip + limit]
+
     # If not a member, filter instances by application or environment access
     filtered_models = []
     for instance_model in instance_models:
-        if canViewApplication(ctx, instance_model.application_id) or canViewEnvironment(ctx, instance_model.environment_id):
+        if canViewApplication(ctx, instance_model.application_id) or canViewEnvironment(
+            ctx, instance_model.environment_id
+        ):
             filtered_models.append(instance_model)
-    
+
     # Serialize filtered instances (strip secrets and convert to DTO)
     # Use the same serialization logic as service.get_instances
     filtered_instances = []
     for instance_model in filtered_models:
         # Strip secrets from components (same as service._strip_secrets_from_instance)
         from app.shared.crypto import strip_secrets_from_settings
+
         if hasattr(instance_model, "components") and instance_model.components:
             for component in instance_model.components:
                 if component.settings:
                     component.settings = strip_secrets_from_settings(component.settings)
         # Convert to DTO
         filtered_instances.append(Instance.model_validate(instance_model))
-    
+
     # Apply pagination
-    return filtered_instances[skip:skip+limit]
+    return filtered_instances[skip : skip + limit]
 
 
 @router.get("/{uuid}", response_model=Instance)
@@ -163,18 +172,21 @@ def get_instance(
     # Load instance to check permissions
     repository = InstanceRepository(service.db)
     instance_model = repository.find_by_uuid_with_relations(uuid)
-    
+
     if not instance_model:
         raise HTTPException(status_code=404, detail="Instance not found")
-    
+
     # Verify instance belongs to organization
     if instance_model.application.organization_id != ctx.organization.id:
         raise HTTPException(status_code=404, detail="Instance not found")
-    
+
     # Check permissions: can view instance (checks environment) OR can view application
-    if not (canViewInstanceByUuid(ctx, uuid, service.db) or canViewApplication(ctx, instance_model.application_id)):
+    if not (
+        canViewInstanceByUuid(ctx, uuid, service.db)
+        or canViewApplication(ctx, instance_model.application_id)
+    ):
         raise HTTPException(status_code=403, detail="Insufficient permissions")
-    
+
     try:
         return service.get_instance(uuid)
     except InstanceNotFoundError as e:
@@ -215,9 +227,16 @@ def get_instance_events(
     else:
         repo = InstanceRepository(service.db)
         inst = repo.find_by_uuid_with_relations(uuid)
-        if not inst or not inst.application or inst.application.organization_id != ctx.organization.id:
+        if (
+            not inst
+            or not inst.application
+            or inst.application.organization_id != ctx.organization.id
+        ):
             raise HTTPException(status_code=404, detail="Instance not found")
-        if not (canViewApplication(ctx, inst.application_id) or canViewEnvironment(ctx, inst.environment_id)):
+        if not (
+            canViewApplication(ctx, inst.application_id)
+            or canViewEnvironment(ctx, inst.environment_id)
+        ):
             raise HTTPException(status_code=403, detail="Insufficient permissions")
     try:
         return service.get_instance_events(uuid)

@@ -55,7 +55,9 @@ class ApplicationRepository:
         """Find all applications."""
         return self.db.query(ApplicationModel).offset(skip).limit(limit).all()
 
-    def find_by_organization_id(self, organization_id: int, skip: int = 0, limit: int = 100) -> List[ApplicationModel]:
+    def find_by_organization_id(
+        self, organization_id: int, skip: int = 0, limit: int = 100
+    ) -> List[ApplicationModel]:
         """Find all applications for a specific organization."""
         return (
             self.db.query(ApplicationModel)
@@ -65,7 +67,9 @@ class ApplicationRepository:
             .all()
         )
 
-    def find_all_by_organization_id(self, organization_id: int) -> List[ApplicationModel]:
+    def find_all_by_organization_id(
+        self, organization_id: int
+    ) -> List[ApplicationModel]:
         """Find all applications for a specific organization without pagination."""
         return (
             self.db.query(ApplicationModel)
@@ -73,13 +77,15 @@ class ApplicationRepository:
             .all()
         )
 
-    def find_by_name_and_organization(self, name: str, organization_id: int) -> Optional[ApplicationModel]:
+    def find_by_name_and_organization(
+        self, name: str, organization_id: int
+    ) -> Optional[ApplicationModel]:
         """Find application by name within a specific organization."""
         return (
             self.db.query(ApplicationModel)
             .filter(
                 ApplicationModel.name == name,
-                ApplicationModel.organization_id == organization_id
+                ApplicationModel.organization_id == organization_id,
             )
             .first()
         )
@@ -93,7 +99,7 @@ class ApplicationRepository:
             .filter(
                 ApplicationModel.name == name,
                 ApplicationModel.organization_id == organization_id,
-                ApplicationModel.uuid != exclude_uuid
+                ApplicationModel.uuid != exclude_uuid,
             )
             .first()
         )

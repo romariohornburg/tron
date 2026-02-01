@@ -30,10 +30,10 @@ function groupInstancesByApplication(instances: Instance[]): ApplicationWithInst
 
 function getErrorMessage(error: unknown, fallback: string): string {
   if (error && typeof error === 'object' && 'response' in error) {
-    const res = (error as { response?: { data?: { detail?: string } } }).response
+    const res = (error as { response?: { data?: { detail?: string | Array<{ msg?: string }> } } }).response
     const detail = res?.data?.detail
     if (typeof detail === 'string') return detail
-    if (Array.isArray(detail)) return detail.map((d) => d?.msg ?? String(d)).join(', ') || fallback
+    if (Array.isArray(detail)) return detail.map((d: { msg?: string }) => d?.msg ?? String(d)).join(', ') || fallback
   }
   return fallback
 }

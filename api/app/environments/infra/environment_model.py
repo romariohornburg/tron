@@ -25,4 +25,6 @@ class Environment(Base):
     instances = relationship("Instance", back_populates="environment")
     groups = relationship("Group", back_populates="environment")
 
-    __table_args__ = (UniqueConstraint("organization_id", "name", name="uix_environment_org_name"),)
+    __table_args__ = (
+        UniqueConstraint("organization_id", "name", name="uix_environment_org_name"),
+    )

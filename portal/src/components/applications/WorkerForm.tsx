@@ -30,9 +30,7 @@ export function WorkerForm({ settings, onChange, isAdmin = false, organizationUu
     const hasSecrets = settings.secrets && settings.secrets.length > 0
     const commandStr = typeof settings.command === 'string'
       ? settings.command
-      : Array.isArray(settings.command)
-        ? settings.command.join(' ').trim()
-        : ''
+      : ''
     const hasCommand = commandStr !== ''
     const hasCustomCpu = settings.cpu !== undefined && settings.cpu !== 0.5
     const hasCustomMemory = settings.memory !== undefined && settings.memory !== 512

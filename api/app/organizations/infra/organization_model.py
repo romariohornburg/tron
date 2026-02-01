@@ -22,5 +22,7 @@ class Organization(Base):
     applications = relationship("Application", back_populates="organization")
     environments = relationship("Environment", back_populates="organization")
     templates = relationship("Template", back_populates="organization")
-    component_template_configs = relationship("ComponentTemplateConfig", back_populates="organization")
+    component_template_configs = relationship(
+        "ComponentTemplateConfig", back_populates="organization"
+    )
     settings = relationship("Settings", back_populates="organization")

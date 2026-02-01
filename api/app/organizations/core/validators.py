@@ -23,8 +23,14 @@ APP_ROLES = {
 def validateGroupScopeAndRole(scopeLevel: ScopeLevel, role: GroupRole) -> None:
     """Validate that the role is appropriate for the given scope level."""
     if scopeLevel == ScopeLevel.ORG and role not in ORG_ROLES:
-        raise ValueError(f"Invalid role {role.value} for org scope. Must be one of: ORG_ADMIN, ORG_BILLING, ORG_MEMBER")
+        raise ValueError(
+            f"Invalid role {role.value} for org scope. Must be one of: ORG_ADMIN, ORG_BILLING, ORG_MEMBER"
+        )
     if scopeLevel == ScopeLevel.ENVIRONMENT and role not in ENV_ROLES:
-        raise ValueError(f"Invalid role {role.value} for environment scope. Must be one of: ENV_MAINTAINER, ENV_OPERATOR, ENV_VIEWER")
+        raise ValueError(
+            f"Invalid role {role.value} for environment scope. Must be one of: ENV_MAINTAINER, ENV_OPERATOR, ENV_VIEWER"
+        )
     if scopeLevel == ScopeLevel.APPLICATION and role not in APP_ROLES:
-        raise ValueError(f"Invalid role {role.value} for application scope. Must be one of: APP_MAINTAINER, APP_DEVELOPER, APP_VIEWER")
+        raise ValueError(
+            f"Invalid role {role.value} for application scope. Must be one of: APP_MAINTAINER, APP_DEVELOPER, APP_VIEWER"
+        )

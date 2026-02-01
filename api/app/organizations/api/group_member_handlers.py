@@ -5,7 +5,9 @@ from uuid import UUID
 from app.shared.database.database import get_db
 from app.organizations.infra.group_member_repository import GroupMemberRepository
 from app.organizations.infra.group_repository import GroupRepository
-from app.organizations.infra.organization_member_repository import OrganizationMemberRepository
+from app.organizations.infra.organization_member_repository import (
+    OrganizationMemberRepository,
+)
 from app.organizations.core.group_member_service import (
     GroupMemberService,
     GroupMemberNotFoundError,
@@ -17,11 +19,16 @@ from app.organizations.api.group_member_dto import (
     GroupMember,
 )
 from app.organizations.core.group_validators import GroupNotFoundError
-from app.organizations.api.dependencies.organization_context import getOrganizationContext
+from app.organizations.api.dependencies.organization_context import (
+    getOrganizationContext,
+)
 from app.organizations.core.authorization import isOrgAdmin
 
 
-router = APIRouter(prefix="/organizations/{organization_uuid}/groups/{group_uuid}/members", tags=["group-members"])
+router = APIRouter(
+    prefix="/organizations/{organization_uuid}/groups/{group_uuid}/members",
+    tags=["group-members"],
+)
 
 
 def get_group_member_service(
@@ -45,16 +52,18 @@ def add_member_to_group(
     group_uuid: UUID,
     member: GroupMemberCreate,
     service: GroupMemberService = Depends(get_group_member_service),
-    ctx = Depends(getOrganizationContext),
+    ctx=Depends(getOrganizationContext),
 ):
     """Add an organization member to a group. Only organization admins can add members."""
     if not isOrgAdmin(ctx):
-        raise HTTPException(status_code=403, detail="Only organization admins can add members to groups")
-    
+        raise HTTPException(
+            status_code=403, detail="Only organization admins can add members to groups"
+        )
+
     # Ensure group_uuid matches
     if member.group_id != group_uuid:
         raise HTTPException(status_code=400, detail="Group UUID mismatch")
-    
+
     try:
         return service.add_member_to_group(member)
     except GroupNotFoundError as e:
@@ -71,12 +80,15 @@ def remove_member_from_group(
     group_uuid: UUID,
     uuid: UUID,
     service: GroupMemberService = Depends(get_group_member_service),
-    ctx = Depends(getOrganizationContext),
+    ctx=Depends(getOrganizationContext),
 ):
     """Remove an organization member from a group. Only organization admins can remove members."""
     if not isOrgAdmin(ctx):
-        raise HTTPException(status_code=403, detail="Only organization admins can remove members from groups")
-    
+        raise HTTPException(
+            status_code=403,
+            detail="Only organization admins can remove members from groups",
+        )
+
     try:
         return service.remove_member_from_group(uuid)
     except GroupMemberNotFoundError as e:
@@ -90,7 +102,7 @@ def list_group_members(
     organization_uuid: UUID,
     group_uuid: UUID,
     service: GroupMemberService = Depends(get_group_member_service),
-    ctx = Depends(getOrganizationContext),
+    ctx=Depends(getOrganizationContext),
 ):
     """List all members of a group."""
     try:

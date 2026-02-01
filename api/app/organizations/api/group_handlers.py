@@ -19,7 +19,9 @@ from app.organizations.core.group_validators import (
     EnvironmentNotFoundError,
     ApplicationNotFoundError,
 )
-from app.organizations.api.dependencies.organization_context import getOrganizationContext
+from app.organizations.api.dependencies.organization_context import (
+    getOrganizationContext,
+)
 from app.organizations.core.authorization import isOrgAdmin
 
 
@@ -48,11 +50,13 @@ def create_group(
     organization_uuid: UUID,
     group: GroupCreate,
     service: GroupService = Depends(get_group_service),
-    ctx = Depends(getOrganizationContext),
+    ctx=Depends(getOrganizationContext),
 ):
     """Create a new group. Only organization admins can create groups."""
     if not isOrgAdmin(ctx):
-        raise HTTPException(status_code=403, detail="Only organization admins can create groups")
+        raise HTTPException(
+            status_code=403, detail="Only organization admins can create groups"
+        )
 
     # Ensure organization_uuid matches
     if group.organization_id != organization_uuid:
@@ -76,11 +80,13 @@ def update_group(
     uuid: UUID,
     group: GroupUpdate,
     service: GroupService = Depends(get_group_service),
-    ctx = Depends(getOrganizationContext),
+    ctx=Depends(getOrganizationContext),
 ):
     """Update an existing group. Only organization admins can update groups."""
     if not isOrgAdmin(ctx):
-        raise HTTPException(status_code=403, detail="Only organization admins can update groups")
+        raise HTTPException(
+            status_code=403, detail="Only organization admins can update groups"
+        )
 
     # Verify group belongs to organization
     existing_group = service.get_group(uuid)
@@ -105,14 +111,18 @@ def list_groups(
     skip: int = 0,
     limit: int = 100,
     service: GroupService = Depends(get_group_service),
-    ctx = Depends(getOrganizationContext),
+    ctx=Depends(getOrganizationContext),
 ):
     """List all groups for an organization."""
     if not isOrgAdmin(ctx):
-        raise HTTPException(status_code=403, detail="Only organization admins can list groups")
+        raise HTTPException(
+            status_code=403, detail="Only organization admins can list groups"
+        )
 
     try:
-        return service.get_groups_by_organization(organization_uuid, skip=skip, limit=limit)
+        return service.get_groups_by_organization(
+            organization_uuid, skip=skip, limit=limit
+        )
     except OrganizationNotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e))
 
@@ -122,7 +132,7 @@ def get_group(
     organization_uuid: UUID,
     uuid: UUID,
     service: GroupService = Depends(get_group_service),
-    ctx = Depends(getOrganizationContext),
+    ctx=Depends(getOrganizationContext),
 ):
     """Get group by UUID."""
     try:
@@ -140,11 +150,13 @@ def delete_group(
     organization_uuid: UUID,
     uuid: UUID,
     service: GroupService = Depends(get_group_service),
-    ctx = Depends(getOrganizationContext),
+    ctx=Depends(getOrganizationContext),
 ):
     """Delete a group. Only organization admins can delete groups."""
     if not isOrgAdmin(ctx):
-        raise HTTPException(status_code=403, detail="Only organization admins can delete groups")
+        raise HTTPException(
+            status_code=403, detail="Only organization admins can delete groups"
+        )
 
     # Verify group belongs to organization
     existing_group = service.get_group(uuid)

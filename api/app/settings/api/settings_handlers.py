@@ -16,7 +16,9 @@ from app.settings.core.settings_validators import (
     EnvironmentNotFoundError,
     SettingsKeyAlreadyExistsError,
 )
-from app.organizations.api.dependencies.organization_context import getOrganizationContext
+from app.organizations.api.dependencies.organization_context import (
+    getOrganizationContext,
+)
 from app.organizations.core.authorization import (
     OrganizationAccessContext,
     isOrgAdmin,

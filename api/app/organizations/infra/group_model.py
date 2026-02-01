@@ -1,4 +1,13 @@
-from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey, Enum as SAEnum, CheckConstraint
+from sqlalchemy import (
+    Column,
+    Integer,
+    String,
+    Boolean,
+    DateTime,
+    ForeignKey,
+    Enum as SAEnum,
+    CheckConstraint,
+)
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
 from sqlalchemy.dialects.postgresql import UUID
@@ -16,13 +25,25 @@ class Group(Base):
     name = Column(String, nullable=False)
     description = Column(String, nullable=True)
     scope_level = Column(
-        SAEnum(ScopeLevel, name="scope_level_enum", native_enum=True, create_constraint=True, values_callable=lambda obj: [e.value for e in obj]),
+        SAEnum(
+            ScopeLevel,
+            name="scope_level_enum",
+            native_enum=True,
+            create_constraint=True,
+            values_callable=lambda obj: [e.value for e in obj],
+        ),
         nullable=False,
     )
     environment_id = Column(Integer, ForeignKey("environments.id"), nullable=True)
     application_id = Column(Integer, ForeignKey("applications.id"), nullable=True)
     role = Column(
-        SAEnum(GroupRole, name="group_role_enum", native_enum=True, create_constraint=True, values_callable=lambda obj: [e.value for e in obj]),
+        SAEnum(
+            GroupRole,
+            name="group_role_enum",
+            native_enum=True,
+            create_constraint=True,
+            values_callable=lambda obj: [e.value for e in obj],
+        ),
         nullable=False,
     )
     is_default = Column(Boolean, default=False, nullable=False)

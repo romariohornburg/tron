@@ -23,7 +23,10 @@ class ApplicationNameProtectedError(Exception):
 
 
 def validate_application_name_uniqueness(
-    repository: ApplicationRepository, name: str, exclude_uuid: UUID = None, organization_id: int | None = None
+    repository: ApplicationRepository,
+    name: str,
+    exclude_uuid: UUID = None,
+    organization_id: int | None = None,
 ) -> None:
     """
     Validate that application name is unique within an organization.
@@ -32,11 +35,15 @@ def validate_application_name_uniqueness(
     existing_application = None
     if organization_id is not None:
         if exclude_uuid:
-            existing_application = repository.find_by_name_and_organization_excluding_uuid(
-                name, organization_id, exclude_uuid
+            existing_application = (
+                repository.find_by_name_and_organization_excluding_uuid(
+                    name, organization_id, exclude_uuid
+                )
             )
         else:
-            existing_application = repository.find_by_name_and_organization(name, organization_id)
+            existing_application = repository.find_by_name_and_organization(
+                name, organization_id
+            )
     else:
         if exclude_uuid:
             existing_application = repository.find_by_name_excluding_uuid(

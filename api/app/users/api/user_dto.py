@@ -70,6 +70,7 @@ class UserResponse(UserBase):
 
 class UserOrganizationInfo(BaseModel):
     """Organization information for user response."""
+
     uuid: str
     name: str
     is_owner: bool
@@ -79,6 +80,7 @@ class UserOrganizationInfo(BaseModel):
 
 class UserWithOrganizationsResponse(UserResponse):
     """User response with organizations the user has access to."""
+
     organizations: List[UserOrganizationInfo] = []
 
     @model_validator(mode="before")

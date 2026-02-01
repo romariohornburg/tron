@@ -58,7 +58,9 @@ class InstanceService:
         """Return environment id if it exists and belongs to the organization. Raises EnvironmentNotFoundError otherwise."""
         environment = self.repository.find_environment_by_uuid(environment_uuid)
         if not environment:
-            raise EnvironmentNotFoundError(f"Environment with UUID '{environment_uuid}' not found")
+            raise EnvironmentNotFoundError(
+                f"Environment with UUID '{environment_uuid}' not found"
+            )
         if environment.organization_id != organization_id:
             raise EnvironmentNotFoundError(
                 "Environment not found or does not belong to this organization"
@@ -114,10 +116,14 @@ class InstanceService:
         instance = self.repository.find_by_uuid(uuid, load_components=True)
         return self._strip_secrets_from_instance(instance)
 
-    def get_instances(self, skip: int = 0, limit: int = 100, organization_id: int | None = None) -> List[Instance]:
+    def get_instances(
+        self, skip: int = 0, limit: int = 100, organization_id: int | None = None
+    ) -> List[Instance]:
         """Get all instances. Optionally filter by organization_id."""
         if organization_id is not None:
-            instances = self.repository.find_by_organization_id(organization_id, skip=skip, limit=limit)
+            instances = self.repository.find_by_organization_id(
+                organization_id, skip=skip, limit=limit
+            )
         else:
             instances = self.repository.find_all(
                 skip=skip, limit=limit, load_components=True
@@ -227,8 +233,13 @@ class InstanceService:
 
         # If no instances remain for the application, delete the application
         if self.repository.count_by_application_id(application_id) == 0:
-            from app.applications.infra.application_repository import ApplicationRepository
-            from app.applications.infra.application_model import Application as ApplicationModel
+            from app.applications.infra.application_repository import (
+                ApplicationRepository,
+            )
+            from app.applications.infra.application_model import (
+                Application as ApplicationModel,
+            )
+
             app_repository = ApplicationRepository(database_session)
             try:
                 # Verify application still exists before attempting to delete
@@ -245,8 +256,13 @@ class InstanceService:
                 # Log but do not fail the request - instance was already deleted
                 # Application may have been deleted already (e.g., via delete_application endpoint)
                 error_msg = str(e)
-                if "has been deleted" not in error_msg.lower() and "not present" not in error_msg.lower():
-                    print(f"Instance deleted; failed to delete orphan application {application_id}: {error_msg}")
+                if (
+                    "has been deleted" not in error_msg.lower()
+                    and "not present" not in error_msg.lower()
+                ):
+                    print(
+                        f"Instance deleted; failed to delete orphan application {application_id}: {error_msg}"
+                    )
 
         return {"detail": "Instance deleted successfully"}
 

@@ -52,7 +52,7 @@ function CreateInstance() {
     <Step1InstanceForm
       data={instanceData}
       onChange={setInstanceData}
-      hasNoClusters={hasNoClusters}
+      hasNoClusters={!!hasNoClusters}
     />
   )
 

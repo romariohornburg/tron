@@ -100,10 +100,11 @@ class TokenUser:
         self.created_at = token.created_at
         self.updated_at = token.updated_at
         self._token = token  # Store reference to original token
-        
+
         # Get user info from associated user if exists
         if token.user_id:
             from app.users.infra.user_model import User as UserModel
+
             user = db.query(UserModel).filter(UserModel.id == token.user_id).first()
             if user:
                 self.uuid = user.uuid

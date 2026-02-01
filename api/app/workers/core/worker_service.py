@@ -211,7 +211,9 @@ class WorkerService:
         self, organization_id: int, skip: int = 0, limit: int = 100
     ) -> List[Worker]:
         """Get all workers for applications in a specific organization."""
-        workers = self.repository.find_by_organization_id(organization_id, skip=skip, limit=limit)
+        workers = self.repository.find_by_organization_id(
+            organization_id, skip=skip, limit=limit
+        )
         return [self._serialize_worker(w) for w in workers]
 
     def _serialize_worker(self, worker: ApplicationComponentModel) -> Worker:

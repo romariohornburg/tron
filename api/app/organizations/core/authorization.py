@@ -23,9 +23,13 @@ class OrganizationAccessContext:
     roles: Set[GroupRole]
 
 
-def buildOrgAccessContext(db: Session, organization_id: int, user_id: int) -> OrganizationAccessContext:
+def buildOrgAccessContext(
+    db: Session, organization_id: int, user_id: int
+) -> OrganizationAccessContext:
     """Build organization access context for a user."""
-    organization = db.query(Organization).filter(Organization.id == organization_id).one_or_none()
+    organization = (
+        db.query(Organization).filter(Organization.id == organization_id).one_or_none()
+    )
     if organization is None:
         raise ValueError("Organization not found")
 
@@ -33,7 +37,7 @@ def buildOrgAccessContext(db: Session, organization_id: int, user_id: int) -> Or
         db.query(OrganizationMember)
         .filter(
             OrganizationMember.organization_id == organization_id,
-            OrganizationMember.user_id == user_id
+            OrganizationMember.user_id == user_id,
         )
         .one_or_none()
     )
@@ -70,7 +74,9 @@ def buildOrgAccessContextForToken(
     Tokens with a user_id use that user's permissions.
     Tokens without user_id are denied access.
     """
-    organization = db.query(Organization).filter(Organization.id == organization_id).one_or_none()
+    organization = (
+        db.query(Organization).filter(Organization.id == organization_id).one_or_none()
+    )
     if organization is None:
         raise ValueError("Organization not found")
 
@@ -102,7 +108,9 @@ def canViewBilling(ctx: OrganizationAccessContext) -> bool:
 
 
 # Helpers para environment
-def hasEnvRole(ctx: OrganizationAccessContext, environment_id: int, allowedRoles: set[GroupRole]) -> bool:
+def hasEnvRole(
+    ctx: OrganizationAccessContext, environment_id: int, allowedRoles: set[GroupRole]
+) -> bool:
     """Check if user has any of the allowed roles for a specific environment."""
     if isOrgAdmin(ctx):
         return True
@@ -125,7 +133,9 @@ def isEnvMaintainer(ctx: OrganizationAccessContext, environment_id: int) -> bool
 
 def isEnvOperator(ctx: OrganizationAccessContext, environment_id: int) -> bool:
     """Env operator for a specific environment."""
-    return hasEnvRole(ctx, environment_id, {GroupRole.ENV_OPERATOR, GroupRole.ENV_MAINTAINER})
+    return hasEnvRole(
+        ctx, environment_id, {GroupRole.ENV_OPERATOR, GroupRole.ENV_MAINTAINER}
+    )
 
 
 def canViewEnvironment(ctx: OrganizationAccessContext, environment_id: int) -> bool:
@@ -133,30 +143,26 @@ def canViewEnvironment(ctx: OrganizationAccessContext, environment_id: int) -> b
     return hasEnvRole(
         ctx,
         environment_id,
-        {GroupRole.ENV_VIEWER, GroupRole.ENV_OPERATOR, GroupRole.ENV_MAINTAINER}
+        {GroupRole.ENV_VIEWER, GroupRole.ENV_OPERATOR, GroupRole.ENV_MAINTAINER},
     )
 
 
 def canDeployToEnvironment(ctx: OrganizationAccessContext, environment_id: int) -> bool:
     """Check if user can deploy to environment."""
     return hasEnvRole(
-        ctx,
-        environment_id,
-        {GroupRole.ENV_OPERATOR, GroupRole.ENV_MAINTAINER}
+        ctx, environment_id, {GroupRole.ENV_OPERATOR, GroupRole.ENV_MAINTAINER}
     )
 
 
 def canManageEnvironment(ctx: OrganizationAccessContext, environment_id: int) -> bool:
     """Check if user can manage environment configuration."""
-    return hasEnvRole(
-        ctx,
-        environment_id,
-        {GroupRole.ENV_MAINTAINER}
-    )
+    return hasEnvRole(ctx, environment_id, {GroupRole.ENV_MAINTAINER})
 
 
 # Helpers para application (ORG scope / APP scope)
-def hasAppRole(ctx: OrganizationAccessContext, application_id: int, allowedRoles: set[GroupRole]) -> bool:
+def hasAppRole(
+    ctx: OrganizationAccessContext, application_id: int, allowedRoles: set[GroupRole]
+) -> bool:
     """Check if user has any of the allowed roles for a specific application.
 
     Current rule:
@@ -196,33 +202,26 @@ def canViewApplication(ctx: OrganizationAccessContext, application_id: int) -> b
     return hasAppRole(
         ctx,
         application_id,
-        {GroupRole.APP_VIEWER, GroupRole.APP_DEVELOPER, GroupRole.APP_MAINTAINER}
+        {GroupRole.APP_VIEWER, GroupRole.APP_DEVELOPER, GroupRole.APP_MAINTAINER},
     )
 
 
 def canDeployApplication(ctx: OrganizationAccessContext, application_id: int) -> bool:
     """Check if user can deploy application."""
     return hasAppRole(
-        ctx,
-        application_id,
-        {GroupRole.APP_DEVELOPER, GroupRole.APP_MAINTAINER}
+        ctx, application_id, {GroupRole.APP_DEVELOPER, GroupRole.APP_MAINTAINER}
     )
 
 
 def canManageApplication(ctx: OrganizationAccessContext, application_id: int) -> bool:
     """Check if user can manage application configuration."""
-    return hasAppRole(
-        ctx,
-        application_id,
-        {GroupRole.APP_MAINTAINER}
-    )
-
-
-
+    return hasAppRole(ctx, application_id, {GroupRole.APP_MAINTAINER})
 
 
 # ✅ NEW: Helpers para Instance (ENV scope + ORG scope)
-def _getInstanceOrNone(db: Session, ctx: OrganizationAccessContext, instance_id: int) -> Instance | None:
+def _getInstanceOrNone(
+    db: Session, ctx: OrganizationAccessContext, instance_id: int
+) -> Instance | None:
     """
     Load instance ensuring it belongs to the same organization.
     We enforce org isolation by joining through Application (which has organization_id).
@@ -254,7 +253,9 @@ def canCreateInstance(ctx: OrganizationAccessContext, environment_id: int) -> bo
     return hasEnvRole(ctx, environment_id, {GroupRole.ENV_MAINTAINER})
 
 
-def canViewInstance(ctx: OrganizationAccessContext, instance_id: int, db: Session) -> bool:
+def canViewInstance(
+    ctx: OrganizationAccessContext, instance_id: int, db: Session
+) -> bool:
     """
     View instance details (and usually logs/metrics read-only).
 
@@ -275,11 +276,13 @@ def canViewInstance(ctx: OrganizationAccessContext, instance_id: int, db: Sessio
     return hasEnvRole(
         ctx,
         inst.environment_id,
-        {GroupRole.ENV_VIEWER, GroupRole.ENV_OPERATOR, GroupRole.ENV_MAINTAINER}
+        {GroupRole.ENV_VIEWER, GroupRole.ENV_OPERATOR, GroupRole.ENV_MAINTAINER},
     )
 
 
-def canOperateInstance(ctx: OrganizationAccessContext, instance_id: int, db: Session) -> bool:
+def canOperateInstance(
+    ctx: OrganizationAccessContext, instance_id: int, db: Session
+) -> bool:
     """
     Operate an instance (deploy/restart/rollback/change image+version, etc.)
 
@@ -298,13 +301,13 @@ def canOperateInstance(ctx: OrganizationAccessContext, instance_id: int, db: Ses
         return False
 
     return hasEnvRole(
-        ctx,
-        inst.environment_id,
-        {GroupRole.ENV_OPERATOR, GroupRole.ENV_MAINTAINER}
+        ctx, inst.environment_id, {GroupRole.ENV_OPERATOR, GroupRole.ENV_MAINTAINER}
     )
 
 
-def canManageInstance(ctx: OrganizationAccessContext, instance_id: int, db: Session) -> bool:
+def canManageInstance(
+    ctx: OrganizationAccessContext, instance_id: int, db: Session
+) -> bool:
     """
     Manage instance (create/delete semantics + more sensitive config actions).
 
@@ -325,7 +328,9 @@ def canManageInstance(ctx: OrganizationAccessContext, instance_id: int, db: Sess
     return hasEnvRole(ctx, inst.environment_id, {GroupRole.ENV_MAINTAINER})
 
 
-def canDeleteInstance(ctx: OrganizationAccessContext, instance_id: int, db: Session) -> bool:
+def canDeleteInstance(
+    ctx: OrganizationAccessContext, instance_id: int, db: Session
+) -> bool:
     """
     Delete instance.
 
@@ -338,74 +343,112 @@ def canDeleteInstance(ctx: OrganizationAccessContext, instance_id: int, db: Sess
 
 
 # Helper functions that accept UUIDs (convenience wrappers)
-def canViewEnvironmentByUuid(ctx: OrganizationAccessContext, environment_uuid: UUID, db: Session) -> bool:
+def canViewEnvironmentByUuid(
+    ctx: OrganizationAccessContext, environment_uuid: UUID, db: Session
+) -> bool:
     """Check if user can view environment by UUID."""
-    environment = db.query(Environment).filter(
-        Environment.uuid == environment_uuid,
-        Environment.organization_id == ctx.organization.id
-    ).first()
+    environment = (
+        db.query(Environment)
+        .filter(
+            Environment.uuid == environment_uuid,
+            Environment.organization_id == ctx.organization.id,
+        )
+        .first()
+    )
     if not environment:
         return False
     return canViewEnvironment(ctx, environment.id)
 
 
-def canDeployToEnvironmentByUuid(ctx: OrganizationAccessContext, environment_uuid: UUID, db: Session) -> bool:
+def canDeployToEnvironmentByUuid(
+    ctx: OrganizationAccessContext, environment_uuid: UUID, db: Session
+) -> bool:
     """Check if user can deploy to environment by UUID."""
-    environment = db.query(Environment).filter(
-        Environment.uuid == environment_uuid,
-        Environment.organization_id == ctx.organization.id
-    ).first()
+    environment = (
+        db.query(Environment)
+        .filter(
+            Environment.uuid == environment_uuid,
+            Environment.organization_id == ctx.organization.id,
+        )
+        .first()
+    )
     if not environment:
         return False
     return canDeployToEnvironment(ctx, environment.id)
 
 
-def canManageEnvironmentByUuid(ctx: OrganizationAccessContext, environment_uuid: UUID, db: Session) -> bool:
+def canManageEnvironmentByUuid(
+    ctx: OrganizationAccessContext, environment_uuid: UUID, db: Session
+) -> bool:
     """Check if user can manage environment by UUID."""
-    environment = db.query(Environment).filter(
-        Environment.uuid == environment_uuid,
-        Environment.organization_id == ctx.organization.id
-    ).first()
+    environment = (
+        db.query(Environment)
+        .filter(
+            Environment.uuid == environment_uuid,
+            Environment.organization_id == ctx.organization.id,
+        )
+        .first()
+    )
     if not environment:
         return False
     return canManageEnvironment(ctx, environment.id)
 
 
-def canViewApplicationByUuid(ctx: OrganizationAccessContext, application_uuid: UUID, db: Session) -> bool:
+def canViewApplicationByUuid(
+    ctx: OrganizationAccessContext, application_uuid: UUID, db: Session
+) -> bool:
     """Check if user can view application by UUID."""
-    application = db.query(Application).filter(
-        Application.uuid == application_uuid,
-        Application.organization_id == ctx.organization.id
-    ).first()
+    application = (
+        db.query(Application)
+        .filter(
+            Application.uuid == application_uuid,
+            Application.organization_id == ctx.organization.id,
+        )
+        .first()
+    )
     if not application:
         return False
     return canViewApplication(ctx, application.id)
 
 
-def canDeployApplicationByUuid(ctx: OrganizationAccessContext, application_uuid: UUID, db: Session) -> bool:
+def canDeployApplicationByUuid(
+    ctx: OrganizationAccessContext, application_uuid: UUID, db: Session
+) -> bool:
     """Check if user can deploy application by UUID."""
-    application = db.query(Application).filter(
-        Application.uuid == application_uuid,
-        Application.organization_id == ctx.organization.id
-    ).first()
+    application = (
+        db.query(Application)
+        .filter(
+            Application.uuid == application_uuid,
+            Application.organization_id == ctx.organization.id,
+        )
+        .first()
+    )
     if not application:
         return False
     return canDeployApplication(ctx, application.id)
 
 
-def canManageApplicationByUuid(ctx: OrganizationAccessContext, application_uuid: UUID, db: Session) -> bool:
+def canManageApplicationByUuid(
+    ctx: OrganizationAccessContext, application_uuid: UUID, db: Session
+) -> bool:
     """Check if user can manage application by UUID."""
-    application = db.query(Application).filter(
-        Application.uuid == application_uuid,
-        Application.organization_id == ctx.organization.id
-    ).first()
+    application = (
+        db.query(Application)
+        .filter(
+            Application.uuid == application_uuid,
+            Application.organization_id == ctx.organization.id,
+        )
+        .first()
+    )
     if not application:
         return False
     return canManageApplication(ctx, application.id)
 
 
 # ✅ NEW: UUID wrappers for Instance
-def canViewInstanceByUuid(ctx: OrganizationAccessContext, instance_uuid: UUID, db: Session) -> bool:
+def canViewInstanceByUuid(
+    ctx: OrganizationAccessContext, instance_uuid: UUID, db: Session
+) -> bool:
     inst = (
         db.query(Instance)
         .join(Application, Application.id == Instance.application_id)
@@ -420,7 +463,9 @@ def canViewInstanceByUuid(ctx: OrganizationAccessContext, instance_uuid: UUID, d
     return canViewInstance(ctx, inst.id, db)
 
 
-def canOperateInstanceByUuid(ctx: OrganizationAccessContext, instance_uuid: UUID, db: Session) -> bool:
+def canOperateInstanceByUuid(
+    ctx: OrganizationAccessContext, instance_uuid: UUID, db: Session
+) -> bool:
     inst = (
         db.query(Instance)
         .join(Application, Application.id == Instance.application_id)
@@ -435,7 +480,9 @@ def canOperateInstanceByUuid(ctx: OrganizationAccessContext, instance_uuid: UUID
     return canOperateInstance(ctx, inst.id, db)
 
 
-def canManageInstanceByUuid(ctx: OrganizationAccessContext, instance_uuid: UUID, db: Session) -> bool:
+def canManageInstanceByUuid(
+    ctx: OrganizationAccessContext, instance_uuid: UUID, db: Session
+) -> bool:
     inst = (
         db.query(Instance)
         .join(Application, Application.id == Instance.application_id)
@@ -450,5 +497,7 @@ def canManageInstanceByUuid(ctx: OrganizationAccessContext, instance_uuid: UUID,
     return canManageInstance(ctx, inst.id, db)
 
 
-def canDeleteInstanceByUuid(ctx: OrganizationAccessContext, instance_uuid: UUID, db: Session) -> bool:
+def canDeleteInstanceByUuid(
+    ctx: OrganizationAccessContext, instance_uuid: UUID, db: Session
+) -> bool:
     return canManageInstanceByUuid(ctx, instance_uuid, db)

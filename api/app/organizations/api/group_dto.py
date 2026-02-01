@@ -23,10 +23,12 @@ class GroupCreate(GroupBase):
     @model_validator(mode="after")
     def validate_scope_consistency(self):
         validateGroupScopeAndRole(self.scope_level, self.role)
-        
+
         if self.scope_level == ScopeLevel.ORG:
             if self.environment_id is not None or self.application_id is not None:
-                raise ValueError("For org scope, environment_id and application_id must be None")
+                raise ValueError(
+                    "For org scope, environment_id and application_id must be None"
+                )
         elif self.scope_level == ScopeLevel.ENVIRONMENT:
             if self.environment_id is None:
                 raise ValueError("For environment scope, environment_id is required")
@@ -35,7 +37,7 @@ class GroupCreate(GroupBase):
         elif self.scope_level == ScopeLevel.APPLICATION:
             if self.application_id is None:
                 raise ValueError("For application scope, application_id is required")
-        
+
         return self
 
 
@@ -72,10 +74,14 @@ class Group(GroupBase):
                 "uuid": data.uuid,
                 "name": data.name,
                 "description": data.description,
-                "scope_level": data.scope_level.value if hasattr(data.scope_level, 'value') else data.scope_level,
-                "role": data.role.value if hasattr(data.role, 'value') else data.role,
+                "scope_level": data.scope_level.value
+                if hasattr(data.scope_level, "value")
+                else data.scope_level,
+                "role": data.role.value if hasattr(data.role, "value") else data.role,
                 "is_default": data.is_default,
-                "created_at": data.created_at.isoformat() if isinstance(data.created_at, datetime) else data.created_at,
+                "created_at": data.created_at.isoformat()
+                if isinstance(data.created_at, datetime)
+                else data.created_at,
             }
             # Convert organization_id from relationship if loaded
             if hasattr(data, "organization") and data.organization:
@@ -105,7 +111,9 @@ class Group(GroupBase):
                             uuid=m.uuid,
                             group_id=data.uuid,
                             organization_member_id=org_member_uuid,
-                            created_at=m.created_at.isoformat() if isinstance(m.created_at, datetime) else str(m.created_at),
+                            created_at=m.created_at.isoformat()
+                            if isinstance(m.created_at, datetime)
+                            else str(m.created_at),
                         )
                     )
             result["members"] = members_list
@@ -115,13 +123,25 @@ class Group(GroupBase):
             if "created_at" in data and isinstance(data["created_at"], datetime):
                 data["created_at"] = data["created_at"].isoformat()
             # Convert organization_id (int) to organization UUID if organization relationship is loaded
-            if "organization" in data and data["organization"] and hasattr(data["organization"], "uuid"):
+            if (
+                "organization" in data
+                and data["organization"]
+                and hasattr(data["organization"], "uuid")
+            ):
                 data["organization_id"] = data["organization"].uuid
             # Convert environment_id (int) to environment UUID if environment relationship is loaded
-            if "environment" in data and data["environment"] and hasattr(data["environment"], "uuid"):
+            if (
+                "environment" in data
+                and data["environment"]
+                and hasattr(data["environment"], "uuid")
+            ):
                 data["environment_id"] = data["environment"].uuid
             # Convert application_id (int) to application UUID if application relationship is loaded
-            if "application" in data and data["application"] and hasattr(data["application"], "uuid"):
+            if (
+                "application" in data
+                and data["application"]
+                and hasattr(data["application"], "uuid")
+            ):
                 data["application_id"] = data["application"].uuid
             # Ensure members is present when building from dict (e.g. from nested serialization)
             if "members" not in data:

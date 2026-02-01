@@ -17,3 +17,5 @@ docker/.env
 # IDE
 .idea/
 .vscode/
+
+coverage/

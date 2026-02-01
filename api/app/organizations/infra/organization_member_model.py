@@ -1,4 +1,12 @@
-from sqlalchemy import Column, Integer, Boolean, DateTime, ForeignKey, UniqueConstraint, Enum as SAEnum
+from sqlalchemy import (
+    Column,
+    Integer,
+    Boolean,
+    DateTime,
+    ForeignKey,
+    UniqueConstraint,
+    Enum as SAEnum,
+)
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
 from sqlalchemy.dialects.postgresql import UUID
@@ -16,7 +24,13 @@ class OrganizationMember(Base):
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     is_owner = Column(Boolean, default=False, nullable=False)
     status = Column(
-        SAEnum(OrganizationMemberStatus, name="organization_member_status_enum", native_enum=True, create_constraint=True, values_callable=lambda obj: [e.value for e in obj]),
+        SAEnum(
+            OrganizationMemberStatus,
+            name="organization_member_status_enum",
+            native_enum=True,
+            create_constraint=True,
+            values_callable=lambda obj: [e.value for e in obj],
+        ),
         nullable=False,
         default=OrganizationMemberStatus.ACTIVE.value,
     )

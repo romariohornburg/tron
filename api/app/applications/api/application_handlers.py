@@ -15,7 +15,9 @@ from app.applications.core.application_validators import (
     ApplicationNameAlreadyExistsError,
     ApplicationNameProtectedError,
 )
-from app.organizations.api.dependencies.organization_context import getOrganizationContext
+from app.organizations.api.dependencies.organization_context import (
+    getOrganizationContext,
+)
 from app.organizations.core.authorization import (
     OrganizationAccessContext,
     isOrgAdmin,
@@ -25,7 +27,9 @@ from app.organizations.core.authorization import (
 )
 
 
-router = APIRouter(prefix="/organizations/{organization_uuid}/applications", tags=["applications"])
+router = APIRouter(
+    prefix="/organizations/{organization_uuid}/applications", tags=["applications"]
+)
 
 
 def get_application_service(
@@ -51,7 +55,9 @@ def create_application(
     """Create a new application within an organization."""
     # Only org admins can create applications
     if not isOrgMember(ctx):
-        raise HTTPException(status_code=403, detail="Only organization members can create applications")
+        raise HTTPException(
+            status_code=403, detail="Only organization members can create applications"
+        )
 
     try:
         return service.create_application(application, ctx.organization.id)
@@ -75,7 +81,9 @@ def update_application(
     """Update an existing application."""
     # Verify user has permission to manage this application (helper also verifies it belongs to org)
     if not (isOrgAdmin(ctx) or canManageApplicationByUuid(ctx, uuid, db)):
-        raise HTTPException(status_code=403, detail="Not allowed to update this application")
+        raise HTTPException(
+            status_code=403, detail="Not allowed to update this application"
+        )
 
     try:
         return service.update_application(uuid, application, ctx.organization.id)
@@ -103,7 +111,9 @@ def list_applications(
 
     # If user is org admin, return all applications
     if isOrgAdmin(ctx):
-        return service.get_applications(skip=skip, limit=limit, organization_id=ctx.organization.id)
+        return service.get_applications(
+            skip=skip, limit=limit, organization_id=ctx.organization.id
+        )
 
     # Otherwise, filter applications based on user's groups and permissions
     # Get all applications for the organization
@@ -111,12 +121,11 @@ def list_applications(
 
     # Filter applications the user can view
     viewable_applications = [
-        app for app in all_applications
-        if canViewApplication(ctx, app.id)
+        app for app in all_applications if canViewApplication(ctx, app.id)
     ]
 
     # Apply pagination
-    paginated_applications = viewable_applications[skip:skip + limit]
+    paginated_applications = viewable_applications[skip : skip + limit]
 
     # Convert to DTOs
     return [Application.model_validate(app) for app in paginated_applications]
@@ -133,17 +142,24 @@ def get_application(
     """Get application by UUID."""
     # First check if application exists and belongs to organization
     from app.applications.infra.application_model import Application as ApplicationModel
-    application_model = db.query(ApplicationModel).filter(
-        ApplicationModel.uuid == uuid,
-        ApplicationModel.organization_id == ctx.organization.id
-    ).first()
-    
+
+    application_model = (
+        db.query(ApplicationModel)
+        .filter(
+            ApplicationModel.uuid == uuid,
+            ApplicationModel.organization_id == ctx.organization.id,
+        )
+        .first()
+    )
+
     if not application_model:
         raise HTTPException(status_code=404, detail="Application not found")
-    
+
     # Then verify user has permission to view this application
     if not canViewApplication(ctx, application_model.id):
-        raise HTTPException(status_code=403, detail="Not allowed to view this application")
+        raise HTTPException(
+            status_code=403, detail="Not allowed to view this application"
+        )
 
     try:
         application = service.get_application(uuid)
@@ -163,7 +179,9 @@ def delete_application(
     """Delete an application."""
     # Verify user has permission to manage this application (helper also verifies it belongs to org)
     if not (isOrgMember(ctx)):
-        raise HTTPException(status_code=403, detail="Not allowed to delete this application")
+        raise HTTPException(
+            status_code=403, detail="Not allowed to delete this application"
+        )
 
     try:
         return service.delete_application(uuid, database_session)

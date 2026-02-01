@@ -18,7 +18,9 @@ class Template(Base):
     variables_schema = Column(
         Text, nullable=True
     )  # JSON with schema of available variables
-    organization_id = Column(Integer, ForeignKey("organizations.id"), nullable=False, index=True)
+    organization_id = Column(
+        Integer, ForeignKey("organizations.id"), nullable=False, index=True
+    )
 
     created_at = Column(DateTime, server_default=func.now(), nullable=False)
     updated_at = Column(

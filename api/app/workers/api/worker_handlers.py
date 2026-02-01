@@ -27,7 +27,9 @@ from app.workers.core.worker_validators import (
 )
 from app.users.infra.user_model import UserRole, User
 from app.shared.dependencies.auth import require_role, get_current_user
-from app.organizations.api.dependencies.organization_context import getOrganizationContext
+from app.organizations.api.dependencies.organization_context import (
+    getOrganizationContext,
+)
 from app.organizations.core.authorization import (
     OrganizationAccessContext,
     canViewApplication,
@@ -40,7 +42,10 @@ from app.organizations.core.authorization import (
 )
 
 
-router = APIRouter(prefix="/organizations/{organization_uuid}/application_components/worker", tags=["worker"])
+router = APIRouter(
+    prefix="/organizations/{organization_uuid}/application_components/worker",
+    tags=["worker"],
+)
 
 
 def get_worker_service(database_session: Session = Depends(get_db)) -> WorkerService:
@@ -60,18 +65,25 @@ def create_worker(
     """Create a new worker."""
     # Validate instance belongs to organization; allow create by application or by env maintainer
     from app.instances.infra.instance_repository import InstanceRepository
+
     instance_repo = InstanceRepository(service.db)
     instance = instance_repo.find_by_uuid(worker.instance_uuid)
     if not instance:
         raise HTTPException(status_code=404, detail="Instance not found")
     if instance.application.organization_id != ctx.organization.id:
-        raise HTTPException(status_code=403, detail="Instance does not belong to this organization")
+        raise HTTPException(
+            status_code=403, detail="Instance does not belong to this organization"
+        )
 
-    if not canManageApplication(ctx, instance.application_id) and not isEnvMaintainer(
-        ctx, instance.environment_id
-    ) and not isAppMaintainer(ctx, instance.application_id):
-        raise HTTPException(status_code=403, detail="Insufficient permissions to manage applications")
-    
+    if (
+        not canManageApplication(ctx, instance.application_id)
+        and not isEnvMaintainer(ctx, instance.environment_id)
+        and not isAppMaintainer(ctx, instance.application_id)
+    ):
+        raise HTTPException(
+            status_code=403, detail="Insufficient permissions to manage applications"
+        )
+
     try:
         return service.create_worker(worker)
     except (InstanceNotFoundError, ValueError) as e:
@@ -91,7 +103,9 @@ def list_workers(
 ):
     """List all workers for the organization."""
     # Get workers filtered by organization
-    return service.get_workers_by_organization(ctx.organization.id, skip=skip, limit=limit)
+    return service.get_workers_by_organization(
+        ctx.organization.id, skip=skip, limit=limit
+    )
 
 
 @router.get("/{uuid}", response_model=Worker)
@@ -112,9 +126,9 @@ def get_worker(
         if worker_model.instance and worker_model.instance.application:
             if worker_model.instance.application.organization_id != ctx.organization.id:
                 raise HTTPException(status_code=404, detail="Worker not found")
-            if not canViewApplication(ctx, worker_model.instance.application_id) and not canViewEnvironment(
-                ctx, worker_model.instance.environment_id
-            ):
+            if not canViewApplication(
+                ctx, worker_model.instance.application_id
+            ) and not canViewEnvironment(ctx, worker_model.instance.environment_id):
                 raise HTTPException(status_code=403, detail="Insufficient permissions")
         return service.get_worker(uuid)
     except (WorkerNotFoundError, WorkerNotWorkerTypeError) as e:
@@ -140,9 +154,11 @@ def update_worker(
         if worker_model.instance and worker_model.instance.application:
             if worker_model.instance.application.organization_id != ctx.organization.id:
                 raise HTTPException(status_code=404, detail="Worker not found")
-            if not canManageApplication(ctx, worker_model.instance.application_id) and not isEnvOperator(
-                ctx, worker_model.instance.environment_id
-            ) and not isAppDeveloper(ctx, worker_model.instance.application_id):
+            if (
+                not canManageApplication(ctx, worker_model.instance.application_id)
+                and not isEnvOperator(ctx, worker_model.instance.environment_id)
+                and not isAppDeveloper(ctx, worker_model.instance.application_id)
+            ):
                 raise HTTPException(status_code=403, detail="Insufficient permissions")
         return service.update_worker(uuid, worker)
     except (WorkerNotFoundError, WorkerNotWorkerTypeError) as e:
@@ -169,9 +185,11 @@ def delete_worker(
         if worker_model.instance and worker_model.instance.application:
             if worker_model.instance.application.organization_id != ctx.organization.id:
                 raise HTTPException(status_code=404, detail="Worker not found")
-            if not canManageApplication(ctx, worker_model.instance.application_id) and not isEnvMaintainer(
-                ctx, worker_model.instance.environment_id
-            ) and not isAppMaintainer(ctx, worker_model.instance.application_id):
+            if (
+                not canManageApplication(ctx, worker_model.instance.application_id)
+                and not isEnvMaintainer(ctx, worker_model.instance.environment_id)
+                and not isAppMaintainer(ctx, worker_model.instance.application_id)
+            ):
                 raise HTTPException(status_code=403, detail="Insufficient permissions")
         return service.delete_worker(uuid)
     except (WorkerNotFoundError, WorkerNotWorkerTypeError) as e:
@@ -263,9 +281,9 @@ def get_worker_pods(
     if worker.instance and worker.instance.application:
         if worker.instance.application.organization_id != ctx.organization.id:
             raise HTTPException(status_code=404, detail="Worker not found")
-        if not canViewApplication(ctx, worker.instance.application_id) and not canViewEnvironment(
-            ctx, worker.instance.environment_id
-        ):
+        if not canViewApplication(
+            ctx, worker.instance.application_id
+        ) and not canViewEnvironment(ctx, worker.instance.environment_id):
             raise HTTPException(status_code=403, detail="Insufficient permissions")
 
     cluster_instance = repository.find_cluster_instance_by_component_id(worker.id)
@@ -308,9 +326,11 @@ def delete_worker_pod(
     if worker.instance and worker.instance.application:
         if worker.instance.application.organization_id != ctx.organization.id:
             raise HTTPException(status_code=404, detail="Worker not found")
-        if not canManageApplication(ctx, worker.instance.application_id) and not isEnvMaintainer(
-            ctx, worker.instance.environment_id
-        ) and not isAppMaintainer(ctx, worker.instance.application_id):
+        if (
+            not canManageApplication(ctx, worker.instance.application_id)
+            and not isEnvMaintainer(ctx, worker.instance.environment_id)
+            and not isAppMaintainer(ctx, worker.instance.application_id)
+        ):
             raise HTTPException(status_code=403, detail="Insufficient permissions")
 
     cluster_instance = repository.find_cluster_instance_by_component_id(worker.id)
@@ -356,9 +376,9 @@ def get_worker_pod_logs(
     if worker.instance and worker.instance.application:
         if worker.instance.application.organization_id != ctx.organization.id:
             raise HTTPException(status_code=404, detail="Worker not found")
-        if not canViewApplication(ctx, worker.instance.application_id) and not canViewEnvironment(
-            ctx, worker.instance.environment_id
-        ):
+        if not canViewApplication(
+            ctx, worker.instance.application_id
+        ) and not canViewEnvironment(ctx, worker.instance.environment_id):
             raise HTTPException(status_code=403, detail="Insufficient permissions")
 
     cluster_instance = repository.find_cluster_instance_by_component_id(worker.id)
@@ -405,9 +425,11 @@ def exec_worker_pod_command(
     if worker.instance and worker.instance.application:
         if worker.instance.application.organization_id != ctx.organization.id:
             raise HTTPException(status_code=404, detail="Worker not found")
-        if not canManageApplication(ctx, worker.instance.application_id) and not isEnvMaintainer(
-            ctx, worker.instance.environment_id
-        ) and not isAppMaintainer(ctx, worker.instance.application_id):
+        if (
+            not canManageApplication(ctx, worker.instance.application_id)
+            and not isEnvMaintainer(ctx, worker.instance.environment_id)
+            and not isAppMaintainer(ctx, worker.instance.application_id)
+        ):
             raise HTTPException(status_code=403, detail="Insufficient permissions")
 
     cluster_instance = repository.find_cluster_instance_by_component_id(worker.id)

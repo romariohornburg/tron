@@ -6,7 +6,9 @@ from app.shared.database.database import get_db
 from app.dashboard.infra.dashboard_repository import DashboardRepository
 from app.dashboard.core.dashboard_service import DashboardService
 from app.dashboard.api.dashboard_dto import DashboardOverview
-from app.organizations.api.dependencies.organization_context import getOrganizationContext
+from app.organizations.api.dependencies.organization_context import (
+    getOrganizationContext,
+)
 from app.organizations.core.authorization import (
     OrganizationAccessContext,
     isOrgAdmin,
@@ -21,7 +23,9 @@ from app.applications.core.application_service import ApplicationService
 from app.instances.infra.instance_repository import InstanceRepository
 
 
-router = APIRouter(prefix="/organizations/{organization_uuid}/dashboard", tags=["dashboard"])
+router = APIRouter(
+    prefix="/organizations/{organization_uuid}/dashboard", tags=["dashboard"]
+)
 
 
 def get_dashboard_service(
@@ -55,7 +59,7 @@ def get_dashboard_overview(
     # Get dashboard overview filtered by viewable applications and environments
     return service.get_dashboard_overview(
         viewable_application_ids=list(viewable_application_ids),
-        viewable_environment_ids=list(viewable_environment_ids)
+        viewable_environment_ids=list(viewable_environment_ids),
     )
 
 
@@ -70,12 +74,15 @@ def _collect_viewable_resources(
     )
 
     # Applications user can view directly (via canViewApplication, isAppDeveloper, or isAppMaintainer)
-    viewable_application_ids = set([
-        app.id for app in all_applications
-        if canViewApplication(ctx, app.id)
-        or isAppDeveloper(ctx, app.id)
-        or isAppMaintainer(ctx, app.id)
-    ])
+    viewable_application_ids = set(
+        [
+            app.id
+            for app in all_applications
+            if canViewApplication(ctx, app.id)
+            or isAppDeveloper(ctx, app.id)
+            or isAppMaintainer(ctx, app.id)
+        ]
+    )
 
     # Get all instances to determine accessible environments
     instance_repository = InstanceRepository(db)
@@ -98,10 +105,9 @@ def _collect_viewable_resources(
     for instance in all_instances:
         if instance.application_id in viewable_application_ids:
             # Check if user has app-level access (not just canViewApplication)
-            has_app_level_access = (
-                isAppDeveloper(ctx, instance.application_id)
-                or isAppMaintainer(ctx, instance.application_id)
-            )
+            has_app_level_access = isAppDeveloper(
+                ctx, instance.application_id
+            ) or isAppMaintainer(ctx, instance.application_id)
             # If user has app-level access, include the environment
             if has_app_level_access:
                 viewable_environment_ids.add(instance.environment_id)

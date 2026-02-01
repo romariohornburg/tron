@@ -8,11 +8,15 @@ from app.templates.infra.template_repository import TemplateRepository
 from app.templates.core.template_service import TemplateService
 from app.templates.api.template_dto import TemplateCreate, TemplateUpdate, Template
 from app.templates.core.template_validators import TemplateNotFoundError
-from app.organizations.api.dependencies.organization_context import getOrganizationContext
+from app.organizations.api.dependencies.organization_context import (
+    getOrganizationContext,
+)
 from app.organizations.core.authorization import OrganizationAccessContext, isOrgAdmin
 
 
-router = APIRouter(prefix="/organizations/{organization_uuid}/templates", tags=["templates"])
+router = APIRouter(
+    prefix="/organizations/{organization_uuid}/templates", tags=["templates"]
+)
 
 
 def get_template_service(
@@ -32,7 +36,9 @@ def create_template(
 ):
     """Create a new template. Only organization admins can create templates."""
     if not isOrgAdmin(ctx):
-        raise HTTPException(status_code=403, detail="Only organization admins can create templates")
+        raise HTTPException(
+            status_code=403, detail="Only organization admins can create templates"
+        )
 
     try:
         return service.create_template(template, ctx.organization.id)
@@ -52,7 +58,9 @@ def update_template(
 ):
     """Update an existing template. Only organization admins can update templates."""
     if not isOrgAdmin(ctx):
-        raise HTTPException(status_code=403, detail="Only organization admins can update templates")
+        raise HTTPException(
+            status_code=403, detail="Only organization admins can update templates"
+        )
 
     # Verify template belongs to organization
     template_model = service.repository.find_by_uuid(uuid)
@@ -80,9 +88,13 @@ def list_templates(
 ):
     """List all templates for the organization."""
     if not isOrgAdmin(ctx):
-        raise HTTPException(status_code=403, detail="Only organization admins can list templates")
+        raise HTTPException(
+            status_code=403, detail="Only organization admins can list templates"
+        )
 
-    return service.get_templates(skip=skip, limit=limit, category=category, organization_id=ctx.organization.id)
+    return service.get_templates(
+        skip=skip, limit=limit, category=category, organization_id=ctx.organization.id
+    )
 
 
 @router.get("/{uuid}", response_model=Template)
@@ -111,7 +123,9 @@ def delete_template(
 ):
     """Delete a template. Only organization admins can delete templates."""
     if not isOrgAdmin(ctx):
-        raise HTTPException(status_code=403, detail="Only organization admins can delete templates")
+        raise HTTPException(
+            status_code=403, detail="Only organization admins can delete templates"
+        )
 
     # Verify template belongs to organization
     template_model = service.repository.find_by_uuid(uuid)

@@ -3,6 +3,7 @@ Service to seed initial Kubernetes templates and component_template_config for a
 Used when creating a new organization (create_organization_with_defaults) and optionally by scripts.
 Does not commit; caller is responsible for commit.
 """
+
 from pathlib import Path
 from uuid import uuid4
 from typing import List
@@ -86,19 +87,75 @@ def _build_templates_data(base_path: Path) -> List[dict]:
     cron_dir = base_path / "cron"
     worker_dir = base_path / "worker"
     return [
-        {"name": "Webapp Deployment", "description": "Deployment template for webapp components", "category": "webapp", "file_path": webapp_dir / "deployment.yaml.j2", "render_order": 1},
-        {"name": "Webapp Service", "description": "Service template for webapp components", "category": "webapp", "file_path": webapp_dir / "service.yaml.j2", "render_order": 2},
-        {"name": "Webapp HPA", "description": "HorizontalPodAutoscaler template for webapp components", "category": "webapp", "file_path": webapp_dir / "hpa.yaml.j2", "render_order": 3},
-        {"name": "Webapp HTTPRoute", "description": "HTTPRoute template for webapp components", "category": "webapp", "file_path": webapp_dir / "httproute.yaml.j2", "render_order": 4},
-        {"name": "Webapp TCPRoute", "description": "TCPRoute template for webapp components", "category": "webapp", "file_path": webapp_dir / "tcproute.yaml.j2", "render_order": 5},
-        {"name": "Webapp UDPRoute", "description": "UDPRoute template for webapp components", "category": "webapp", "file_path": webapp_dir / "udproute.yaml.j2", "render_order": 6},
-        {"name": "Cron CronJob", "description": "CronJob template for cron components", "category": "cron", "file_path": cron_dir / "cron.yaml.j2", "render_order": 1},
-        {"name": "Worker Deployment", "description": "Deployment template for worker components", "category": "worker", "file_path": worker_dir / "deployment.yaml.j2", "render_order": 1},
-        {"name": "Worker HPA", "description": "HorizontalPodAutoscaler template for worker components", "category": "worker", "file_path": worker_dir / "hpa.yaml.j2", "render_order": 2},
+        {
+            "name": "Webapp Deployment",
+            "description": "Deployment template for webapp components",
+            "category": "webapp",
+            "file_path": webapp_dir / "deployment.yaml.j2",
+            "render_order": 1,
+        },
+        {
+            "name": "Webapp Service",
+            "description": "Service template for webapp components",
+            "category": "webapp",
+            "file_path": webapp_dir / "service.yaml.j2",
+            "render_order": 2,
+        },
+        {
+            "name": "Webapp HPA",
+            "description": "HorizontalPodAutoscaler template for webapp components",
+            "category": "webapp",
+            "file_path": webapp_dir / "hpa.yaml.j2",
+            "render_order": 3,
+        },
+        {
+            "name": "Webapp HTTPRoute",
+            "description": "HTTPRoute template for webapp components",
+            "category": "webapp",
+            "file_path": webapp_dir / "httproute.yaml.j2",
+            "render_order": 4,
+        },
+        {
+            "name": "Webapp TCPRoute",
+            "description": "TCPRoute template for webapp components",
+            "category": "webapp",
+            "file_path": webapp_dir / "tcproute.yaml.j2",
+            "render_order": 5,
+        },
+        {
+            "name": "Webapp UDPRoute",
+            "description": "UDPRoute template for webapp components",
+            "category": "webapp",
+            "file_path": webapp_dir / "udproute.yaml.j2",
+            "render_order": 6,
+        },
+        {
+            "name": "Cron CronJob",
+            "description": "CronJob template for cron components",
+            "category": "cron",
+            "file_path": cron_dir / "cron.yaml.j2",
+            "render_order": 1,
+        },
+        {
+            "name": "Worker Deployment",
+            "description": "Deployment template for worker components",
+            "category": "worker",
+            "file_path": worker_dir / "deployment.yaml.j2",
+            "render_order": 1,
+        },
+        {
+            "name": "Worker HPA",
+            "description": "HorizontalPodAutoscaler template for worker components",
+            "category": "worker",
+            "file_path": worker_dir / "hpa.yaml.j2",
+            "render_order": 2,
+        },
     ]
 
 
-def seed_templates_for_organization(db: Session, organization_id: int) -> List[TemplateModel]:
+def seed_templates_for_organization(
+    db: Session, organization_id: int
+) -> List[TemplateModel]:
     """
     Seed initial templates and component_template_config for the given organization.
     Adds to session and flushes; does NOT commit. Caller must commit.
@@ -133,7 +190,8 @@ def seed_templates_for_organization(db: Session, organization_id: int) -> List[T
                 db.query(ComponentTemplateConfigModel)
                 .filter(
                     ComponentTemplateConfigModel.template_id == existing_template.id,
-                    ComponentTemplateConfigModel.component_type == template_data["category"],
+                    ComponentTemplateConfigModel.component_type
+                    == template_data["category"],
                     ComponentTemplateConfigModel.organization_id == organization_id,
                 )
                 .first()

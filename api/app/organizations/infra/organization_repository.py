@@ -3,7 +3,9 @@ from sqlalchemy import delete, or_, and_
 from uuid import UUID
 from typing import Optional, List
 from app.organizations.infra.organization_model import Organization as OrganizationModel
-from app.organizations.infra.organization_member_model import OrganizationMember as OrganizationMemberModel
+from app.organizations.infra.organization_member_model import (
+    OrganizationMember as OrganizationMemberModel,
+)
 from app.organizations.infra.group_model import Group as GroupModel
 from app.organizations.infra.group_member_model import GroupMember as GroupMemberModel
 from app.organizations.core.enums import OrganizationMemberStatus, GroupRole
@@ -21,14 +23,19 @@ class OrganizationRepository:
             self.db.query(OrganizationModel)
             .options(
                 joinedload(OrganizationModel.owner),
-                joinedload(OrganizationModel.members).joinedload(OrganizationMemberModel.user),
+                joinedload(OrganizationModel.members).joinedload(
+                    OrganizationMemberModel.user
+                ),
                 joinedload(OrganizationModel.environments),
-                joinedload(OrganizationModel.groups).joinedload(GroupModel.organization),
+                joinedload(OrganizationModel.groups).joinedload(
+                    GroupModel.organization
+                ),
                 joinedload(OrganizationModel.groups).joinedload(GroupModel.environment),
                 joinedload(OrganizationModel.groups).joinedload(GroupModel.application),
-                joinedload(OrganizationModel.groups).joinedload(GroupModel.members).joinedload(
-                    GroupMemberModel.organization_member
-                ).joinedload(OrganizationMemberModel.user),
+                joinedload(OrganizationModel.groups)
+                .joinedload(GroupModel.members)
+                .joinedload(GroupMemberModel.organization_member)
+                .joinedload(OrganizationMemberModel.user),
             )
             .filter(OrganizationModel.uuid == uuid)
             .first()
@@ -49,15 +56,12 @@ class OrganizationRepository:
         return (
             self.db.query(OrganizationModel)
             .filter(
-                OrganizationModel.name == name,
-                OrganizationModel.uuid != exclude_uuid
+                OrganizationModel.name == name, OrganizationModel.uuid != exclude_uuid
             )
             .first()
         )
 
-    def find_all(
-        self, skip: int = 0, limit: int = 100
-    ) -> List[OrganizationModel]:
+    def find_all(self, skip: int = 0, limit: int = 100) -> List[OrganizationModel]:
         """Find all organizations with owner, members, environments, and groups loaded."""
         return (
             self.db.query(OrganizationModel)
@@ -105,8 +109,8 @@ class OrganizationRepository:
             self.db.query(OrganizationModel)
             .outerjoin(
                 OrganizationMemberModel,
-                (OrganizationModel.id == OrganizationMemberModel.organization_id) &
-                (OrganizationMemberModel.user_id == user_id)
+                (OrganizationModel.id == OrganizationMemberModel.organization_id)
+                & (OrganizationMemberModel.user_id == user_id),
             )
             .options(
                 joinedload(OrganizationModel.owner),
@@ -119,8 +123,9 @@ class OrganizationRepository:
                     OrganizationModel.owner_user_id == user_id,  # User is owner
                     and_(
                         OrganizationMemberModel.user_id == user_id,
-                        OrganizationMemberModel.status == OrganizationMemberStatus.ACTIVE.value
-                    )
+                        OrganizationMemberModel.status
+                        == OrganizationMemberStatus.ACTIVE.value,
+                    ),
                 )
             )
             .offset(skip)
@@ -139,9 +144,15 @@ class OrganizationRepository:
                 OrganizationMemberModel,
                 (OrganizationModel.id == OrganizationMemberModel.organization_id)
                 & (OrganizationMemberModel.user_id == user_id)
-                & (OrganizationMemberModel.status == OrganizationMemberStatus.ACTIVE.value),
+                & (
+                    OrganizationMemberModel.status
+                    == OrganizationMemberStatus.ACTIVE.value
+                ),
             )
-            .outerjoin(GroupMemberModel, GroupMemberModel.organization_member_id == OrganizationMemberModel.id)
+            .outerjoin(
+                GroupMemberModel,
+                GroupMemberModel.organization_member_id == OrganizationMemberModel.id,
+            )
             .outerjoin(GroupModel, GroupModel.id == GroupMemberModel.group_id)
             .options(
                 joinedload(OrganizationModel.owner),

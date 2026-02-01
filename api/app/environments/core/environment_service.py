@@ -34,7 +34,9 @@ class EnvironmentService:
         """Update an existing environment within an organization."""
         validate_environment_create_dto(dto)
 
-        environment = self.repository.find_by_uuid_and_organization(uuid, organization_id)
+        environment = self.repository.find_by_uuid_and_organization(
+            uuid, organization_id
+        )
         if not environment:
             raise ValueError(f"Environment with UUID {uuid} not found in organization")
 
@@ -62,7 +64,9 @@ class EnvironmentService:
         self, uuid: UUID, organization_id: int
     ) -> EnvironmentWithClusters:
         """Get environment by UUID with clusters and settings within an organization."""
-        environment = self.repository.find_by_uuid_and_organization(uuid, organization_id)
+        environment = self.repository.find_by_uuid_and_organization(
+            uuid, organization_id
+        )
         if not environment:
             raise ValueError(f"Environment with UUID {uuid} not found in organization")
 
@@ -79,7 +83,9 @@ class EnvironmentService:
 
     def delete_environment(self, uuid: UUID, organization_id: int) -> dict:
         """Delete an environment within an organization."""
-        environment = self.repository.find_by_uuid_and_organization(uuid, organization_id)
+        environment = self.repository.find_by_uuid_and_organization(
+            uuid, organization_id
+        )
         if not environment:
             raise ValueError(f"Environment with UUID {uuid} not found in organization")
 

@@ -1,7 +1,9 @@
 from sqlalchemy.orm import Session, joinedload
 from uuid import UUID
 from typing import Optional, List
-from app.organizations.infra.organization_member_model import OrganizationMember as OrganizationMemberModel
+from app.organizations.infra.organization_member_model import (
+    OrganizationMember as OrganizationMemberModel,
+)
 
 
 class OrganizationMemberRepository:
@@ -19,7 +21,9 @@ class OrganizationMemberRepository:
             .first()
         )
 
-    def find_by_organization_id(self, organization_id: int) -> List[OrganizationMemberModel]:
+    def find_by_organization_id(
+        self, organization_id: int
+    ) -> List[OrganizationMemberModel]:
         """Find all organization members for an organization."""
         return (
             self.db.query(OrganizationMemberModel)
@@ -36,7 +40,7 @@ class OrganizationMemberRepository:
             self.db.query(OrganizationMemberModel)
             .filter(
                 OrganizationMemberModel.user_id == user_id,
-                OrganizationMemberModel.organization_id == organization_id
+                OrganizationMemberModel.organization_id == organization_id,
             )
             .first()
         )
@@ -50,7 +54,10 @@ class OrganizationMemberRepository:
     def delete_by_id(self, member_id: int) -> None:
         """Delete organization member by ID."""
         from sqlalchemy import delete
-        stmt = delete(OrganizationMemberModel).where(OrganizationMemberModel.id == member_id)
+
+        stmt = delete(OrganizationMemberModel).where(
+            OrganizationMemberModel.id == member_id
+        )
         self.db.execute(stmt)
         self.db.commit()
 

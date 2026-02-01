@@ -51,10 +51,16 @@ class TemplateService:
         return self.repository.find_by_uuid(uuid)
 
     def get_templates(
-        self, skip: int = 0, limit: int = 100, category: Optional[str] = None, organization_id: int | None = None
+        self,
+        skip: int = 0,
+        limit: int = 100,
+        category: Optional[str] = None,
+        organization_id: int | None = None,
     ) -> List[Template]:
         """Get all templates, optionally filtered by category and organization_id."""
-        return self.repository.find_all(skip=skip, limit=limit, category=category, organization_id=organization_id)
+        return self.repository.find_all(
+            skip=skip, limit=limit, category=category, organization_id=organization_id
+        )
 
     def delete_template(self, uuid: UUID) -> dict:
         """Delete a template and its associated component configs."""
@@ -73,7 +79,9 @@ class TemplateService:
 
         return {"status": "success", "message": "Template deleted successfully"}
 
-    def _build_template_entity(self, dto: TemplateCreate, organization_id: int) -> TemplateModel:
+    def _build_template_entity(
+        self, dto: TemplateCreate, organization_id: int
+    ) -> TemplateModel:
         """Build Template entity from DTO."""
         return TemplateModel(
             uuid=uuid4(),
