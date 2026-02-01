@@ -1090,8 +1090,8 @@ function InstanceDetail() {
         {/* Add Components Modal */}
         {isAddComponentsModalOpen && instance && (
           <div className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-            <div ref={modalContentRef} className="bg-white rounded-xl shadow-soft-lg max-w-4xl w-full border border-slate-200/60 animate-zoom-in max-h-[90vh] overflow-y-auto">
-              <div className="flex items-center justify-between p-5 border-b border-slate-200/60 bg-slate-50/50 sticky top-0 z-10">
+            <div ref={modalContentRef} className="bg-white rounded-xl shadow-soft-lg max-w-4xl w-full border border-slate-200/60 animate-zoom-in max-h-[90vh] flex flex-col">
+              <div className="flex items-center justify-between p-5 border-b border-slate-200/60 bg-white flex-shrink-0">
                 <div>
                   <h2 className="text-lg font-semibold text-slate-800">
                     {editingComponentUuid
@@ -1112,7 +1112,7 @@ function InstanceDetail() {
                   <X size={20} />
                 </button>
               </div>
-              <div className="p-5">
+              <div className="p-5 flex-1 overflow-y-auto">
                 {modalNotification && (
                   <div
                     className={`mb-4 rounded-lg p-4 flex items-center justify-between ${
