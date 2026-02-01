@@ -4,10 +4,10 @@ from fastapi import status
 from uuid import uuid4
 
 
-def test_create_template_success(client, admin_token):
+def test_create_template_success(client, admin_token, test_organization):
     """Test successful template creation."""
     response = client.post(
-        "/templates/",
+        f"/organizations/{test_organization.uuid}/templates/",
         headers={"Authorization": f"Bearer {admin_token}"},
         json={
             "name": "test-template",
@@ -24,10 +24,10 @@ def test_create_template_success(client, admin_token):
     assert "uuid" in data
 
 
-def test_create_template_requires_authentication(client):
+def test_create_template_requires_authentication(client, test_organization):
     """Test that template creation requires authentication."""
     response = client.post(
-        "/templates/",
+        f"/organizations/{test_organization.uuid}/templates/",
         json={
             "name": "test-template",
             "category": "webapp",
@@ -38,10 +38,10 @@ def test_create_template_requires_authentication(client):
     assert response.status_code == status.HTTP_401_UNAUTHORIZED
 
 
-def test_create_template_requires_admin_role(client, user_token):
-    """Test that template creation requires admin role."""
+def test_create_template_requires_admin_role(client, user_token, test_organization):
+    """Test that template creation requires organization admin role."""
     response = client.post(
-        "/templates/",
+        f"/organizations/{test_organization.uuid}/templates/",
         headers={"Authorization": f"Bearer {user_token}"},
         json={
             "name": "test-template",
@@ -53,11 +53,11 @@ def test_create_template_requires_admin_role(client, user_token):
     assert response.status_code == status.HTTP_403_FORBIDDEN
 
 
-def test_list_templates_success(client, admin_token):
+def test_list_templates_success(client, admin_token, test_organization):
     """Test successful template listing."""
     # Create a template first
     create_response = client.post(
-        "/templates/",
+        f"/organizations/{test_organization.uuid}/templates/",
         headers={"Authorization": f"Bearer {admin_token}"},
         json={
             "name": "list-test-template",
@@ -69,7 +69,7 @@ def test_list_templates_success(client, admin_token):
 
     # List templates
     response = client.get(
-        "/templates/",
+        f"/organizations/{test_organization.uuid}/templates/",
         headers={"Authorization": f"Bearer {admin_token}"}
     )
 
@@ -80,11 +80,11 @@ def test_list_templates_success(client, admin_token):
     assert any(template["name"] == "list-test-template" for template in data)
 
 
-def test_list_templates_with_category_filter(client, admin_token):
+def test_list_templates_with_category_filter(client, admin_token, test_organization):
     """Test template listing with category filter."""
     # Create templates with different categories
     client.post(
-        "/templates/",
+        f"/organizations/{test_organization.uuid}/templates/",
         headers={"Authorization": f"Bearer {admin_token}"},
         json={
             "name": "webapp-template",
@@ -93,7 +93,7 @@ def test_list_templates_with_category_filter(client, admin_token):
         }
     )
     client.post(
-        "/templates/",
+        f"/organizations/{test_organization.uuid}/templates/",
         headers={"Authorization": f"Bearer {admin_token}"},
         json={
             "name": "worker-template",
@@ -104,7 +104,7 @@ def test_list_templates_with_category_filter(client, admin_token):
 
     # List templates filtered by category
     response = client.get(
-        "/templates/",
+        f"/organizations/{test_organization.uuid}/templates/",
         headers={"Authorization": f"Bearer {admin_token}"},
         params={"category": "webapp"}
     )
@@ -115,18 +115,18 @@ def test_list_templates_with_category_filter(client, admin_token):
     assert all(template["category"] == "webapp" for template in data)
 
 
-def test_list_templates_requires_authentication(client):
+def test_list_templates_requires_authentication(client, test_organization):
     """Test that listing templates requires authentication."""
-    response = client.get("/templates/")
+    response = client.get(f"/organizations/{test_organization.uuid}/templates/")
 
     assert response.status_code == status.HTTP_401_UNAUTHORIZED
 
 
-def test_get_template_success(client, admin_token):
+def test_get_template_success(client, admin_token, test_organization):
     """Test successful retrieval of template by UUID."""
     # Create a template
     create_response = client.post(
-        "/templates/",
+        f"/organizations/{test_organization.uuid}/templates/",
         headers={"Authorization": f"Bearer {admin_token}"},
         json={
             "name": "get-test-template",
@@ -139,7 +139,7 @@ def test_get_template_success(client, admin_token):
 
     # Get template
     response = client.get(
-        f"/templates/{template_uuid}",
+        f"/organizations/{test_organization.uuid}/templates/{template_uuid}",
         headers={"Authorization": f"Bearer {admin_token}"}
     )
 
@@ -149,30 +149,30 @@ def test_get_template_success(client, admin_token):
     assert data["uuid"] == template_uuid
 
 
-def test_get_template_not_found(client, admin_token):
+def test_get_template_not_found(client, admin_token, test_organization):
     """Test that getting non-existent template returns 404."""
     fake_uuid = uuid4()
     response = client.get(
-        f"/templates/{fake_uuid}",
+        f"/organizations/{test_organization.uuid}/templates/{fake_uuid}",
         headers={"Authorization": f"Bearer {admin_token}"}
     )
 
     assert response.status_code == status.HTTP_404_NOT_FOUND
 
 
-def test_get_template_requires_authentication(client):
+def test_get_template_requires_authentication(client, test_organization):
     """Test that getting template requires authentication."""
     fake_uuid = uuid4()
-    response = client.get(f"/templates/{fake_uuid}")
+    response = client.get(f"/organizations/{test_organization.uuid}/templates/{fake_uuid}")
 
     assert response.status_code == status.HTTP_401_UNAUTHORIZED
 
 
-def test_update_template_success(client, admin_token):
+def test_update_template_success(client, admin_token, test_organization):
     """Test successful template update."""
     # Create a template
     create_response = client.post(
-        "/templates/",
+        f"/organizations/{test_organization.uuid}/templates/",
         headers={"Authorization": f"Bearer {admin_token}"},
         json={
             "name": "update-test-template",
@@ -185,7 +185,7 @@ def test_update_template_success(client, admin_token):
 
     # Update template
     response = client.put(
-        f"/templates/{template_uuid}",
+        f"/organizations/{test_organization.uuid}/templates/{template_uuid}",
         headers={"Authorization": f"Bearer {admin_token}"},
         json={
             "name": "updated-template-name",
@@ -202,11 +202,11 @@ def test_update_template_success(client, admin_token):
     assert data["uuid"] == template_uuid
 
 
-def test_update_template_not_found(client, admin_token):
+def test_update_template_not_found(client, admin_token, test_organization):
     """Test that updating non-existent template returns 404."""
     fake_uuid = uuid4()
     response = client.put(
-        f"/templates/{fake_uuid}",
+        f"/organizations/{test_organization.uuid}/templates/{fake_uuid}",
         headers={"Authorization": f"Bearer {admin_token}"},
         json={
             "name": "updated-name",
@@ -218,11 +218,11 @@ def test_update_template_not_found(client, admin_token):
     assert response.status_code == status.HTTP_404_NOT_FOUND
 
 
-def test_update_template_requires_admin_role(client, user_token):
-    """Test that updating template requires admin role."""
+def test_update_template_requires_admin_role(client, user_token, test_organization):
+    """Test that updating template requires organization admin role."""
     fake_uuid = uuid4()
     response = client.put(
-        f"/templates/{fake_uuid}",
+        f"/organizations/{test_organization.uuid}/templates/{fake_uuid}",
         headers={"Authorization": f"Bearer {user_token}"},
         json={
             "name": "updated-name",
@@ -234,11 +234,11 @@ def test_update_template_requires_admin_role(client, user_token):
     assert response.status_code == status.HTTP_403_FORBIDDEN
 
 
-def test_delete_template_success(client, admin_token):
+def test_delete_template_success(client, admin_token, test_organization):
     """Test successful template deletion."""
     # Create a template
     create_response = client.post(
-        "/templates/",
+        f"/organizations/{test_organization.uuid}/templates/",
         headers={"Authorization": f"Bearer {admin_token}"},
         json={
             "name": "delete-test-template",
@@ -251,7 +251,7 @@ def test_delete_template_success(client, admin_token):
 
     # Delete template
     response = client.delete(
-        f"/templates/{template_uuid}",
+        f"/organizations/{test_organization.uuid}/templates/{template_uuid}",
         headers={"Authorization": f"Bearer {admin_token}"}
     )
 
@@ -261,28 +261,28 @@ def test_delete_template_success(client, admin_token):
 
     # Verify it's deleted
     get_response = client.get(
-        f"/templates/{template_uuid}",
+        f"/organizations/{test_organization.uuid}/templates/{template_uuid}",
         headers={"Authorization": f"Bearer {admin_token}"}
     )
     assert get_response.status_code == status.HTTP_404_NOT_FOUND
 
 
-def test_delete_template_not_found(client, admin_token):
+def test_delete_template_not_found(client, admin_token, test_organization):
     """Test that deleting non-existent template returns 404."""
     fake_uuid = uuid4()
     response = client.delete(
-        f"/templates/{fake_uuid}",
+        f"/organizations/{test_organization.uuid}/templates/{fake_uuid}",
         headers={"Authorization": f"Bearer {admin_token}"}
     )
 
     assert response.status_code == status.HTTP_404_NOT_FOUND
 
 
-def test_delete_template_requires_admin_role(client, user_token):
-    """Test that deleting template requires admin role."""
+def test_delete_template_requires_admin_role(client, user_token, test_organization):
+    """Test that deleting template requires organization admin role."""
     fake_uuid = uuid4()
     response = client.delete(
-        f"/templates/{fake_uuid}",
+        f"/organizations/{test_organization.uuid}/templates/{fake_uuid}",
         headers={"Authorization": f"Bearer {user_token}"}
     )
 

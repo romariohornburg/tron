@@ -23,6 +23,12 @@ def template_service(mock_repository):
 
 
 @pytest.fixture
+def mock_organization_id():
+    """Create a mock organization ID."""
+    return 1
+
+
+@pytest.fixture
 def mock_template():
     """Create a mock template."""
     template = MagicMock()
@@ -36,7 +42,7 @@ def mock_template():
     return template
 
 
-def test_create_template_success(template_service, mock_repository, mock_template):
+def test_create_template_success(template_service, mock_repository, mock_template, mock_organization_id):
     """Test successful template creation."""
     dto = TemplateCreate(
         name="test-template",
@@ -49,7 +55,7 @@ def test_create_template_success(template_service, mock_repository, mock_templat
     mock_repository.create.return_value = mock_template
 
     with patch.object(template_service, '_build_template_entity', return_value=mock_template):
-        result = template_service.create_template(dto)
+        result = template_service.create_template(dto, mock_organization_id)
 
         assert result == mock_template
         mock_repository.create.assert_called_once()
@@ -130,7 +136,7 @@ def test_get_template_not_found(template_service, mock_repository):
         template_service.get_template(template_uuid)
 
 
-def test_get_templates(template_service, mock_repository, mock_template):
+def test_get_templates(template_service, mock_repository, mock_template, mock_organization_id):
     """Test getting all templates."""
     mock_template2 = MagicMock()
     mock_template2.uuid = uuid4()
@@ -138,20 +144,20 @@ def test_get_templates(template_service, mock_repository, mock_template):
 
     mock_repository.find_all.return_value = [mock_template, mock_template2]
 
-    result = template_service.get_templates(skip=0, limit=10)
+    result = template_service.get_templates(skip=0, limit=10, organization_id=mock_organization_id)
 
     assert len(result) == 2
-    mock_repository.find_all.assert_called_once_with(skip=0, limit=10, category=None)
+    mock_repository.find_all.assert_called_once_with(skip=0, limit=10, category=None, organization_id=mock_organization_id)
 
 
-def test_get_templates_with_category(template_service, mock_repository, mock_template):
+def test_get_templates_with_category(template_service, mock_repository, mock_template, mock_organization_id):
     """Test getting templates filtered by category."""
     mock_repository.find_all.return_value = [mock_template]
 
-    result = template_service.get_templates(skip=0, limit=10, category="webapp")
+    result = template_service.get_templates(skip=0, limit=10, category="webapp", organization_id=mock_organization_id)
 
     assert len(result) == 1
-    mock_repository.find_all.assert_called_once_with(skip=0, limit=10, category="webapp")
+    mock_repository.find_all.assert_called_once_with(skip=0, limit=10, category="webapp", organization_id=mock_organization_id)
 
 
 def test_delete_template_success(template_service, mock_repository, mock_template):

@@ -5,10 +5,10 @@ from uuid import uuid4
 
 
 @pytest.fixture
-def test_application(client, admin_token):
+def test_application(client, admin_token, test_organization):
     """Create a test application."""
     response = client.post(
-        "/applications/",
+        f"/organizations/{test_organization.uuid}/applications/",
         headers={"Authorization": f"Bearer {admin_token}"},
         json={
             "name": "test-app-for-instance",
@@ -16,25 +16,29 @@ def test_application(client, admin_token):
         }
     )
     assert response.status_code == status.HTTP_200_OK
-    return response.json()
+    app_data = response.json()
+    app_data["organization_uuid"] = test_organization.uuid
+    return app_data
 
 
 @pytest.fixture
-def test_environment(client, admin_token):
+def test_environment(client, admin_token, test_organization):
     """Create a test environment."""
     response = client.post(
-        "/environments/",
+        f"/organizations/{test_organization.uuid}/environments/",
         headers={"Authorization": f"Bearer {admin_token}"},
         json={"name": "test-env-for-instance"}
     )
     assert response.status_code == status.HTTP_200_OK
-    return response.json()
+    env_data = response.json()
+    env_data["organization_uuid"] = test_organization.uuid
+    return env_data
 
 
 def test_create_instance_success(client, admin_token, test_application, test_environment):
     """Test successful instance creation."""
     response = client.post(
-        "/instances/",
+        f"/organizations/{test_application['organization_uuid']}/instances/",
         headers={"Authorization": f"Bearer {admin_token}"},
         json={
             "application_uuid": test_application["uuid"],
@@ -58,7 +62,7 @@ def test_create_instance_success(client, admin_token, test_application, test_env
 def test_create_instance_requires_authentication(client, test_application, test_environment):
     """Test that instance creation requires authentication."""
     response = client.post(
-        "/instances/",
+        f"/organizations/{test_application['organization_uuid']}/instances/",
         json={
             "application_uuid": test_application["uuid"],
             "environment_uuid": test_environment["uuid"],
@@ -73,7 +77,7 @@ def test_create_instance_requires_authentication(client, test_application, test_
 def test_create_instance_requires_admin_role(client, user_token, test_application, test_environment):
     """Test that instance creation requires admin role."""
     response = client.post(
-        "/instances/",
+        f"/organizations/{test_application['organization_uuid']}/instances/",
         headers={"Authorization": f"Bearer {user_token}"},
         json={
             "application_uuid": test_application["uuid"],
@@ -90,7 +94,7 @@ def test_create_instance_invalid_application(client, admin_token, test_environme
     """Test that creating instance with invalid application UUID fails."""
     fake_uuid = uuid4()
     response = client.post(
-        "/instances/",
+        f"/organizations/{test_environment['organization_uuid']}/instances/",
         headers={"Authorization": f"Bearer {admin_token}"},
         json={
             "application_uuid": str(fake_uuid),
@@ -107,7 +111,7 @@ def test_create_instance_invalid_environment(client, admin_token, test_applicati
     """Test that creating instance with invalid environment UUID fails."""
     fake_uuid = uuid4()
     response = client.post(
-        "/instances/",
+        f"/organizations/{test_application['organization_uuid']}/instances/",
         headers={"Authorization": f"Bearer {admin_token}"},
         json={
             "application_uuid": test_application["uuid"],
@@ -124,7 +128,7 @@ def test_list_instances_success(client, admin_token, test_application, test_envi
     """Test successful instance listing."""
     # Create an instance first
     create_response = client.post(
-        "/instances/",
+        f"/organizations/{test_application['organization_uuid']}/instances/",
         headers={"Authorization": f"Bearer {admin_token}"},
         json={
             "application_uuid": test_application["uuid"],
@@ -137,7 +141,7 @@ def test_list_instances_success(client, admin_token, test_application, test_envi
 
     # List instances
     response = client.get(
-        "/instances/",
+        f"/organizations/{test_application['organization_uuid']}/instances/",
         headers={"Authorization": f"Bearer {admin_token}"}
     )
 
@@ -147,9 +151,9 @@ def test_list_instances_success(client, admin_token, test_application, test_envi
     assert len(data) >= 1
 
 
-def test_list_instances_requires_authentication(client):
+def test_list_instances_requires_authentication(client, test_organization):
     """Test that listing instances requires authentication."""
-    response = client.get("/instances/")
+    response = client.get(f"/organizations/{test_organization.uuid}/instances/")
 
     assert response.status_code == status.HTTP_401_UNAUTHORIZED
 
@@ -158,7 +162,7 @@ def test_get_instance_success(client, admin_token, test_application, test_enviro
     """Test successful retrieval of instance by UUID."""
     # Create an instance
     create_response = client.post(
-        "/instances/",
+        f"/organizations/{test_application['organization_uuid']}/instances/",
         headers={"Authorization": f"Bearer {admin_token}"},
         json={
             "application_uuid": test_application["uuid"],
@@ -172,7 +176,7 @@ def test_get_instance_success(client, admin_token, test_application, test_enviro
 
     # Get instance
     response = client.get(
-        f"/instances/{instance_uuid}",
+        f"/organizations/{test_application['organization_uuid']}/instances/{instance_uuid}",
         headers={"Authorization": f"Bearer {admin_token}"}
     )
 
@@ -183,21 +187,21 @@ def test_get_instance_success(client, admin_token, test_application, test_enviro
     assert data["version"] == "1.0.0"
 
 
-def test_get_instance_not_found(client, admin_token):
+def test_get_instance_not_found(client, admin_token, test_organization):
     """Test that getting non-existent instance returns 404."""
     fake_uuid = uuid4()
     response = client.get(
-        f"/instances/{fake_uuid}",
+        f"/organizations/{test_organization.uuid}/instances/{fake_uuid}",
         headers={"Authorization": f"Bearer {admin_token}"}
     )
 
     assert response.status_code == status.HTTP_404_NOT_FOUND
 
 
-def test_get_instance_requires_authentication(client):
+def test_get_instance_requires_authentication(client, test_organization):
     """Test that getting instance requires authentication."""
     fake_uuid = uuid4()
-    response = client.get(f"/instances/{fake_uuid}")
+    response = client.get(f"/organizations/{test_organization.uuid}/instances/{fake_uuid}")
 
     assert response.status_code == status.HTTP_401_UNAUTHORIZED
 
@@ -206,7 +210,7 @@ def test_update_instance_success(client, admin_token, test_application, test_env
     """Test successful instance update."""
     # Create an instance
     create_response = client.post(
-        "/instances/",
+        f"/organizations/{test_application['organization_uuid']}/instances/",
         headers={"Authorization": f"Bearer {admin_token}"},
         json={
             "application_uuid": test_application["uuid"],
@@ -220,7 +224,7 @@ def test_update_instance_success(client, admin_token, test_application, test_env
 
     # Update instance
     response = client.put(
-        f"/instances/{instance_uuid}",
+        f"/organizations/{test_application['organization_uuid']}/instances/{instance_uuid}",
         headers={"Authorization": f"Bearer {admin_token}"},
         json={
             "image": "nginx:1.21",
@@ -236,11 +240,11 @@ def test_update_instance_success(client, admin_token, test_application, test_env
     assert data["enabled"] is False
 
 
-def test_update_instance_not_found(client, admin_token):
+def test_update_instance_not_found(client, admin_token, test_organization):
     """Test that updating non-existent instance returns 404."""
     fake_uuid = uuid4()
     response = client.put(
-        f"/instances/{fake_uuid}",
+        f"/organizations/{test_organization.uuid}/instances/{fake_uuid}",
         headers={"Authorization": f"Bearer {admin_token}"},
         json={"image": "nginx:latest"}
     )
@@ -248,11 +252,11 @@ def test_update_instance_not_found(client, admin_token):
     assert response.status_code == status.HTTP_404_NOT_FOUND
 
 
-def test_update_instance_requires_admin_role(client, user_token):
+def test_update_instance_requires_admin_role(client, user_token, test_organization):
     """Test that updating instance requires admin role."""
     fake_uuid = uuid4()
     response = client.put(
-        f"/instances/{fake_uuid}",
+        f"/organizations/{test_organization.uuid}/instances/{fake_uuid}",
         headers={"Authorization": f"Bearer {user_token}"},
         json={"image": "nginx:latest"}
     )
@@ -264,7 +268,7 @@ def test_delete_instance_success(client, admin_token, test_application, test_env
     """Test successful instance deletion."""
     # Create an instance
     create_response = client.post(
-        "/instances/",
+        f"/organizations/{test_application['organization_uuid']}/instances/",
         headers={"Authorization": f"Bearer {admin_token}"},
         json={
             "application_uuid": test_application["uuid"],
@@ -278,7 +282,7 @@ def test_delete_instance_success(client, admin_token, test_application, test_env
 
     # Delete instance
     response = client.delete(
-        f"/instances/{instance_uuid}",
+        f"/organizations/{test_application['organization_uuid']}/instances/{instance_uuid}",
         headers={"Authorization": f"Bearer {admin_token}"}
     )
 
@@ -288,28 +292,28 @@ def test_delete_instance_success(client, admin_token, test_application, test_env
 
     # Verify it's deleted
     get_response = client.get(
-        f"/instances/{instance_uuid}",
+        f"/organizations/{test_application['organization_uuid']}/instances/{instance_uuid}",
         headers={"Authorization": f"Bearer {admin_token}"}
     )
     assert get_response.status_code == status.HTTP_404_NOT_FOUND
 
 
-def test_delete_instance_not_found(client, admin_token):
+def test_delete_instance_not_found(client, admin_token, test_organization):
     """Test that deleting non-existent instance returns 404."""
     fake_uuid = uuid4()
     response = client.delete(
-        f"/instances/{fake_uuid}",
+        f"/organizations/{test_organization.uuid}/instances/{fake_uuid}",
         headers={"Authorization": f"Bearer {admin_token}"}
     )
 
     assert response.status_code == status.HTTP_404_NOT_FOUND
 
 
-def test_delete_instance_requires_admin_role(client, user_token):
+def test_delete_instance_requires_admin_role(client, user_token, test_organization):
     """Test that deleting instance requires admin role."""
     fake_uuid = uuid4()
     response = client.delete(
-        f"/instances/{fake_uuid}",
+        f"/organizations/{test_organization.uuid}/instances/{fake_uuid}",
         headers={"Authorization": f"Bearer {user_token}"}
     )
 

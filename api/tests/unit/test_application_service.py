@@ -18,16 +18,22 @@ def mock_repository():
 
 
 @pytest.fixture
+def mock_organization_id():
+    """Create a mock organization ID."""
+    return 1
+
+
+@pytest.fixture
 def application_service(mock_repository):
     """Create ApplicationService instance."""
     return ApplicationService(mock_repository)
 
 
-def test_create_application_success(application_service, mock_repository):
+def test_create_application_success(application_service, mock_repository, mock_organization_id):
     """Test successful application creation."""
     dto = ApplicationCreate(name="test-app", repository="https://github.com/test/repo")
 
-    mock_repository.find_by_name.return_value = None  # Name is unique
+    mock_repository.find_by_name_and_organization.return_value = None  # Name is unique
     mock_application = MagicMock()
     mock_application.uuid = uuid4()
     mock_application.name = dto.name
@@ -38,30 +44,30 @@ def test_create_application_success(application_service, mock_repository):
     # Mock the _build_application_entity to avoid SQLAlchemy initialization issues
     with patch.object(application_service, '_build_application_entity') as mock_build:
         mock_build.return_value = mock_application
-        result = application_service.create_application(dto)
+        result = application_service.create_application(dto, mock_organization_id)
 
     assert result == mock_application
-    mock_repository.find_by_name.assert_called_once_with(dto.name)
+    mock_repository.find_by_name_and_organization.assert_called_once_with(dto.name, mock_organization_id)
     mock_repository.create.assert_called_once()
 
 
-def test_create_application_duplicate_name(application_service, mock_repository):
+def test_create_application_duplicate_name(application_service, mock_repository, mock_organization_id):
     """Test application creation with duplicate name."""
     dto = ApplicationCreate(name="test-app", repository="https://github.com/test/repo")
 
     # Simulate existing application with same name
     existing_app = MagicMock()
     existing_app.name = dto.name
-    mock_repository.find_by_name.return_value = existing_app
+    mock_repository.find_by_name_and_organization.return_value = existing_app
 
     with pytest.raises(ApplicationNameAlreadyExistsError):
-        application_service.create_application(dto)
+        application_service.create_application(dto, mock_organization_id)
 
-    mock_repository.find_by_name.assert_called_once_with(dto.name)
+    mock_repository.find_by_name_and_organization.assert_called_once_with(dto.name, mock_organization_id)
     mock_repository.create.assert_not_called()
 
 
-def test_update_application_success(application_service, mock_repository):
+def test_update_application_success(application_service, mock_repository, mock_organization_id):
     """Test successful application update."""
     app_uuid = uuid4()
     dto = ApplicationUpdate(name="updated-app")
@@ -71,16 +77,17 @@ def test_update_application_success(application_service, mock_repository):
     existing_app.name = "old-name"
     existing_app.repository = "https://github.com/test/repo"
     existing_app.enabled = True
+    existing_app.organization_id = mock_organization_id
 
     updated_app = MagicMock()
     updated_app.uuid = app_uuid
     updated_app.name = dto.name
 
     mock_repository.find_by_uuid.return_value = existing_app
-    mock_repository.find_by_name_excluding_uuid.return_value = None  # New name is unique
+    mock_repository.find_by_name_and_organization_excluding_uuid.return_value = None  # New name is unique
     mock_repository.update.return_value = updated_app
 
-    result = application_service.update_application(app_uuid, dto)
+    result = application_service.update_application(app_uuid, dto, mock_organization_id)
 
     assert result == updated_app
     assert existing_app.name == dto.name
@@ -89,7 +96,7 @@ def test_update_application_success(application_service, mock_repository):
     mock_repository.update.assert_called_once()
 
 
-def test_update_application_not_found(application_service, mock_repository):
+def test_update_application_not_found(application_service, mock_repository, mock_organization_id):
     """Test updating non-existent application."""
     app_uuid = uuid4()
     dto = ApplicationUpdate(name="updated-app")
@@ -97,7 +104,7 @@ def test_update_application_not_found(application_service, mock_repository):
     mock_repository.find_by_uuid.return_value = None
 
     with pytest.raises(ApplicationNotFoundError):
-        application_service.update_application(app_uuid, dto)
+        application_service.update_application(app_uuid, dto, mock_organization_id)
 
     mock_repository.find_by_uuid.assert_called_once_with(app_uuid)
     mock_repository.update.assert_not_called()
@@ -130,15 +137,15 @@ def test_get_application_not_found(application_service, mock_repository):
     mock_repository.find_by_uuid.assert_called_once_with(app_uuid)
 
 
-def test_get_applications(application_service, mock_repository):
+def test_get_applications(application_service, mock_repository, mock_organization_id):
     """Test getting all applications."""
     mock_apps = [MagicMock(), MagicMock()]
-    mock_repository.find_all.return_value = mock_apps
+    mock_repository.find_by_organization_id.return_value = mock_apps
 
-    result = application_service.get_applications(skip=0, limit=10)
+    result = application_service.get_applications(skip=0, limit=10, organization_id=mock_organization_id)
 
     assert result == mock_apps
-    mock_repository.find_all.assert_called_once_with(skip=0, limit=10)
+    mock_repository.find_by_organization_id.assert_called_once_with(mock_organization_id, skip=0, limit=10)
 
 
 def test_delete_application_success(application_service, mock_repository):
@@ -211,7 +218,7 @@ def test_delete_application_not_found(application_service, mock_repository):
     mock_repository.delete_by_id.assert_not_called()
 
 
-def test_update_application_duplicate_name(application_service, mock_repository):
+def test_update_application_duplicate_name(application_service, mock_repository, mock_organization_id):
     """Test updating application with duplicate name."""
     app_uuid = uuid4()
     dto = ApplicationUpdate(name="duplicate-name")
@@ -219,20 +226,21 @@ def test_update_application_duplicate_name(application_service, mock_repository)
     existing_app = MagicMock()
     existing_app.uuid = app_uuid
     existing_app.name = "old-name"
+    existing_app.organization_id = mock_organization_id
 
     duplicate_app = MagicMock()
     duplicate_app.uuid = uuid4()  # Different UUID
 
     mock_repository.find_by_uuid.return_value = existing_app
-    mock_repository.find_by_name_excluding_uuid.return_value = duplicate_app
+    mock_repository.find_by_name_and_organization_excluding_uuid.return_value = duplicate_app
 
     with pytest.raises(ApplicationNameAlreadyExistsError):
-        application_service.update_application(app_uuid, dto)
+        application_service.update_application(app_uuid, dto, mock_organization_id)
 
     mock_repository.update.assert_not_called()
 
 
-def test_update_application_partial(application_service, mock_repository):
+def test_update_application_partial(application_service, mock_repository, mock_organization_id):
     """Test partial application update."""
     app_uuid = uuid4()
     dto = ApplicationUpdate(repository="https://github.com/new/repo")  # Only update repository
@@ -242,6 +250,7 @@ def test_update_application_partial(application_service, mock_repository):
     existing_app.name = "test-app"
     existing_app.repository = "https://github.com/old/repo"
     existing_app.enabled = True
+    existing_app.organization_id = mock_organization_id
 
     updated_app = MagicMock()
     updated_app.uuid = app_uuid
@@ -249,7 +258,7 @@ def test_update_application_partial(application_service, mock_repository):
     mock_repository.find_by_uuid.return_value = existing_app
     mock_repository.update.return_value = updated_app
 
-    result = application_service.update_application(app_uuid, dto)
+    result = application_service.update_application(app_uuid, dto, mock_organization_id)
 
     assert result == updated_app
     assert existing_app.repository == dto.repository
@@ -257,7 +266,7 @@ def test_update_application_partial(application_service, mock_repository):
     mock_repository.update.assert_called_once()
 
 
-def test_update_application_enabled_only(application_service, mock_repository):
+def test_update_application_enabled_only(application_service, mock_repository, mock_organization_id):
     """Test updating only enabled field."""
     app_uuid = uuid4()
     dto = ApplicationUpdate(enabled=False)
@@ -267,6 +276,7 @@ def test_update_application_enabled_only(application_service, mock_repository):
     existing_app.name = "test-app"
     existing_app.repository = "https://github.com/test/repo"
     existing_app.enabled = True
+    existing_app.organization_id = mock_organization_id
 
     updated_app = MagicMock()
     updated_app.uuid = app_uuid
@@ -274,7 +284,7 @@ def test_update_application_enabled_only(application_service, mock_repository):
     mock_repository.find_by_uuid.return_value = existing_app
     mock_repository.update.return_value = updated_app
 
-    result = application_service.update_application(app_uuid, dto)
+    result = application_service.update_application(app_uuid, dto, mock_organization_id)
 
     assert result == updated_app
     assert existing_app.enabled == dto.enabled
@@ -282,7 +292,7 @@ def test_update_application_enabled_only(application_service, mock_repository):
     mock_repository.update.assert_called_once()
 
 
-def test_update_application_multiple_fields(application_service, mock_repository):
+def test_update_application_multiple_fields(application_service, mock_repository, mock_organization_id):
     """Test updating multiple fields at once."""
     app_uuid = uuid4()
     dto = ApplicationUpdate(
@@ -296,15 +306,16 @@ def test_update_application_multiple_fields(application_service, mock_repository
     existing_app.name = "old-name"
     existing_app.repository = "https://github.com/old/repo"
     existing_app.enabled = True
+    existing_app.organization_id = mock_organization_id
 
     updated_app = MagicMock()
     updated_app.uuid = app_uuid
 
     mock_repository.find_by_uuid.return_value = existing_app
-    mock_repository.find_by_name_excluding_uuid.return_value = None
+    mock_repository.find_by_name_and_organization_excluding_uuid.return_value = None
     mock_repository.update.return_value = updated_app
 
-    result = application_service.update_application(app_uuid, dto)
+    result = application_service.update_application(app_uuid, dto, mock_organization_id)
 
     assert result == updated_app
     assert existing_app.name == dto.name
@@ -313,11 +324,11 @@ def test_update_application_multiple_fields(application_service, mock_repository
     mock_repository.update.assert_called_once()
 
 
-def test_create_application_with_enabled_default(application_service, mock_repository):
+def test_create_application_with_enabled_default(application_service, mock_repository, mock_organization_id):
     """Test application creation with default enabled value."""
     dto = ApplicationCreate(name="test-app", repository="https://github.com/test/repo")
 
-    mock_repository.find_by_name.return_value = None
+    mock_repository.find_by_name_and_organization.return_value = None
     mock_application = MagicMock()
     mock_application.uuid = uuid4()
     mock_application.name = dto.name
@@ -327,13 +338,13 @@ def test_create_application_with_enabled_default(application_service, mock_repos
 
     with patch.object(application_service, '_build_application_entity') as mock_build:
         mock_build.return_value = mock_application
-        result = application_service.create_application(dto)
+        result = application_service.create_application(dto, mock_organization_id)
 
     assert result == mock_application
     mock_repository.create.assert_called_once()
 
 
-def test_create_application_with_enabled_false(application_service, mock_repository):
+def test_create_application_with_enabled_false(application_service, mock_repository, mock_organization_id):
     """Test application creation with enabled=False."""
     dto = ApplicationCreate(
         name="test-app",
@@ -341,7 +352,7 @@ def test_create_application_with_enabled_false(application_service, mock_reposit
         enabled=False
     )
 
-    mock_repository.find_by_name.return_value = None
+    mock_repository.find_by_name_and_organization.return_value = None
     mock_application = MagicMock()
     mock_application.uuid = uuid4()
     mock_application.name = dto.name
@@ -351,32 +362,32 @@ def test_create_application_with_enabled_false(application_service, mock_reposit
 
     with patch.object(application_service, '_build_application_entity') as mock_build:
         mock_build.return_value = mock_application
-        result = application_service.create_application(dto)
+        result = application_service.create_application(dto, mock_organization_id)
 
     assert result == mock_application
     mock_repository.create.assert_called_once()
 
 
-def test_get_applications_with_pagination(application_service, mock_repository):
+def test_get_applications_with_pagination(application_service, mock_repository, mock_organization_id):
     """Test getting applications with different pagination."""
     mock_apps = [MagicMock(), MagicMock(), MagicMock()]
-    mock_repository.find_all.return_value = mock_apps
+    mock_repository.find_by_organization_id.return_value = mock_apps
 
-    result = application_service.get_applications(skip=10, limit=20)
+    result = application_service.get_applications(skip=10, limit=20, organization_id=mock_organization_id)
 
     assert len(result) == 3
-    mock_repository.find_all.assert_called_once_with(skip=10, limit=20)
+    mock_repository.find_by_organization_id.assert_called_once_with(mock_organization_id, skip=10, limit=20)
 
 
-def test_get_applications_empty(application_service, mock_repository):
+def test_get_applications_empty(application_service, mock_repository, mock_organization_id):
     """Test getting applications when there are none."""
-    mock_repository.find_all.return_value = []
+    mock_repository.find_by_organization_id.return_value = []
 
-    result = application_service.get_applications(skip=0, limit=10)
+    result = application_service.get_applications(skip=0, limit=10, organization_id=mock_organization_id)
 
     assert result == []
     assert len(result) == 0
-    mock_repository.find_all.assert_called_once_with(skip=0, limit=10)
+    mock_repository.find_by_organization_id.assert_called_once_with(mock_organization_id, skip=0, limit=10)
 
 
 def test_delete_application_instance_deletion_error(application_service, mock_repository):
@@ -458,27 +469,27 @@ def test_delete_application_creates_instance_service(application_service, mock_r
         mock_repository.delete_by_id.assert_called_once_with(mock_application.id)
 
 
-def test_create_application_validation_error_empty_name(application_service, mock_repository):
+def test_create_application_validation_error_empty_name(application_service, mock_repository, mock_organization_id):
     """Test application creation with empty name raises validation error."""
     dto = ApplicationCreate(name="", repository="https://github.com/test/repo")
 
     with pytest.raises(ValueError, match="Application name is required"):
-        application_service.create_application(dto)
+        application_service.create_application(dto, mock_organization_id)
 
     mock_repository.create.assert_not_called()
 
 
-def test_create_application_validation_error_whitespace_name(application_service, mock_repository):
+def test_create_application_validation_error_whitespace_name(application_service, mock_repository, mock_organization_id):
     """Test application creation with whitespace-only name raises validation error."""
     dto = ApplicationCreate(name="   ", repository="https://github.com/test/repo")
 
     with pytest.raises(ValueError, match="Application name is required"):
-        application_service.create_application(dto)
+        application_service.create_application(dto, mock_organization_id)
 
     mock_repository.create.assert_not_called()
 
 
-def test_update_application_validation_error_empty_name(application_service, mock_repository):
+def test_update_application_validation_error_empty_name(application_service, mock_repository, mock_organization_id):
     """Test application update with empty name raises validation error."""
     app_uuid = uuid4()
     dto = ApplicationUpdate(name="")
@@ -486,12 +497,12 @@ def test_update_application_validation_error_empty_name(application_service, moc
     mock_repository.find_by_uuid.return_value = MagicMock()
 
     with pytest.raises(ValueError, match="Application name cannot be empty"):
-        application_service.update_application(app_uuid, dto)
+        application_service.update_application(app_uuid, dto, mock_organization_id)
 
     mock_repository.update.assert_not_called()
 
 
-def test_update_application_validation_error_whitespace_name(application_service, mock_repository):
+def test_update_application_validation_error_whitespace_name(application_service, mock_repository, mock_organization_id):
     """Test application update with whitespace-only name raises validation error."""
     app_uuid = uuid4()
     dto = ApplicationUpdate(name="   ")
@@ -499,6 +510,6 @@ def test_update_application_validation_error_whitespace_name(application_service
     mock_repository.find_by_uuid.return_value = MagicMock()
 
     with pytest.raises(ValueError, match="Application name cannot be empty"):
-        application_service.update_application(app_uuid, dto)
+        application_service.update_application(app_uuid, dto, mock_organization_id)
 
     mock_repository.update.assert_not_called()

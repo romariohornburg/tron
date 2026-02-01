@@ -13,7 +13,7 @@ services:
     privileged: true
     environment:
     - K3S_TOKEN=something
-    - K3S_KUBECONFIG_OUTPUT=/output/kubeconfig2.yaml
+    - K3S_KUBECONFIG_OUTPUT=/output/kubeconfig.yaml
     - K3S_KUBECONFIG_MODE=666
     volumes:
     - ./volumes/kubeconfig2:/output

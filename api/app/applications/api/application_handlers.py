@@ -138,8 +138,18 @@ def get_application(
     db: Session = Depends(get_db),
 ):
     """Get application by UUID."""
-    # Verify user has permission to view this application (helper also verifies it belongs to org)
-    if not canViewApplicationByUuid(ctx, uuid, db):
+    # First check if application exists and belongs to organization
+    from app.applications.infra.application_model import Application as ApplicationModel
+    application_model = db.query(ApplicationModel).filter(
+        ApplicationModel.uuid == uuid,
+        ApplicationModel.organization_id == ctx.organization.id
+    ).first()
+    
+    if not application_model:
+        raise HTTPException(status_code=404, detail="Application not found")
+    
+    # Then verify user has permission to view this application
+    if not canViewApplication(ctx, application_model.id):
         raise HTTPException(status_code=403, detail="Not allowed to view this application")
 
     try:

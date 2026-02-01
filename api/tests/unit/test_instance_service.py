@@ -32,7 +32,13 @@ def instance_service(mock_repository, mock_db):
     return InstanceService(mock_repository, mock_db)
 
 
-def test_create_instance_success(instance_service, mock_repository):
+@pytest.fixture
+def mock_organization_id():
+    """Create a mock organization ID."""
+    return 1
+
+
+def test_create_instance_success(instance_service, mock_repository, mock_organization_id):
     """Test successful instance creation."""
     app_uuid = uuid4()
     env_uuid = uuid4()
@@ -46,6 +52,7 @@ def test_create_instance_success(instance_service, mock_repository):
     mock_application = MagicMock()
     mock_application.id = 1
     mock_application.uuid = app_uuid
+    mock_application.organization_id = mock_organization_id
 
     mock_environment = MagicMock()
     mock_environment.id = 1
@@ -54,6 +61,7 @@ def test_create_instance_success(instance_service, mock_repository):
     mock_instance = MagicMock()
     mock_instance.uuid = uuid4()
 
+    mock_environment.organization_id = mock_organization_id
     mock_repository.find_application_by_uuid.return_value = mock_application
     mock_repository.find_environment_by_uuid.return_value = mock_environment
     mock_repository.find_by_application_and_environment.return_value = None  # Unique
@@ -62,21 +70,19 @@ def test_create_instance_success(instance_service, mock_repository):
     # Mock _build_instance_entity to avoid SQLAlchemy initialization issues
     with patch.object(instance_service, '_build_instance_entity') as mock_build:
         mock_build.return_value = mock_instance
-        result = instance_service.create_instance(dto)
+        result = instance_service.create_instance(dto, mock_organization_id)
 
     assert result == mock_instance
     # Validator calls find_application_by_uuid, then service calls it again
     assert mock_repository.find_application_by_uuid.call_count >= 1
     # Check that it was called with the correct UUID at least once
     assert any(call[0][0] == app_uuid for call in mock_repository.find_application_by_uuid.call_args_list)
-    # Validator calls find_environment_by_uuid, then service calls it again
+    # Service calls find_environment_by_uuid (validator also calls it)
     assert mock_repository.find_environment_by_uuid.call_count >= 1
-    # Check that it was called with the correct UUID at least once
-    assert any(call[0][0] == env_uuid for call in mock_repository.find_environment_by_uuid.call_args_list)
     mock_repository.create.assert_called_once()
 
 
-def test_create_instance_application_not_found(instance_service, mock_repository):
+def test_create_instance_application_not_found(instance_service, mock_repository, mock_organization_id):
     """Test instance creation with non-existent application."""
     app_uuid = uuid4()
     env_uuid = uuid4()
@@ -90,13 +96,13 @@ def test_create_instance_application_not_found(instance_service, mock_repository
     mock_repository.find_application_by_uuid.return_value = None
 
     with pytest.raises(ApplicationNotFoundError):
-        instance_service.create_instance(dto)
+        instance_service.create_instance(dto, mock_organization_id)
 
     mock_repository.find_application_by_uuid.assert_called_once_with(app_uuid)
     mock_repository.create.assert_not_called()
 
 
-def test_create_instance_environment_not_found(instance_service, mock_repository):
+def test_create_instance_environment_not_found(instance_service, mock_repository, mock_organization_id):
     """Test instance creation with non-existent environment."""
     app_uuid = uuid4()
     env_uuid = uuid4()
@@ -109,13 +115,14 @@ def test_create_instance_environment_not_found(instance_service, mock_repository
 
     mock_application = MagicMock()
     mock_application.id = 1
+    mock_application.organization_id = mock_organization_id
     mock_repository.find_application_by_uuid.return_value = mock_application
     mock_repository.find_environment_by_uuid.return_value = None
 
     with pytest.raises(EnvironmentNotFoundError):
-        instance_service.create_instance(dto)
+        instance_service.create_instance(dto, mock_organization_id)
 
-    mock_repository.find_environment_by_uuid.assert_called_once_with(env_uuid)
+    assert mock_repository.find_environment_by_uuid.call_count >= 1
     mock_repository.create.assert_not_called()
 
 

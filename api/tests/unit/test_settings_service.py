@@ -35,6 +35,12 @@ def mock_environment():
 
 
 @pytest.fixture
+def mock_organization_id():
+    """Create a mock organization ID."""
+    return 1
+
+
+@pytest.fixture
 def mock_settings():
     """Create a mock settings."""
     settings = MagicMock()
@@ -50,7 +56,7 @@ def mock_settings():
     return settings
 
 
-def test_create_settings_success(settings_service, mock_repository, mock_environment):
+def test_create_settings_success(settings_service, mock_repository, mock_environment, mock_organization_id):
     """Test successful settings creation."""
     dto = SettingsCreate(
         key="test-key",
@@ -63,20 +69,21 @@ def test_create_settings_success(settings_service, mock_repository, mock_environ
     mock_settings.uuid = uuid4()
     mock_settings.key = dto.key
 
+    mock_environment.organization_id = mock_organization_id
     mock_repository.find_environment_by_uuid.return_value = mock_environment
     mock_repository.find_by_key_and_environment_id.return_value = None  # Key is unique
     mock_repository.create.return_value = mock_settings
 
     with patch.object(settings_service, '_build_settings_entity', return_value=mock_settings):
-        result = settings_service.create_settings(dto)
+        result = settings_service.create_settings(dto, mock_organization_id)
 
         assert result == mock_settings
-        # Validator also calls find_environment_by_uuid
+        # Validator and service both call find_environment_by_uuid
         assert mock_repository.find_environment_by_uuid.call_count >= 1
         mock_repository.create.assert_called_once()
 
 
-def test_create_settings_environment_not_found(settings_service, mock_repository):
+def test_create_settings_environment_not_found(settings_service, mock_repository, mock_organization_id):
     """Test settings creation with non-existent environment."""
     dto = SettingsCreate(
         key="test-key",
@@ -87,10 +94,10 @@ def test_create_settings_environment_not_found(settings_service, mock_repository
     mock_repository.find_environment_by_uuid.return_value = None
 
     with pytest.raises(EnvironmentNotFoundError):
-        settings_service.create_settings(dto)
+        settings_service.create_settings(dto, mock_organization_id)
 
 
-def test_create_settings_duplicate_key(settings_service, mock_repository, mock_environment):
+def test_create_settings_duplicate_key(settings_service, mock_repository, mock_environment, mock_organization_id):
     """Test settings creation with duplicate key."""
     dto = SettingsCreate(
         key="existing-key",
@@ -100,15 +107,16 @@ def test_create_settings_duplicate_key(settings_service, mock_repository, mock_e
 
     existing_settings = MagicMock()
     existing_settings.key = dto.key
+    mock_environment.organization_id = mock_organization_id
 
     mock_repository.find_environment_by_uuid.return_value = mock_environment
     mock_repository.find_by_key_and_environment_id.return_value = existing_settings
 
     with pytest.raises(SettingsKeyAlreadyExistsError):
-        settings_service.create_settings(dto)
+        settings_service.create_settings(dto, mock_organization_id)
 
 
-def test_update_settings_success(settings_service, mock_repository, mock_settings):
+def test_update_settings_success(settings_service, mock_repository, mock_settings, mock_organization_id):
     """Test successful settings update."""
     settings_uuid = mock_settings.uuid
     dto = SettingsUpdate(key="updated-key", value="updated-value")
@@ -125,7 +133,7 @@ def test_update_settings_success(settings_service, mock_repository, mock_setting
     mock_repository.find_by_key_and_environment_id.return_value = None  # No conflict
     mock_repository.update.return_value = updated_settings
 
-    result = settings_service.update_settings(settings_uuid, dto)
+    result = settings_service.update_settings(settings_uuid, dto, mock_organization_id)
 
     assert result == updated_settings
     assert mock_settings.key == dto.key
@@ -133,7 +141,7 @@ def test_update_settings_success(settings_service, mock_repository, mock_setting
     mock_repository.update.assert_called_once()
 
 
-def test_update_settings_partial(settings_service, mock_repository, mock_settings):
+def test_update_settings_partial(settings_service, mock_repository, mock_settings, mock_organization_id):
     """Test partial settings update."""
     settings_uuid = mock_settings.uuid
     dto = SettingsUpdate(value="updated-value")  # Only update value
@@ -144,15 +152,17 @@ def test_update_settings_partial(settings_service, mock_repository, mock_setting
     mock_repository.find_by_uuid.return_value = mock_settings
     mock_repository.update.return_value = updated_settings
 
-    result = settings_service.update_settings(settings_uuid, dto)
+    result = settings_service.update_settings(settings_uuid, dto, mock_organization_id)
 
     assert result == updated_settings
     assert mock_settings.value == dto.value
     # Key should not be updated
+    # Validator and service both call find_by_uuid
+    assert mock_repository.find_by_uuid.call_count >= 1
     mock_repository.update.assert_called_once()
 
 
-def test_update_settings_not_found(settings_service, mock_repository):
+def test_update_settings_not_found(settings_service, mock_repository, mock_organization_id):
     """Test updating non-existent settings."""
     settings_uuid = uuid4()
     dto = SettingsUpdate(key="updated-key")
@@ -160,10 +170,10 @@ def test_update_settings_not_found(settings_service, mock_repository):
     mock_repository.find_by_uuid.return_value = None
 
     with pytest.raises(SettingsNotFoundError):
-        settings_service.update_settings(settings_uuid, dto)
+        settings_service.update_settings(settings_uuid, dto, mock_organization_id)
 
 
-def test_get_settings_success(settings_service, mock_repository, mock_settings):
+def test_get_settings_success(settings_service, mock_repository, mock_settings, mock_organization_id):
     """Test getting settings by UUID."""
     settings_uuid = mock_settings.uuid
     mock_repository.find_by_uuid.return_value = mock_settings
@@ -172,24 +182,23 @@ def test_get_settings_success(settings_service, mock_repository, mock_settings):
         mock_response = MagicMock()
         mock_serialize.return_value = mock_response
 
-        result = settings_service.get_settings(settings_uuid)
+        result = settings_service.get_settings(settings_uuid, mock_organization_id)
 
         assert result == mock_response
-        # Validator also calls find_by_uuid
-        assert mock_repository.find_by_uuid.call_count >= 1
+        mock_repository.find_by_uuid.assert_called_with(settings_uuid, organization_id=mock_organization_id)
         mock_serialize.assert_called_once_with(mock_settings)
 
 
-def test_get_settings_not_found(settings_service, mock_repository):
+def test_get_settings_not_found(settings_service, mock_repository, mock_organization_id):
     """Test getting non-existent settings."""
     settings_uuid = uuid4()
     mock_repository.find_by_uuid.return_value = None
 
     with pytest.raises(SettingsNotFoundError):
-        settings_service.get_settings(settings_uuid)
+        settings_service.get_settings(settings_uuid, mock_organization_id)
 
 
-def test_get_settings_list(settings_service, mock_repository, mock_settings):
+def test_get_settings_list(settings_service, mock_repository, mock_settings, mock_organization_id):
     """Test getting all settings."""
     mock_settings2 = MagicMock()
     mock_settings2.uuid = uuid4()
@@ -203,29 +212,28 @@ def test_get_settings_list(settings_service, mock_repository, mock_settings):
     with patch.object(settings_service, '_serialize_settings_with_environment') as mock_serialize:
         mock_serialize.side_effect = lambda s: MagicMock(uuid=s.uuid, key=s.key)
 
-        result = settings_service.get_settings_list(skip=0, limit=10)
+        result = settings_service.get_settings_list(skip=0, limit=10, organization_id=mock_organization_id)
 
         assert len(result) == 2
-        mock_repository.find_all.assert_called_once_with(skip=0, limit=10)
+        mock_repository.find_all.assert_called_once_with(skip=0, limit=10, organization_id=mock_organization_id)
 
 
-def test_delete_settings_success(settings_service, mock_repository, mock_settings):
+def test_delete_settings_success(settings_service, mock_repository, mock_settings, mock_organization_id):
     """Test successful settings deletion."""
     settings_uuid = mock_settings.uuid
     mock_repository.find_by_uuid.return_value = mock_settings
 
-    result = settings_service.delete_settings(settings_uuid)
+    result = settings_service.delete_settings(settings_uuid, mock_organization_id)
 
     assert result == {"detail": "Settings deleted successfully"}
-    # Validator also calls find_by_uuid
-    assert mock_repository.find_by_uuid.call_count >= 1
+    mock_repository.find_by_uuid.assert_called_with(settings_uuid, organization_id=mock_organization_id)
     mock_repository.delete.assert_called_once_with(mock_settings)
 
 
-def test_delete_settings_not_found(settings_service, mock_repository):
+def test_delete_settings_not_found(settings_service, mock_repository, mock_organization_id):
     """Test deleting non-existent settings."""
     settings_uuid = uuid4()
     mock_repository.find_by_uuid.return_value = None
 
     with pytest.raises(SettingsNotFoundError):
-        settings_service.delete_settings(settings_uuid)
+        settings_service.delete_settings(settings_uuid, mock_organization_id)

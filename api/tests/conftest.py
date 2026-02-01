@@ -18,6 +18,7 @@ from app.users.infra.user_model import User
 from app.auth.infra.token_model import Token
 from app.templates.infra.template_model import Template
 from app.templates.infra.component_template_config_model import ComponentTemplateConfig
+from app.organizations.infra.organization_model import Organization
 
 # Suppress deprecation warnings from python-jose library
 # This is a known issue in the library and will be fixed in a future version

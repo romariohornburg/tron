@@ -6,13 +6,13 @@ from unittest.mock import patch
 
 
 @pytest.fixture
-def test_instance(client, admin_token):
+def test_instance(client, admin_token, test_organization):
     """Create a test instance for webapp tests."""
     from unittest.mock import patch, MagicMock
 
     # Create application
     app_response = client.post(
-        "/applications/",
+        f"/organizations/{test_organization.uuid}/applications/",
         headers={"Authorization": f"Bearer {admin_token}"},
         json={
             "name": "test-app-for-webapp",
@@ -24,7 +24,7 @@ def test_instance(client, admin_token):
 
     # Create environment
     env_response = client.post(
-        "/environments/",
+        f"/organizations/{test_organization.uuid}/environments/",
         headers={"Authorization": f"Bearer {admin_token}"},
         json={"name": "test-env-for-webapp"}
     )
@@ -38,7 +38,7 @@ def test_instance(client, admin_token):
         mock_k8s_client.return_value = mock_client_instance
 
         cluster_response = client.post(
-            "/clusters/",
+            f"/organizations/{test_organization.uuid}/clusters/",
             headers={"Authorization": f"Bearer {admin_token}"},
             json={
                 "name": "test-cluster-for-webapp",
@@ -51,7 +51,7 @@ def test_instance(client, admin_token):
 
     # Create instance
     instance_response = client.post(
-        "/instances/",
+        f"/organizations/{test_organization.uuid}/instances/",
         headers={"Authorization": f"Bearer {admin_token}"},
         json={
             "application_uuid": app_uuid,
@@ -61,7 +61,10 @@ def test_instance(client, admin_token):
         }
     )
     assert instance_response.status_code == status.HTTP_200_OK
-    return instance_response.json()
+    instance_data = instance_response.json()
+    instance_data["organization_uuid"] = test_organization.uuid
+    instance_data["environment_uuid"] = env_uuid
+    return instance_data
 
 
 @patch('app.webapps.core.webapp_service.validate_exposure_type_for_cluster')
@@ -87,7 +90,7 @@ def test_create_webapp_success(mock_get_cluster, mock_apply, mock_gateway, mock_
     mock_validate_visibility.return_value = None
 
     response = client.post(
-        "/application_components/webapp/",
+        f"/organizations/{test_instance['organization_uuid']}/application_components/webapp/",
         headers={"Authorization": f"Bearer {admin_token}"},
         json={
             "instance_uuid": test_instance["uuid"],
@@ -132,7 +135,7 @@ def test_create_webapp_success(mock_get_cluster, mock_apply, mock_gateway, mock_
 def test_create_webapp_requires_authentication(client, test_instance):
     """Test that webapp creation requires authentication."""
     response = client.post(
-        "/application_components/webapp/",
+        f"/organizations/{test_instance['organization_uuid']}/application_components/webapp/",
         json={
             "instance_uuid": test_instance["uuid"],
             "name": "test-webapp",
@@ -168,7 +171,7 @@ def test_create_webapp_requires_authentication(client, test_instance):
 def test_create_webapp_requires_admin_role(client, user_token, test_instance):
     """Test that webapp creation requires admin role."""
     response = client.post(
-        "/application_components/webapp/",
+        f"/organizations/{test_instance['organization_uuid']}/application_components/webapp/",
         headers={"Authorization": f"Bearer {user_token}"},
         json={
             "instance_uuid": test_instance["uuid"],
@@ -226,7 +229,7 @@ def test_list_webapps_success(mock_get_cluster, mock_apply, mock_gateway, mock_v
 
     # Create a webapp first
     create_response = client.post(
-        "/application_components/webapp/",
+        f"/organizations/{test_instance['organization_uuid']}/application_components/webapp/",
         headers={"Authorization": f"Bearer {admin_token}"},
         json={
             "instance_uuid": test_instance["uuid"],
@@ -262,7 +265,7 @@ def test_list_webapps_success(mock_get_cluster, mock_apply, mock_gateway, mock_v
 
     # List webapps
     response = client.get(
-        "/application_components/webapp/",
+        f"/organizations/{test_instance['organization_uuid']}/application_components/webapp/?environment_uuid={test_instance['environment_uuid']}",
         headers={"Authorization": f"Bearer {admin_token}"}
     )
 
@@ -275,9 +278,10 @@ def test_list_webapps_success(mock_get_cluster, mock_apply, mock_gateway, mock_v
     assert len(data) >= 1
 
 
-def test_list_webapps_requires_authentication(client):
+def test_list_webapps_requires_authentication(client, test_organization):
     """Test that listing webapps requires authentication."""
-    response = client.get("/application_components/webapp/")
+    fake_env_uuid = uuid4()
+    response = client.get(f"/organizations/{test_organization.uuid}/application_components/webapp/?environment_uuid={fake_env_uuid}")
 
     assert response.status_code == status.HTTP_401_UNAUTHORIZED
 
@@ -306,7 +310,7 @@ def test_get_webapp_success(mock_get_cluster, mock_apply, mock_gateway, mock_val
 
     # Create a webapp
     create_response = client.post(
-        "/application_components/webapp/",
+        f"/organizations/{test_instance['organization_uuid']}/application_components/webapp/",
         headers={"Authorization": f"Bearer {admin_token}"},
         json={
             "instance_uuid": test_instance["uuid"],
@@ -343,7 +347,7 @@ def test_get_webapp_success(mock_get_cluster, mock_apply, mock_gateway, mock_val
 
     # Get webapp
     response = client.get(
-        f"/application_components/webapp/{webapp_uuid}",
+        f"/organizations/{test_instance['organization_uuid']}/application_components/webapp/{webapp_uuid}",
         headers={"Authorization": f"Bearer {admin_token}"}
     )
 
@@ -356,20 +360,20 @@ def test_get_webapp_success(mock_get_cluster, mock_apply, mock_gateway, mock_val
     assert data["uuid"] == webapp_uuid
 
 
-def test_get_webapp_not_found(client, admin_token):
+def test_get_webapp_not_found(client, admin_token, test_organization):
     """Test that getting non-existent webapp returns 404."""
     fake_uuid = uuid4()
     response = client.get(
-        f"/application_components/webapp/{fake_uuid}",
+        f"/organizations/{test_organization.uuid}/application_components/webapp/{fake_uuid}",
         headers={"Authorization": f"Bearer {admin_token}"}
     )
 
     assert response.status_code == status.HTTP_404_NOT_FOUND
 
 
-def test_get_webapp_requires_authentication(client):
+def test_get_webapp_requires_authentication(client, test_organization):
     """Test that getting webapp requires authentication."""
     fake_uuid = uuid4()
-    response = client.get(f"/application_components/webapp/{fake_uuid}")
+    response = client.get(f"/organizations/{test_organization.uuid}/application_components/webapp/{fake_uuid}")
 
     assert response.status_code == status.HTTP_401_UNAUTHORIZED

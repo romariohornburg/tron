@@ -6,13 +6,13 @@ from unittest.mock import patch
 
 
 @pytest.fixture
-def test_instance(client, admin_token):
+def test_instance(client, admin_token, test_organization):
     """Create a test instance for worker tests."""
     from unittest.mock import patch, MagicMock
 
     # Create application
     app_response = client.post(
-        "/applications/",
+        f"/organizations/{test_organization.uuid}/applications/",
         headers={"Authorization": f"Bearer {admin_token}"},
         json={
             "name": "test-app-for-worker",
@@ -24,7 +24,7 @@ def test_instance(client, admin_token):
 
     # Create environment
     env_response = client.post(
-        "/environments/",
+        f"/organizations/{test_organization.uuid}/environments/",
         headers={"Authorization": f"Bearer {admin_token}"},
         json={"name": "test-env-for-worker"}
     )
@@ -38,7 +38,7 @@ def test_instance(client, admin_token):
         mock_k8s_client.return_value = mock_client_instance
 
         cluster_response = client.post(
-            "/clusters/",
+            f"/organizations/{test_organization.uuid}/clusters/",
             headers={"Authorization": f"Bearer {admin_token}"},
             json={
                 "name": "test-cluster-for-worker",
@@ -51,7 +51,7 @@ def test_instance(client, admin_token):
 
     # Create instance
     instance_response = client.post(
-        "/instances/",
+        f"/organizations/{test_organization.uuid}/instances/",
         headers={"Authorization": f"Bearer {admin_token}"},
         json={
             "application_uuid": app_uuid,
@@ -61,7 +61,9 @@ def test_instance(client, admin_token):
         }
     )
     assert instance_response.status_code == status.HTTP_200_OK
-    return instance_response.json()
+    instance_data = instance_response.json()
+    instance_data["organization_uuid"] = test_organization.uuid
+    return instance_data
 
 
 @patch('app.clusters.core.cluster_service.get_gateway_reference_from_cluster')
@@ -83,7 +85,7 @@ def test_create_worker_success(mock_get_cluster, mock_apply, mock_gateway, clien
     mock_gateway.return_value = {"namespace": "", "name": ""}
 
     response = client.post(
-        "/application_components/worker/",
+        f"/organizations/{test_instance['organization_uuid']}/application_components/worker/",
         headers={"Authorization": f"Bearer {admin_token}"},
         json={
             "instance_uuid": test_instance["uuid"],
@@ -118,7 +120,7 @@ def test_create_worker_success(mock_get_cluster, mock_apply, mock_gateway, clien
 def test_create_worker_requires_authentication(client, test_instance):
     """Test that worker creation requires authentication."""
     response = client.post(
-        "/application_components/worker/",
+        f"/organizations/{test_instance['organization_uuid']}/application_components/worker/",
         json={
             "instance_uuid": test_instance["uuid"],
             "name": "test-worker",
@@ -144,7 +146,7 @@ def test_create_worker_requires_authentication(client, test_instance):
 def test_create_worker_requires_admin_role(client, user_token, test_instance):
     """Test that worker creation requires admin role."""
     response = client.post(
-        "/application_components/worker/",
+        f"/organizations/{test_instance['organization_uuid']}/application_components/worker/",
         headers={"Authorization": f"Bearer {user_token}"},
         json={
             "instance_uuid": test_instance["uuid"],
@@ -188,7 +190,7 @@ def test_list_workers_success(mock_get_cluster, mock_apply, mock_gateway, client
 
     # Create a worker first
     create_response = client.post(
-        "/application_components/worker/",
+        f"/organizations/{test_instance['organization_uuid']}/application_components/worker/",
         headers={"Authorization": f"Bearer {admin_token}"},
         json={
             "instance_uuid": test_instance["uuid"],
@@ -214,7 +216,7 @@ def test_list_workers_success(mock_get_cluster, mock_apply, mock_gateway, client
 
     # List workers
     response = client.get(
-        "/application_components/worker/",
+        f"/organizations/{test_instance['organization_uuid']}/application_components/worker/",
         headers={"Authorization": f"Bearer {admin_token}"}
     )
 
@@ -227,9 +229,9 @@ def test_list_workers_success(mock_get_cluster, mock_apply, mock_gateway, client
     assert len(data) >= 1
 
 
-def test_list_workers_requires_authentication(client):
+def test_list_workers_requires_authentication(client, test_organization):
     """Test that listing workers requires authentication."""
-    response = client.get("/application_components/worker/")
+    response = client.get(f"/organizations/{test_organization.uuid}/application_components/worker/")
 
     assert response.status_code == status.HTTP_401_UNAUTHORIZED
 
@@ -254,7 +256,7 @@ def test_get_worker_success(mock_get_cluster, mock_apply, mock_gateway, client, 
 
     # Create a worker
     create_response = client.post(
-        "/application_components/worker/",
+        f"/organizations/{test_instance['organization_uuid']}/application_components/worker/",
         headers={"Authorization": f"Bearer {admin_token}"},
         json={
             "instance_uuid": test_instance["uuid"],
@@ -281,7 +283,7 @@ def test_get_worker_success(mock_get_cluster, mock_apply, mock_gateway, client, 
 
     # Get worker
     response = client.get(
-        f"/application_components/worker/{worker_uuid}",
+        f"/organizations/{test_instance['organization_uuid']}/application_components/worker/{worker_uuid}",
         headers={"Authorization": f"Bearer {admin_token}"}
     )
 
@@ -294,20 +296,20 @@ def test_get_worker_success(mock_get_cluster, mock_apply, mock_gateway, client, 
     assert data["uuid"] == worker_uuid
 
 
-def test_get_worker_not_found(client, admin_token):
+def test_get_worker_not_found(client, admin_token, test_organization):
     """Test that getting non-existent worker returns 404."""
     fake_uuid = uuid4()
     response = client.get(
-        f"/application_components/worker/{fake_uuid}",
+        f"/organizations/{test_organization.uuid}/application_components/worker/{fake_uuid}",
         headers={"Authorization": f"Bearer {admin_token}"}
     )
 
     assert response.status_code == status.HTTP_404_NOT_FOUND
 
 
-def test_get_worker_requires_authentication(client):
+def test_get_worker_requires_authentication(client, test_organization):
     """Test that getting worker requires authentication."""
     fake_uuid = uuid4()
-    response = client.get(f"/application_components/worker/{fake_uuid}")
+    response = client.get(f"/organizations/{test_organization.uuid}/application_components/worker/{fake_uuid}")
 
     assert response.status_code == status.HTTP_401_UNAUTHORIZED

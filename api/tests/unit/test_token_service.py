@@ -7,7 +7,6 @@ from app.auth.core.token_service import TokenService
 from app.auth.infra.token_repository import TokenRepository
 from app.auth.api.token_dto import TokenCreate, TokenUpdate
 from app.auth.core.token_validators import TokenNotFoundError
-from app.auth.infra.token_model import TokenRole
 
 
 @pytest.fixture
@@ -38,7 +37,6 @@ def mock_token():
     token.id = 1
     token.name = "test-token"
     token.token_hash = "hashed_token"
-    token.role = TokenRole.ADMIN.value
     token.is_active = True
     token.expires_at = datetime.now(timezone.utc) + timedelta(days=30)
     token.last_used_at = None
@@ -54,7 +52,6 @@ def test_list_tokens_success(token_service, mock_repository, mock_token):
     mock_token2.uuid = uuid4()
     mock_token2.name = "test-token-2"
     mock_token2.token_hash = "hashed_token_2"
-    mock_token2.role = TokenRole.USER.value
     mock_token2.is_active = True
     mock_token2.expires_at = None
     mock_token2.last_used_at = None
@@ -110,7 +107,6 @@ def test_create_token_success(token_service, mock_repository, mock_db, mock_toke
     """Test successful token creation."""
     dto = TokenCreate(
         name="new-token",
-        role=TokenRole.ADMIN.value,
         expires_at=None
     )
 
@@ -125,7 +121,6 @@ def test_create_token_success(token_service, mock_repository, mock_db, mock_toke
         assert result.uuid == str(mock_token.uuid)
         assert result.name == mock_token.name
         assert result.token == "plain-token-123"
-        assert result.role == mock_token.role
         mock_repository.create.assert_called_once()
 
 
@@ -133,7 +128,6 @@ def test_create_token_with_user_id(token_service, mock_repository, mock_db, mock
     """Test token creation with user_id."""
     dto = TokenCreate(
         name="user-token",
-        role=TokenRole.USER.value,
         expires_at=None
     )
     user_id = 1
@@ -155,7 +149,6 @@ def test_update_token_success(token_service, mock_repository, mock_db, mock_toke
     token_uuid = str(mock_token.uuid)
     dto = TokenUpdate(
         name="updated-token",
-        role=TokenRole.USER.value,
         is_active=False
     )
 
@@ -169,7 +162,6 @@ def test_update_token_success(token_service, mock_repository, mock_db, mock_toke
 
         assert result == mock_response
         assert mock_token.name == dto.name
-        assert mock_token.role == dto.role
         assert mock_token.is_active == dto.is_active
         mock_repository.update.assert_called_once_with(mock_token)
 

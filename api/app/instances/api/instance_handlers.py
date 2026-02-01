@@ -83,8 +83,21 @@ def update_instance(
     current_user: User = Depends(get_current_user),
 ):
     """Update an existing instance."""
+    # First check if instance exists and belongs to organization
+    repository = InstanceRepository(service.db)
+    instance_model = repository.find_by_uuid_with_relations(uuid)
+    
+    if not instance_model:
+        raise HTTPException(status_code=404, detail="Instance not found")
+    
+    # Verify instance belongs to organization
+    if instance_model.application.organization_id != ctx.organization.id:
+        raise HTTPException(status_code=404, detail="Instance not found")
+    
+    # Then verify user has permission to operate this instance
     if not canOperateInstanceByUuid(ctx, uuid, service.db):
         raise HTTPException(status_code=403, detail="Insufficient permissions")
+    
     try:
         return service.update_instance(uuid, instance)
     except InstanceNotFoundError as e:

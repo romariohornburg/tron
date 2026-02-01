@@ -118,8 +118,18 @@ def get_environment(
     db: Session = Depends(get_db),
 ):
     """Get environment by UUID within an organization."""
-    # Verify user has permission to view this environment
-    if not canViewEnvironmentByUuid(ctx, uuid, db):
+    # First check if environment exists and belongs to organization
+    from app.environments.infra.environment_model import Environment as EnvironmentModel
+    environment_model = db.query(EnvironmentModel).filter(
+        EnvironmentModel.uuid == uuid,
+        EnvironmentModel.organization_id == ctx.organization.id
+    ).first()
+
+    if not environment_model:
+        raise HTTPException(status_code=404, detail="Environment not found")
+
+    # Then verify user has permission to view this environment
+    if not canViewEnvironment(ctx, environment_model.id):
         raise HTTPException(status_code=403, detail="Not allowed to view this environment")
 
     try:
