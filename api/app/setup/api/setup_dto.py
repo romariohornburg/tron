@@ -18,9 +18,9 @@ class SetupInitialize(BaseModel):
     admin_email: str = Field(..., description="Admin user email")
     admin_password: str = Field(..., min_length=6, description="Admin user password")
     admin_name: str = Field(default="Administrator", description="Admin user full name")
-    # Kept for backward compatibility with older frontend versions
     organization_name: str = Field(
-        default="", description="Organization name (not used)"
+        default="Default Organization",
+        description="Name of the default organization to create for the admin user",
     )
 
     @field_validator("admin_email")

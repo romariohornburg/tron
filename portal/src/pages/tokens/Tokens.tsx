@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react'
-import { X, Trash2, Plus, Key, Edit, Shield, Copy, Check, AlertCircle } from 'lucide-react'
+import { X, Trash2, Plus, Key, Edit, Copy, Check, AlertCircle } from 'lucide-react'
 import { useTokens, useCreateToken, useUpdateToken, useDeleteToken } from '../../features/tokens'
 import type { ApiToken, ApiTokenCreate } from '../../features/tokens'
+import { useAuth } from '../../contexts/AuthContext'
 import { DataTable, Breadcrumbs, PageHeader } from '../../shared/components'
 
 function Tokens() {
@@ -13,13 +14,13 @@ function Tokens() {
   const [copiedToken, setCopiedToken] = useState<string | null>(null)
 
   const { data: tokens = [], isLoading } = useTokens({ search: searchTerm || undefined })
+  const { user: currentUser } = useAuth()
   const createMutation = useCreateToken()
   const updateMutation = useUpdateToken()
   const deleteMutation = useDeleteToken()
 
   const [formData, setFormData] = useState<ApiTokenCreate & { expires_at?: string | null }>({
     name: '',
-    role: 'user',
     expires_at: null,
   })
 
@@ -93,7 +94,6 @@ function Tokens() {
   const resetForm = () => {
     setFormData({
       name: '',
-      role: 'user',
       expires_at: null,
     })
   }
@@ -109,15 +109,19 @@ function Tokens() {
     setEditingToken(token)
     setFormData({
       name: token.name,
-      role: token.role,
       expires_at: token.expires_at || null,
     })
     setIsOpen(true)
   }
 
-  const handleDelete = (uuid: string) => {
+  const handleDelete = (token: ApiToken) => {
     if (window.confirm('Are you sure you want to delete this token?')) {
-      deleteMutation.mutate(uuid)
+      if (!token.user_uuid) {
+        setNotification({ type: 'error', message: 'Token has no associated user' })
+        setTimeout(() => setNotification(null), 5000)
+        return
+      }
+      deleteMutation.mutate({ userUuid: token.user_uuid, tokenUuid: token.uuid })
     }
   }
 
@@ -141,28 +145,27 @@ function Tokens() {
       return
     }
 
+    if (!currentUser?.uuid) {
+      setNotification({ type: 'error', message: 'User not authenticated' })
+      setTimeout(() => setNotification(null), 5000)
+      return
+    }
+
     if (editingToken) {
-      updateMutation.mutate({ uuid: editingToken.uuid, data: formData })
+      if (!editingToken.user_uuid) {
+        setNotification({ type: 'error', message: 'Token has no associated user' })
+        setTimeout(() => setNotification(null), 5000)
+        return
+      }
+      updateMutation.mutate({ 
+        userUuid: editingToken.user_uuid, 
+        tokenUuid: editingToken.uuid, 
+        data: formData 
+      })
     } else {
-      createMutation.mutate(formData)
+      // Use current user's UUID from auth context
+      createMutation.mutate({ userUuid: currentUser.uuid, data: formData })
     }
-  }
-
-  const getRoleBadge = (role: string) => {
-    const roleConfig = {
-      admin: { label: 'Admin', color: 'bg-purple-100 text-purple-700' },
-      user: { label: 'User', color: 'bg-blue-100 text-blue-700' },
-      viewer: { label: 'Visualizador', color: 'bg-gray-100 text-gray-700' },
-    }
-
-    const config = roleConfig[role as keyof typeof roleConfig] || roleConfig.user
-
-    return (
-      <span className={`inline-flex items-center px-2 py-1 rounded-md text-xs font-medium ${config.color}`}>
-        <Shield size={12} className="mr-1" />
-        {config.label}
-      </span>
-    )
   }
 
   const formatDate = (dateString: string | null) => {
@@ -288,21 +291,12 @@ function Tokens() {
               ),
             },
             {
-              key: 'role',
-              label: 'Role',
-              render: (token) => getRoleBadge(token.role),
-            },
-            {
               key: 'is_active',
               label: 'Status',
               render: (token) => (
-                <div className="flex items-center gap-2">
-                  {token.is_active ? (
-                    <span className="text-sm text-success font-medium">Active</span>
-                  ) : (
-                    <span className="text-sm text-error font-medium">Inactive</span>
-                  )}
-                </div>
+                <span className={token.is_active ? 'badge-success' : 'badge-error'}>
+                  {token.is_active ? 'Active' : 'Inactive'}
+                </span>
               ),
             },
             {
@@ -348,7 +342,7 @@ function Tokens() {
             {
               label: 'Delete',
               icon: <Trash2 size={14} />,
-              onClick: () => handleDelete(token.uuid),
+              onClick: () => handleDelete(token),
               variant: 'danger' as const,
             },
           ]}
@@ -389,23 +383,6 @@ function Tokens() {
                   placeholder="Token name"
                   required
                 />
-              </div>
-
-              <div>
-                <label htmlFor="role" className="block text-sm font-medium text-neutral-700 mb-2">
-                  Role
-                </label>
-                <select
-                  id="role"
-                  value={formData.role}
-                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                  onChange={(e) => setFormData({ ...formData, role: e.target.value as any })}
-                  className="select w-full"
-                >
-                  <option value="user">User</option>
-                  <option value="admin">Administrator</option>
-                  <option value="viewer">Viewer</option>
-                </select>
               </div>
 
               {editingToken && (

@@ -64,7 +64,7 @@ describe('useWebappDetail', () => {
     } as any)
 
     const { result } = renderHook(
-      () => useWebappDetail('component-1', 0),
+      () => useWebappDetail('component-1', 'component-1', 0),
       { wrapper: createWrapper() }
     )
 
@@ -102,7 +102,7 @@ describe('useWebappDetail', () => {
     } as any)
 
     const { result } = renderHook(
-      () => useWebappDetail('component-1', 0),
+      () => useWebappDetail('component-1', 'component-1', 0),
       { wrapper: createWrapper() }
     )
 
@@ -140,7 +140,7 @@ describe('useWebappDetail', () => {
     } as any)
 
     const { result } = renderHook(
-      () => useWebappDetail('component-1', 0),
+      () => useWebappDetail('component-1', 'component-1', 0),
       { wrapper: createWrapper() }
     )
 
@@ -179,7 +179,7 @@ describe('useWebappDetail', () => {
     } as any)
 
     const { result } = renderHook(
-      () => useWebappDetail('component-1', 0),
+      () => useWebappDetail('component-1', 'component-1', 0),
       { wrapper: createWrapper() }
     )
 
@@ -227,7 +227,7 @@ describe('useWebappDetail', () => {
     } as any)
 
     const { result } = renderHook(
-      () => useWebappDetail('component-1', 0),
+      () => useWebappDetail('component-1', 'component-1', 0),
       { wrapper: createWrapper() }
     )
 
@@ -283,7 +283,7 @@ describe('useWebappDetail', () => {
     } as any)
 
     const { result } = renderHook(
-      () => useWebappDetail('component-1', 0),
+      () => useWebappDetail('component-1', 'component-1', 0),
       { wrapper: createWrapper() }
     )
 

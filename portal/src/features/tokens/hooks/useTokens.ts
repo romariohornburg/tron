@@ -1,18 +1,33 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { tokensApi } from '../api'
+import { useAuth } from '../../../contexts/AuthContext'
+import type { ApiTokenUpdate } from '../types'
 
-export const useTokens = (params?: { skip?: number; limit?: number; search?: string }) => {
+// Hook to get tokens for a specific user
+export const useUserTokens = (userUuid: string | undefined, params?: { skip?: number; limit?: number; search?: string }) => {
   return useQuery({
-    queryKey: ['tokens', params],
-    queryFn: () => tokensApi.list(params),
+    queryKey: ['tokens', userUuid, params],
+    queryFn: () => tokensApi.listByUser(userUuid!, params),
+    enabled: !!userUuid,
   })
 }
 
-export const useToken = (uuid: string | undefined) => {
+// Hook to get tokens for the current logged-in user (for tokens page)
+export const useTokens = (params?: { skip?: number; limit?: number; search?: string }) => {
+  const { user } = useAuth()
+  
   return useQuery({
-    queryKey: ['token', uuid],
-    queryFn: () => tokensApi.get(uuid!),
-    enabled: !!uuid,
+    queryKey: ['tokens', user?.uuid, params],
+    queryFn: () => tokensApi.listByUser(user!.uuid, params),
+    enabled: !!user?.uuid,
+  })
+}
+
+export const useToken = (userUuid: string | undefined, tokenUuid: string | undefined) => {
+  return useQuery({
+    queryKey: ['token', userUuid, tokenUuid],
+    queryFn: () => tokensApi.get(userUuid!, tokenUuid!),
+    enabled: !!userUuid && !!tokenUuid,
   })
 }
 
@@ -20,9 +35,11 @@ export const useCreateToken = () => {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: tokensApi.create,
-    onSuccess: () => {
+    mutationFn: ({ userUuid, data }: { userUuid: string; data: import('../types').ApiTokenCreate }) =>
+      tokensApi.create(userUuid, data),
+    onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['tokens'] })
+      queryClient.invalidateQueries({ queryKey: ['tokens', variables.userUuid] })
     },
   })
 }
@@ -31,11 +48,12 @@ export const useUpdateToken = () => {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: ({ uuid, data }: { uuid: string; data: import('../types').ApiTokenUpdate }) =>
-      tokensApi.update(uuid, data),
+    mutationFn: ({ userUuid, tokenUuid, data }: { userUuid: string; tokenUuid: string; data: ApiTokenUpdate }) =>
+      tokensApi.update(userUuid, tokenUuid, data),
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['tokens'] })
-      queryClient.invalidateQueries({ queryKey: ['token', variables.uuid] })
+      queryClient.invalidateQueries({ queryKey: ['tokens', variables.userUuid] })
+      queryClient.invalidateQueries({ queryKey: ['token', variables.userUuid, variables.tokenUuid] })
     },
   })
 }
@@ -44,9 +62,11 @@ export const useDeleteToken = () => {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: tokensApi.delete,
-    onSuccess: () => {
+    mutationFn: ({ userUuid, tokenUuid }: { userUuid: string; tokenUuid: string }) =>
+      tokensApi.delete(userUuid, tokenUuid),
+    onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['tokens'] })
+      queryClient.invalidateQueries({ queryKey: ['tokens', variables.userUuid] })
     },
   })
 }

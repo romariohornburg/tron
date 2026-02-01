@@ -74,10 +74,16 @@ def initialize_setup(
         )
 
     try:
+        organization_name = (
+            data.organization_name.strip()
+            if data.organization_name and data.organization_name.strip()
+            else "Default Organization"
+        )
         admin_user = service.initialize(
             admin_email=data.admin_email,
             admin_password=data.admin_password,
             admin_name=data.admin_name,
+            organization_name=organization_name,
         )
 
         return SetupInitializeResponse(

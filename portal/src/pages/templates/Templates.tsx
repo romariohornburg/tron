@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { useMutation } from '@tanstack/react-query'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { X, Trash2, Plus, FileCode, Edit, ChevronDown, ChevronRight, Settings, Copy, Check } from 'lucide-react'
 import { useTemplates, useCreateTemplate, useUpdateTemplate, useDeleteTemplate, useComponentTemplateConfigs } from '../../features/templates'
 import { componentTemplateConfigsApi } from '../../features/templates/api'
@@ -12,6 +12,7 @@ import type {
   ComponentTemplateConfigUpdate,
 } from '../../features/templates'
 import { DataTable, Breadcrumbs, PageHeader } from '../../shared/components'
+import { useOrganization } from '../../contexts/OrganizationContext'
 
 // Available variables for webapp templates
 const WEBAPP_VARIABLES = {
@@ -76,6 +77,8 @@ const WEBAPP_VARIABLES = {
 }
 
 function Templates() {
+  const { selectedOrganizationUuid } = useOrganization()
+  const queryClient = useQueryClient()
   const [isOpen, setIsOpen] = useState(false)
   const [isConfigOpen, setIsConfigOpen] = useState(false)
   const [activeTab, setActiveTab] = useState<'templates' | 'configs'>('templates')
@@ -87,11 +90,11 @@ function Templates() {
   const [copiedPath, setCopiedPath] = useState<string | null>(null)
   const [notification, setNotification] = useState<{ type: 'success' | 'error'; message: string } | null>(null)
 
-  const { data: templates = [], isLoading } = useTemplates()
-  const { data: configs = [], isLoading: isLoadingConfigs } = useComponentTemplateConfigs(selectedComponentType)
-  const createMutation = useCreateTemplate()
-  const updateMutation = useUpdateTemplate()
-  const deleteMutation = useDeleteTemplate()
+  const { data: templates = [], isLoading } = useTemplates(selectedOrganizationUuid)
+  const { data: configs = [], isLoading: isLoadingConfigs } = useComponentTemplateConfigs(selectedOrganizationUuid, selectedComponentType)
+  const createMutation = useCreateTemplate(selectedOrganizationUuid)
+  const updateMutation = useUpdateTemplate(selectedOrganizationUuid)
+  const deleteMutation = useDeleteTemplate(selectedOrganizationUuid)
 
   const [configFormData, setConfigFormData] = useState<ComponentTemplateConfigCreate>({
     component_type: 'webapp',
@@ -227,7 +230,12 @@ function Templates() {
 
   // Config mutations - using direct API calls since hooks not created yet
   const createConfigMutation = useMutation({
-    mutationFn: componentTemplateConfigsApi.create,
+    mutationFn: (data: ComponentTemplateConfigCreate) => {
+      if (!selectedOrganizationUuid) {
+        throw new Error('Organization UUID is required')
+      }
+      return componentTemplateConfigsApi.create(selectedOrganizationUuid, data)
+    },
     onSuccess: () => {
       setNotification({ type: 'success', message: 'Template configuration created successfully' })
       setIsConfigOpen(false)
@@ -237,6 +245,7 @@ function Templates() {
         render_order: 0,
         enabled: true,
       })
+      queryClient.invalidateQueries({ queryKey: ['component-template-configs', selectedOrganizationUuid] })
       setTimeout(() => setNotification(null), 5000)
     },
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -250,8 +259,12 @@ function Templates() {
   })
 
   const updateConfigMutation = useMutation({
-    mutationFn: ({ uuid, data }: { uuid: string; data: ComponentTemplateConfigUpdate }) =>
-      componentTemplateConfigsApi.update(uuid, data),
+    mutationFn: ({ uuid, data }: { uuid: string; data: ComponentTemplateConfigUpdate }) => {
+      if (!selectedOrganizationUuid) {
+        throw new Error('Organization UUID is required')
+      }
+      return componentTemplateConfigsApi.update(selectedOrganizationUuid, uuid, data)
+    },
     onSuccess: () => {
       setNotification({ type: 'success', message: 'Template configuration updated successfully' })
       setIsConfigOpen(false)
@@ -262,6 +275,7 @@ function Templates() {
         render_order: 0,
         enabled: true,
       })
+      queryClient.invalidateQueries({ queryKey: ['component-template-configs', selectedOrganizationUuid] })
       setTimeout(() => setNotification(null), 5000)
     },
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -275,9 +289,15 @@ function Templates() {
   })
 
   const deleteConfigMutation = useMutation({
-    mutationFn: componentTemplateConfigsApi.delete,
+    mutationFn: (uuid: string) => {
+      if (!selectedOrganizationUuid) {
+        throw new Error('Organization UUID is required')
+      }
+      return componentTemplateConfigsApi.delete(selectedOrganizationUuid, uuid)
+    },
     onSuccess: () => {
       setNotification({ type: 'success', message: 'Template configuration deleted successfully' })
+      queryClient.invalidateQueries({ queryKey: ['component-template-configs', selectedOrganizationUuid] })
       setTimeout(() => setNotification(null), 5000)
     },
     // eslint-disable-next-line @typescript-eslint/no-explicit-any

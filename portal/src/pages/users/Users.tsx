@@ -204,7 +204,6 @@ function Users() {
     const roleConfig = {
       admin: { label: 'Admin', color: 'bg-purple-100 text-purple-700' },
       user: { label: 'User', color: 'bg-blue-100 text-blue-700' },
-      viewer: { label: 'Visualizador', color: 'bg-gray-100 text-gray-700' },
     }
 
     const config = roleConfig[role as keyof typeof roleConfig] || roleConfig.user
@@ -445,7 +444,6 @@ function Users() {
                 >
                   <option value="user">User</option>
                   <option value="admin">Administrator</option>
-                  <option value="viewer">Viewer</option>
                 </select>
               </div>
 

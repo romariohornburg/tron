@@ -12,7 +12,11 @@ from app.auth.api.auth_dto import (
     RefreshTokenRequest,
     UpdateProfileRequest,
 )
-from app.users.api.user_dto import UserResponse, UserCreate
+from app.users.api.user_dto import (
+    UserResponse,
+    UserCreate,
+    UserWithOrganizationsResponse,
+)
 from app.users.core.user_validators import UserEmailAlreadyExistsError
 from app.users.infra.user_model import User
 from app.shared.dependencies.auth import get_current_user
@@ -132,10 +136,103 @@ async def refresh_token(
     }
 
 
-@router.get("/me", response_model=UserResponse)
-async def get_current_user_info(current_user: User = Depends(get_current_user)):
-    """Get current user information."""
-    return current_user
+@router.get("/me", response_model=UserWithOrganizationsResponse)
+async def get_current_user_info(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Get current user information with organizations."""
+    from app.organizations.infra.organization_member_model import OrganizationMember
+    from app.organizations.infra.organization_model import Organization
+    from app.organizations.infra.group_model import Group
+    from app.organizations.infra.group_member_model import GroupMember
+    from app.organizations.core.enums import OrganizationMemberStatus, GroupRole
+    from sqlalchemy.orm import joinedload
+    from app.users.api.user_dto import UserOrganizationInfo
+
+    # Map org uuid -> organization_id for later is_admin lookup
+    org_uuid_to_id = {}
+
+    # 1) Organizations where user is owner (include even without OrganizationMember)
+    owned_orgs = (
+        db.query(Organization)
+        .filter(Organization.owner_user_id == current_user.id)
+        .all()
+    )
+    orgs_by_uuid = {}
+    for org in owned_orgs:
+        org_uuid_to_id[str(org.uuid)] = org.id
+        orgs_by_uuid[str(org.uuid)] = UserOrganizationInfo(
+            uuid=str(org.uuid),
+            name=org.name,
+            is_owner=True,
+            is_admin=True,
+            status=OrganizationMemberStatus.ACTIVE.value,
+        )
+
+    # 2) Organizations where user has active membership (may override is_owner from member)
+    members = (
+        db.query(OrganizationMember)
+        .options(joinedload(OrganizationMember.organization))
+        .filter(OrganizationMember.user_id == current_user.id)
+        .filter(OrganizationMember.status == OrganizationMemberStatus.ACTIVE.value)
+        .all()
+    )
+    for member in members:
+        if member.organization:
+            org_uuid = str(member.organization.uuid)
+            org_uuid_to_id[org_uuid] = member.organization.id
+            orgs_by_uuid[org_uuid] = UserOrganizationInfo(
+                uuid=org_uuid,
+                name=member.organization.name,
+                is_owner=member.is_owner,
+                is_admin=member.is_owner,
+                status=member.status,
+            )
+
+    # 3) Set is_admin for members: true if user has ORG_ADMIN in any group in that org
+    if members:
+        member_ids = [m.id for m in members]
+        admin_org_ids = (
+            db.query(Group.organization_id)
+            .join(GroupMember, GroupMember.group_id == Group.id)
+            .filter(GroupMember.organization_member_id.in_(member_ids))
+            .filter(Group.role == GroupRole.ORG_ADMIN.value)
+            .distinct()
+            .all()
+        )
+        admin_org_ids_set = {row[0] for row in admin_org_ids}
+        for org_uuid, info in list(orgs_by_uuid.items()):
+            org_id = org_uuid_to_id.get(org_uuid)
+            if org_id is not None and org_id in admin_org_ids_set:
+                orgs_by_uuid[org_uuid] = UserOrganizationInfo(
+                    uuid=info.uuid,
+                    name=info.name,
+                    is_owner=info.is_owner,
+                    is_admin=True,
+                    status=info.status,
+                )
+
+    organizations = list(orgs_by_uuid.values())
+
+    # Create response with organizations
+    user_dict = {
+        "uuid": str(current_user.uuid),
+        "email": current_user.email,
+        "full_name": current_user.full_name,
+        "is_active": current_user.is_active,
+        "role": current_user.role,
+        "avatar_url": getattr(current_user, "avatar_url", None),
+        "created_at": current_user.created_at.isoformat()
+        if hasattr(current_user.created_at, "isoformat")
+        else str(current_user.created_at),
+        "updated_at": current_user.updated_at.isoformat()
+        if hasattr(current_user.updated_at, "isoformat")
+        else str(current_user.updated_at),
+        "organizations": organizations,
+    }
+
+    return UserWithOrganizationsResponse(**user_dict)
 
 
 @router.put("/me", response_model=UserResponse)

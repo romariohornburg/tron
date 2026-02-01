@@ -27,7 +27,7 @@ async def get_current_user_or_token(
     token_repository = TokenRepository(db)
     auth_service = AuthService(user_repository, token_repository)
 
-    # Prioridade: x-tron-token primeiro
+    # Priority: x-tron-token first
     if x_tron_token:
         token = auth_service.get_token_by_hash(x_tron_token)
         if not token:
@@ -74,12 +74,12 @@ async def get_current_user_or_token(
     user = user_repository.find_by_uuid(UUIDType(user_uuid))
     if not user:
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail="Usuário não encontrado"
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found"
         )
 
     if not user.is_active:
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail="Usuário inativo"
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="User inactive"
         )
 
     return user
@@ -89,33 +89,49 @@ async def get_current_user_or_token(
 class TokenUser:
     """Classe simples que simula User para tokens de API"""
 
-    def __init__(self, token: Token):
+    def __init__(self, token: Token, db: Session):
         self.id = 0
-        self.uuid = uuid4()
         self.email = f"token_{token.uuid}"
         self.hashed_password = None
         self.full_name = token.name
         self.is_active = token.is_active
-        self.role = token.role
         self.google_id = None
         self.avatar_url = None
         self.created_at = token.created_at
         self.updated_at = token.updated_at
+        self._token = token  # Store reference to original token
+
+        # Get user info from associated user if exists
+        if token.user_id:
+            from app.users.infra.user_model import User as UserModel
+
+            user = db.query(UserModel).filter(UserModel.id == token.user_id).first()
+            if user:
+                self.uuid = user.uuid
+                self.id = user.id
+                self.role = user.role
+            else:
+                self.uuid = uuid4()
+                self.role = UserRole.USER.value
+        else:
+            self.uuid = uuid4()
+            self.role = UserRole.USER.value
 
 
 async def get_current_user(
     current_auth: Union[User, Token] = Depends(get_current_user_or_token),
+    db: Session = Depends(get_db),
 ) -> Union[User, TokenUser]:
     """
     Extrai apenas User da autenticação.
-    Se for Token, converte para um objeto User simulado com a role do token.
+    Se for Token, converte para um objeto User simulado com a role do usuário associado ao token.
     """
     if isinstance(current_auth, User):
         return current_auth
 
-    # Se for Token, criar um objeto User simulado com a role do token
-    # Isso permite que tokens funcionem com o sistema de roles existente
-    return TokenUser(current_auth)
+    # Se for Token, criar um objeto User simulado com a role do usuário associado
+    # Se o token não tiver usuário associado, usa role padrão 'user'
+    return TokenUser(current_auth, db)
 
 
 def require_role(allowed_roles: list[UserRole]):
@@ -126,7 +142,7 @@ def require_role(allowed_roles: list[UserRole]):
         ]
         if current_user.role not in allowed_role_values:
             raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN, detail="Permissão insuficiente"
+                status_code=status.HTTP_403_FORBIDDEN, detail="Insufficient permissions"
             )
         return current_user
 

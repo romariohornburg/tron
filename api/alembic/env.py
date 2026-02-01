@@ -6,20 +6,26 @@ from sqlalchemy import pool
 
 from alembic import context
 
-from app.database import Base
+# Import Base from shared.database to match what models use
+from app.shared.database.database import Base
 
 # Import all models to ensure they're registered with SQLAlchemy for autogenerate
 # These imports are required even though they appear unused
+# Import order matters: models referenced by relationships should be imported first
+from app.users.infra.user_model import User  # noqa: F401
+from app.organizations.infra.organization_model import Organization  # noqa: F401
+from app.organizations.infra.organization_member_model import OrganizationMember  # noqa: F401
+from app.organizations.infra.group_model import Group  # noqa: F401
+from app.organizations.infra.group_member_model import GroupMember  # noqa: F401
+from app.environments.infra.environment_model import Environment  # noqa: F401
 from app.applications.infra.application_model import Application  # noqa: F401
 from app.instances.infra.instance_model import Instance  # noqa: F401
-from app.environments.infra.environment_model import Environment  # noqa: F401
 from app.clusters.infra.cluster_model import Cluster  # noqa: F401
 from app.templates.infra.template_model import Template  # noqa: F401
 from app.templates.infra.component_template_config_model import (  # noqa: F401
     ComponentTemplateConfig,
 )
 from app.settings.infra.settings_model import Settings  # noqa: F401
-from app.users.infra.user_model import User  # noqa: F401
 from app.auth.infra.token_model import Token  # noqa: F401
 from app.webapps.infra.application_component_model import (  # noqa: F401
     ApplicationComponent,

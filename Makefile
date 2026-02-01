@@ -1,8 +1,10 @@
 # Use docker-compose or docker compose based on availability
 DOCKER_COMPOSE := $(shell command -v docker-compose 2>/dev/null || echo "docker compose")
 COMPOSE_FILE := docker/docker-compose.yaml
+COMPOSE_TEST_FILE := docker/docker-compose.test.yaml
+COMPOSE_CLUSTER2_FILE := docker/docker-compose.cluster2.yaml
 
-.PHONY: start stop restart build logs status test api-test portal-test setup-cluster clean help
+.PHONY: start stop restart build logs status test api-test portal-test setup-cluster setup-cluster2 clean help
 
 help:
 	@echo "Tron Development Commands:"
@@ -15,6 +17,7 @@ help:
 	@echo "  make api-test       - Run API tests only"
 	@echo "  make portal-test    - Run Portal tests only"
 	@echo "  make setup-cluster  - Setup k3s cluster with Tron (run after start)"
+	@echo "  make setup-cluster2 - Setup k3s cluster2 with Tron (run after start)"
 	@echo "  make clean          - Stop services and remove volumes"
 	@echo "  make build          - Rebuild Docker images"
 
@@ -32,8 +35,7 @@ start:
 	@echo "   Portal: http://localhost:3000"
 	@echo "   API:    http://localhost:8000"
 	@echo "   API Docs: http://localhost:8000/docs"
-	@echo ""
-	@echo "💡 Run 'make setup-cluster' to configure the local k3s cluster"
+	@echo "   Run 'make setup-cluster' to setup k3s cluster with Tron"
 
 stop:
 	@echo "🛑 Stopping services..."
@@ -46,12 +48,15 @@ restart:
 clean:
 	@echo "🧹 Cleaning up..."
 	@$(DOCKER_COMPOSE) -f $(COMPOSE_FILE) down -v --remove-orphans
-	@rm -rf docker/volumes/postgres docker/volumes/kubeconfig docker/volumes/token
+	@$(DOCKER_COMPOSE) -f $(COMPOSE_TEST_FILE) down -v --remove-orphans 2>/dev/null || true
+	@$(DOCKER_COMPOSE) -f $(COMPOSE_CLUSTER2_FILE) down -v --remove-orphans 2>/dev/null || true
+	@rm -rf docker/volumes/postgres docker/volumes/postgres-test docker/volumes/kubeconfig docker/volumes/kubeconfig2 docker/volumes/token
 	@echo "✅ Cleaned!"
 
 build:
 	@echo "🔨 Building images..."
 	@$(DOCKER_COMPOSE) -f $(COMPOSE_FILE) build
+	@$(DOCKER_COMPOSE) -f $(COMPOSE_TEST_FILE) build
 
 logs:
 	@$(DOCKER_COMPOSE) -f $(COMPOSE_FILE) logs -f
@@ -63,13 +68,20 @@ setup-cluster:
 	@echo "🔧 Setting up local k3s cluster..."
 	@cd docker && ./scripts/setup-k3s-cluster.sh 2>/dev/null || ../scripts/setup-k3s-cluster.sh
 
+setup-cluster2:
+	@echo "🔧 Setting up k3s cluster2..."
+	@$(DOCKER_COMPOSE) -f $(COMPOSE_CLUSTER2_FILE) up -d
+	@sleep 5
+	@cd docker && ./scripts/setup-k3s-cluster2.sh 2>/dev/null || ../scripts/setup-k3s-cluster2.sh
+	@echo "✅ Cluster2 setup completed!"
+
 api-test:
 	@echo "🧪 Running API tests..."
-	@$(DOCKER_COMPOSE) -f $(COMPOSE_FILE) run --rm api-test
+	@$(DOCKER_COMPOSE) -f $(COMPOSE_TEST_FILE) run --rm api-test
 
 portal-test:
 	@echo "🧪 Running Portal tests..."
-	@$(DOCKER_COMPOSE) -f $(COMPOSE_FILE) run --rm portal-test
+	@$(DOCKER_COMPOSE) -f $(COMPOSE_TEST_FILE) run --rm portal-test
 
 test:
 	@echo "========================================="

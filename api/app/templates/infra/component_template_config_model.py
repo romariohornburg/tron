@@ -4,10 +4,6 @@ from sqlalchemy.orm import relationship
 from app.shared.database.database import Base
 from sqlalchemy.dialects.postgresql import UUID
 from uuid import uuid4
-from typing import TYPE_CHECKING
-
-if TYPE_CHECKING:
-    pass
 
 
 class ComponentTemplateConfig(Base):
@@ -19,6 +15,9 @@ class ComponentTemplateConfig(Base):
     component_type = Column(String, nullable=False, index=True)  # webapp, cron, worker
     template_id = Column(Integer, ForeignKey("templates.id"), nullable=False)
     template = relationship("Template", back_populates="component_configs")
+    organization_id = Column(
+        Integer, ForeignKey("organizations.id"), nullable=False, index=True
+    )
 
     render_order = Column(Integer, nullable=False, default=0)  # Render order
     enabled = Column(
@@ -28,6 +27,10 @@ class ComponentTemplateConfig(Base):
     created_at = Column(DateTime, server_default=func.now(), nullable=False)
     updated_at = Column(
         DateTime, server_default=func.now(), server_onupdate=func.now(), nullable=False
+    )
+
+    organization = relationship(
+        "Organization", back_populates="component_template_configs"
     )
 
     __table_args__ = (

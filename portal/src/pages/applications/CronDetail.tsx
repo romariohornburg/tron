@@ -3,9 +3,9 @@ import { useParams } from 'react-router-dom'
 import { FileText, X, Clock, Trash2 } from 'lucide-react'
 import { useCronComponent, useCronJobs, useDeleteCronJob, useCronJobLogs } from '../../features/components'
 import { useInstance } from '../../features/instances'
-import { useApplication } from '../../features/applications'
 import type { CronJob } from '../../features/components'
 import { Breadcrumbs, PageHeader, DataTable } from '../../shared/components'
+import { useOrganization } from '../../contexts/OrganizationContext'
 
 function CronDetail() {
   const { uuid: applicationUuid, instanceUuid, componentUuid } = useParams<{
@@ -13,17 +13,18 @@ function CronDetail() {
     instanceUuid: string
     componentUuid: string
   }>()
+  const { selectedOrganizationUuid } = useOrganization()
 
-  const { data: component } = useCronComponent(componentUuid)
-  const { data: instance } = useInstance(instanceUuid)
-  const { data: application } = useApplication(applicationUuid)
+  const { data: component } = useCronComponent(selectedOrganizationUuid, componentUuid)
+  const { data: instance } = useInstance(selectedOrganizationUuid, instanceUuid)
   const [refreshInterval, setRefreshInterval] = useState<number>(10000) // Default: 10 seconds
 
   const { data: jobs = [], isLoading: isLoadingJobs } = useCronJobs(
+    selectedOrganizationUuid,
     componentUuid,
     refreshInterval > 0 ? refreshInterval : false
   )
-  const deleteJobMutation = useDeleteCronJob()
+  const deleteJobMutation = useDeleteCronJob(selectedOrganizationUuid)
 
   const handleDeleteJob = (jobName: string) => {
     if (confirm(`Are you sure you want to delete the job "${jobName}"? This action cannot be undone.`)) {
@@ -37,6 +38,7 @@ function CronDetail() {
   const logsContainerRef = useRef<HTMLPreElement>(null)
 
   const { data: jobLogs, isLoading: isLoadingLogs } = useCronJobLogs(
+    selectedOrganizationUuid,
     componentUuid,
     selectedJob,
     undefined,
@@ -119,7 +121,7 @@ function CronDetail() {
         items={[
           { label: 'Home', path: '/' },
           { label: 'Applications', path: '/applications' },
-          { label: application?.name || 'Application' },
+          { label: instance?.application?.name || 'Application' },
           { label: instance?.environment.name || 'Environment', path: `/applications/${applicationUuid}/instances/${instanceUuid}/components` },
           { label: 'Components', path: `/applications/${applicationUuid}/instances/${instanceUuid}/components` },
           { label: component?.name || 'Cron' },

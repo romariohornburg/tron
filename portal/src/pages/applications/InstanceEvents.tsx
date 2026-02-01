@@ -2,21 +2,21 @@ import { useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { Clock } from 'lucide-react'
 import { useInstance, useInstanceEvents } from '../../features/instances'
-import { useApplication } from '../../features/applications'
 import type { KubernetesEvent } from '../../features/instances'
 import { Breadcrumbs, PageHeader, DataTable } from '../../shared/components'
+import { useOrganization } from '../../contexts/OrganizationContext'
 
 function InstanceEvents() {
   const { uuid: applicationUuid, instanceUuid } = useParams<{
     uuid: string
     instanceUuid: string
   }>()
+  const { selectedOrganizationUuid } = useOrganization()
 
-  const { data: instance } = useInstance(instanceUuid)
-  const { data: application } = useApplication(applicationUuid)
+  const { data: instance } = useInstance(selectedOrganizationUuid, instanceUuid)
   const [refreshInterval, setRefreshInterval] = useState<number>(10000) // Default: 10 seconds
 
-  const { data: events = [], isLoading: isLoadingEvents } = useInstanceEvents(instanceUuid)
+  const { data: events = [], isLoading: isLoadingEvents } = useInstanceEvents(selectedOrganizationUuid, instanceUuid)
 
   const formatAge = (seconds: number): string => {
     if (seconds < 60) {
@@ -52,7 +52,7 @@ function InstanceEvents() {
     }
   }
 
-  if (!instance || !application) {
+  if (!instance) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
@@ -66,7 +66,7 @@ function InstanceEvents() {
         items={[
           { label: 'Home', path: '/' },
           { label: 'Applications', path: '/applications' },
-          { label: application?.name || 'Application' },
+          { label: instance?.application?.name || 'Application' },
           { label: instance?.environment.name || 'Environment', path: `/applications/${applicationUuid}/instances/${instanceUuid}/components` },
           { label: 'Components', path: `/applications/${applicationUuid}/instances/${instanceUuid}/components` },
           { label: 'Events' },
@@ -76,7 +76,7 @@ function InstanceEvents() {
       <div className="flex items-center justify-between">
         <PageHeader
           title="Kubernetes Events"
-          description={`Events for ${application?.name || 'Application'} • ${instance?.environment.name || 'Environment'} • ${instance.image}:${instance.version}`}
+          description={`Events for ${instance?.application?.name || 'Application'} • ${instance?.environment.name || 'Environment'} • ${instance.image}:${instance.version}`}
         />
         <div className="flex items-center gap-3">
           <label className="flex items-center gap-2 text-sm text-neutral-700">

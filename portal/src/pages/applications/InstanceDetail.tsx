@@ -1,14 +1,42 @@
 import { useState, useMemo, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { X, Trash2, Plus, Pencil, ChevronDown, ChevronRight, Server, ChevronUp, AlertCircle, MoreVertical, RefreshCw } from 'lucide-react'
-import { applicationComponentsApi, instancesApi, applicationsApi, cronsApi, workersApi, clustersApi } from '../../services/api'
+import { AxiosError } from 'axios'
+import { X, Trash2, Plus, Pencil, ChevronDown, ChevronRight, Server, ChevronUp, AlertCircle, MoreVertical, RefreshCw, Globe } from 'lucide-react'
+import { instancesApi } from '../../services/api'
+import { useClustersByEnvironment } from '../../features/clusters/hooks/useClusters'
 import type { ApplicationComponentCreate, InstanceComponent } from '../../types'
 import { ComponentForm, type ComponentFormData, getDefaultWebappSettings, getDefaultCronSettings, getDefaultWorkerSettings, type WebappSettings } from '../../components/applications'
-import { Breadcrumbs } from '../../components/Breadcrumbs'
-import { PageHeader } from '../../components/PageHeader'
-import DataTable from '../../components/DataTable'
+import { useUpdateWebappComponent, useDeleteWebappComponent, useCreateWebappComponent, useUpdateCronComponent, useDeleteCronComponent, useCreateCronComponent, useUpdateWorkerComponent, useDeleteWorkerComponent, useCreateWorkerComponent } from '../../features/components'
+import { Breadcrumbs, PageHeader, DataTable } from '../../shared/components'
 import { useAuth } from '../../contexts/AuthContext'
+import { useOrganization } from '../../contexts/OrganizationContext'
+
+// Palette for environment colors
+const ENV_COLOR_PALETTE = [
+  { bg: 'bg-primary-100', text: 'text-primary-800', border: 'border-primary-200' },
+  { bg: 'bg-accent-100', text: 'text-accent-800', border: 'border-accent-200' },
+  { bg: 'bg-blue-100', text: 'text-blue-800', border: 'border-blue-200' },
+  { bg: 'bg-emerald-100', text: 'text-emerald-800', border: 'border-emerald-200' },
+  { bg: 'bg-violet-100', text: 'text-violet-800', border: 'border-violet-200' },
+  { bg: 'bg-amber-100', text: 'text-amber-800', border: 'border-amber-200' },
+  { bg: 'bg-rose-100', text: 'text-rose-800', border: 'border-rose-200' },
+  { bg: 'bg-sky-100', text: 'text-sky-800', border: 'border-sky-200' },
+  { bg: 'bg-indigo-100', text: 'text-indigo-800', border: 'border-indigo-200' },
+  { bg: 'bg-pink-100', text: 'text-pink-800', border: 'border-pink-200' },
+  { bg: 'bg-teal-100', text: 'text-teal-800', border: 'border-teal-200' },
+  { bg: 'bg-orange-100', text: 'text-orange-800', border: 'border-orange-200' },
+]
+
+function getEnvironmentColor(uuid: string) {
+  let hash = 0
+  for (let i = 0; i < uuid.length; i++) {
+    hash = (hash << 5) - hash + uuid.charCodeAt(i)
+    hash = hash & hash
+  }
+  const index = Math.abs(hash) % ENV_COLOR_PALETTE.length
+  return ENV_COLOR_PALETTE[index]
+}
 
 function InstanceDetail() {
   const { uuid: applicationUuid, instanceUuid } = useParams<{ uuid: string; instanceUuid: string }>()
@@ -16,32 +44,23 @@ function InstanceDetail() {
   const queryClient = useQueryClient()
   const { user } = useAuth()
   const isAdmin = user?.role === 'admin'
+  const { selectedOrganizationUuid } = useOrganization()
 
   const { data: instance, isLoading: isLoadingInstance } = useQuery({
-    queryKey: ['instances', instanceUuid],
-    queryFn: () => instancesApi.get(instanceUuid!),
-    enabled: !!instanceUuid,
+    queryKey: ['instances', selectedOrganizationUuid, instanceUuid],
+    queryFn: () => {
+      if (!selectedOrganizationUuid) {
+        throw new Error('Organization UUID is required')
+      }
+      return instancesApi.get(selectedOrganizationUuid, instanceUuid!)
+    },
+    enabled: !!selectedOrganizationUuid && !!instanceUuid,
   })
 
-  const { data: application } = useQuery({
-    queryKey: ['application', applicationUuid],
-    queryFn: () => applicationsApi.get(applicationUuid!),
-    enabled: !!applicationUuid,
-  })
-
-  // Fetch clusters to check if any has gateway_api available
-  const { data: clusters } = useQuery({
-    queryKey: ['clusters'],
-    queryFn: () => clustersApi.list(),
-  })
-
-  // Get clusters in the instance's environment
-  const environmentClusters = useMemo(() => {
-    if (!instance || !clusters || !instance.environment) return []
-    return clusters.filter(
-      (cluster) => cluster.environment?.uuid === instance.environment.uuid
-    )
-  }, [instance, clusters])
+  const { data: environmentClusters = [] } = useClustersByEnvironment(
+    selectedOrganizationUuid,
+    instance?.environment?.uuid
+  )
 
   const hasNoClusters = instance?.environment && environmentClusters.length === 0
 
@@ -218,10 +237,21 @@ function InstanceDetail() {
     setIsAddComponentsModalOpen(true)
   }
 
-  const updateComponentMutation = useMutation({
-    mutationFn: ({ uuid, data }: { uuid: string; data: Partial<ApplicationComponentCreate> }) =>
-      applicationComponentsApi.update(uuid, data),
-    onSuccess: () => {
+  const updateWebappComponentMutation = useUpdateWebappComponent(selectedOrganizationUuid)
+  const updateCronComponentMutation = useUpdateCronComponent(selectedOrganizationUuid)
+  const updateWorkerComponentMutation = useUpdateWorkerComponent(selectedOrganizationUuid)
+
+  const deleteWebappComponentMutation = useDeleteWebappComponent(selectedOrganizationUuid)
+  const deleteCronComponentMutation = useDeleteCronComponent(selectedOrganizationUuid)
+  const deleteWorkerComponentMutation = useDeleteWorkerComponent(selectedOrganizationUuid)
+
+  const createWebappComponentMutation = useCreateWebappComponent(selectedOrganizationUuid)
+  const createCronComponentMutation = useCreateCronComponent(selectedOrganizationUuid)
+  const createWorkerComponentMutation = useCreateWorkerComponent(selectedOrganizationUuid)
+
+  // Helper function to handle component updates
+  const handleUpdateComponent = (uuid: string, data: Partial<ApplicationComponentCreate>, componentType: 'webapp' | 'cron' | 'worker') => {
+    const onSuccess = () => {
       setNotification({ type: 'success', message: 'Component updated successfully' })
       queryClient.invalidateQueries({ queryKey: ['instances'] })
       queryClient.invalidateQueries({ queryKey: ['application-components'] })
@@ -230,68 +260,114 @@ function InstanceDetail() {
       setModalNotification(null)
       setIsAddComponentsModalOpen(false)
       setTimeout(() => setNotification(null), 5000)
-    },
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    onError: (error: any) => {
+    }
+    const onError = (error: Error) => {
+      const axiosError = error as AxiosError<{ detail?: string }>
       setModalNotification({
         type: 'error',
-        message: error.response?.data?.detail || 'Error updating component',
+        message: axiosError.response?.data?.detail || 'Error updating component',
       })
-      // Scroll to top of modal to show error
       setTimeout(() => {
         modalContentRef.current?.scrollTo({ top: 0, behavior: 'smooth' })
       }, 100)
-    },
-  })
+    }
 
-  const deleteComponentMutation = useMutation({
-    mutationFn: applicationComponentsApi.delete,
-    onSuccess: () => {
+    if (componentType === 'webapp') {
+      updateWebappComponentMutation.mutate({ uuid, data }, { onSuccess, onError })
+    } else if (componentType === 'cron') {
+      updateCronComponentMutation.mutate({ uuid, data }, { onSuccess, onError })
+    } else {
+      updateWorkerComponentMutation.mutate({ uuid, data }, { onSuccess, onError })
+    }
+  }
+
+  // Helper function to handle component deletion
+  const handleDeleteComponent = (uuid: string, componentType: 'webapp' | 'cron' | 'worker') => {
+    const onSuccess = () => {
       setNotification({ type: 'success', message: 'Component deleted successfully' })
       queryClient.invalidateQueries({ queryKey: ['instances'] })
       queryClient.invalidateQueries({ queryKey: ['application-components'] })
       setTimeout(() => setNotification(null), 5000)
-    },
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    onError: (error: any) => {
+    }
+    const onError = (error: Error) => {
+      const axiosError = error as AxiosError<{ detail?: string }>
       setNotification({
         type: 'error',
-        message: error.response?.data?.detail || 'Error deleting component',
+        message: axiosError.response?.data?.detail || 'Error deleting component',
       })
       setTimeout(() => setNotification(null), 5000)
-    },
-  })
+    }
 
-  const addComponentToInstanceMutation = useMutation({
-    mutationFn: applicationComponentsApi.create,
-    onSuccess: () => {
-      setNotification({ type: 'success', message: 'Component added successfully' })
-      queryClient.invalidateQueries({ queryKey: ['instances'] })
-      queryClient.invalidateQueries({ queryKey: ['application-components'] })
-      setComponent(null)
-      setModalNotification(null)
-      setIsAddComponentsModalOpen(false)
-      setTimeout(() => setNotification(null), 5000)
+    if (componentType === 'webapp') {
+      deleteWebappComponentMutation.mutate(uuid, { onSuccess, onError })
+    } else if (componentType === 'cron') {
+      deleteCronComponentMutation.mutate(uuid, { onSuccess, onError })
+    } else {
+      deleteWorkerComponentMutation.mutate(uuid, { onSuccess, onError })
+    }
+  }
+
+  // Legacy mutation wrapper for webapp updates (used in one place)
+  const updateComponentMutation = {
+    mutate: ({ uuid, data }: { uuid: string; data: Partial<ApplicationComponentCreate> }) => {
+      // Determine component type from instance data or default to webapp
+      const component = instance?.components?.find((c: InstanceComponent) => c.uuid === uuid)
+      const componentType = component?.type || 'webapp'
+      handleUpdateComponent(uuid, data, componentType as 'webapp' | 'cron' | 'worker')
     },
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    onError: (error: any) => {
-      setModalNotification({
-        type: 'error',
-        message: error.response?.data?.detail || 'Error adding component',
-      })
-      // Scroll to top of modal to show error
-      setTimeout(() => {
-        modalContentRef.current?.scrollTo({ top: 0, behavior: 'smooth' })
-      }, 100)
+  }
+
+  const deleteComponentMutation = {
+    mutate: (uuid: string) => {
+      // Try to determine component type from instance data
+      const component = instance?.components?.find((c: InstanceComponent) => c.uuid === uuid)
+      const componentType = component?.type || 'webapp'
+      handleDeleteComponent(uuid, componentType as 'webapp' | 'cron' | 'worker')
     },
-  })
+  }
+
+  const addComponentToInstanceMutation = {
+    mutate: (data: ApplicationComponentCreate) => {
+      const onSuccess = () => {
+        setNotification({ type: 'success', message: 'Component added successfully' })
+        queryClient.invalidateQueries({ queryKey: ['instances'] })
+        queryClient.invalidateQueries({ queryKey: ['application-components'] })
+        setComponent(null)
+        setModalNotification(null)
+        setIsAddComponentsModalOpen(false)
+        setTimeout(() => setNotification(null), 5000)
+      }
+      const onError = (error: Error) => {
+        const axiosError = error as AxiosError<{ detail?: string }>
+        setModalNotification({
+          type: 'error',
+          message: axiosError.response?.data?.detail || 'Error adding component',
+        })
+        setTimeout(() => {
+          modalContentRef.current?.scrollTo({ top: 0, behavior: 'smooth' })
+        }, 100)
+      }
+
+      if (data.type === 'webapp') {
+        createWebappComponentMutation.mutate(data, { onSuccess, onError })
+      } else if (data.type === 'cron') {
+        createCronComponentMutation.mutate(data, { onSuccess, onError })
+      } else {
+        createWorkerComponentMutation.mutate(data, { onSuccess, onError })
+      }
+    },
+  };
 
   const updateInstanceMutation = useMutation({
-    mutationFn: ({ uuid, data }: { uuid: string; data: Partial<{ image: string; version: string; enabled: boolean }> }) =>
-      instancesApi.update(uuid, data),
+    mutationFn: ({ uuid, data }: { uuid: string; data: Partial<{ image: string; version: string; enabled: boolean }> }) => {
+      if (!selectedOrganizationUuid) {
+        throw new Error('Organization UUID is required')
+      }
+      return instancesApi.update(selectedOrganizationUuid, uuid, data)
+    },
     onSuccess: () => {
       setNotification({ type: 'success', message: 'Instance updated successfully' })
-      queryClient.invalidateQueries({ queryKey: ['instances'] })
+      queryClient.invalidateQueries({ queryKey: ['instances', selectedOrganizationUuid] })
       setIsEditInstanceModalOpen(false)
       setTimeout(() => setNotification(null), 5000)
     },
@@ -306,10 +382,15 @@ function InstanceDetail() {
   })
 
   const deleteInstanceMutation = useMutation({
-    mutationFn: instancesApi.delete,
+    mutationFn: (uuid: string) => {
+      if (!selectedOrganizationUuid) {
+        throw new Error('Organization UUID is required')
+      }
+      return instancesApi.delete(selectedOrganizationUuid, uuid)
+    },
     onSuccess: () => {
       setNotification({ type: 'success', message: 'Instance deleted successfully' })
-      queryClient.invalidateQueries({ queryKey: ['instances'] })
+      queryClient.invalidateQueries({ queryKey: ['instances', selectedOrganizationUuid] })
       queryClient.invalidateQueries({ queryKey: ['application-components'] })
       // Navigate to applications list after deletion
       navigate('/applications')
@@ -325,7 +406,12 @@ function InstanceDetail() {
   })
 
   const syncInstanceMutation = useMutation({
-    mutationFn: instancesApi.sync,
+    mutationFn: (uuid: string) => {
+      if (!selectedOrganizationUuid) {
+        throw new Error('Organization UUID is required')
+      }
+      return instancesApi.sync(selectedOrganizationUuid, uuid)
+    },
     onSuccess: (data) => {
       const errorCount = data.errors?.length || 0
       if (errorCount > 0) {
@@ -339,7 +425,7 @@ function InstanceDetail() {
           message: `Sync completed successfully. ${data.synced_components} component(s) synced.`,
         })
       }
-      queryClient.invalidateQueries({ queryKey: ['instances'] })
+      queryClient.invalidateQueries({ queryKey: ['instances', selectedOrganizationUuid] })
       queryClient.invalidateQueries({ queryKey: ['application-components'] })
       setIsInstanceActionsDropdownOpen(false)
       setTimeout(() => setNotification(null), 5000)
@@ -667,16 +753,76 @@ function InstanceDetail() {
         items={[
           { label: 'Home', path: '/' },
           { label: 'Applications', path: '/applications' },
-          { label: application?.name || 'Application' },
+          { label: instance.application?.name || 'Application' },
           { label: instance.environment.name, path: `/applications/${applicationUuid}/instances/${instanceUuid}/components` },
           { label: 'Components' },
         ]}
       />
 
+      {/* Instance Summary Card */}
+      {instance.environment && (() => {
+        const envColor = getEnvironmentColor(instance.environment.uuid)
+        return (
+          <div className="glass-effect rounded-lg p-4 border border-neutral-200/50">
+            <div className="flex items-center gap-8 flex-wrap">
+              {/* Environment - Highlighted */}
+              <div className="flex items-center gap-2.5">
+                <div className={`p-1.5 ${envColor.bg} rounded-md`}>
+                  <Globe size={16} className={envColor.text} />
+                </div>
+                <div>
+                  <p className="text-xs text-neutral-500 mb-0.5">Environment</p>
+                  <p className={`text-base font-semibold ${envColor.text}`}>
+                    {instance.environment.name}
+                  </p>
+                </div>
+              </div>
+
+              {/* Divider */}
+              <div className="h-8 w-px bg-neutral-200"></div>
+
+              {/* Application */}
+              <div>
+                <p className="text-xs text-neutral-500 mb-0.5">Application</p>
+                <p className="text-sm font-medium text-neutral-900">{instance.application?.name || 'N/A'}</p>
+              </div>
+
+              {/* Image:Version */}
+              <div className="flex-1 min-w-[200px]">
+                <p className="text-xs text-neutral-500 mb-0.5">Image</p>
+                <p className="text-sm text-neutral-700 truncate" title={`${instance.image}:${instance.version}`}>
+                  {instance.image}:{instance.version}
+                </p>
+              </div>
+
+              {/* Status */}
+              <div>
+                <p className="text-xs text-neutral-500 mb-1">Status</p>
+                {instance.enabled ? (
+                  <span className="badge-success text-xs">
+                    Enabled
+                  </span>
+                ) : (
+                  <span className="badge-error text-xs">
+                    Disabled
+                  </span>
+                )}
+              </div>
+
+              {/* Components Count */}
+              <div>
+                <p className="text-xs text-neutral-500 mb-0.5">Components</p>
+                <p className="text-base font-semibold text-neutral-900">{instance.components?.length || 0}</p>
+              </div>
+            </div>
+          </div>
+        )
+      })()}
+
       <div className="flex items-center justify-between">
         <PageHeader
           title="Components"
-          description={`${application?.name || 'Application'} • ${instance.environment.name} • ${instance.image}:${instance.version}`}
+          description={`Manage components for this instance`}
         />
         <div className="flex items-center gap-3">
           <button
@@ -866,12 +1012,20 @@ function InstanceDetail() {
                       actions={(component) => {
                         const actions = []
 
-                        // Adicionar "PODs" apenas para webapp
+                        // Adicionar "PODs" para webapp (página de detalhe) e worker (página de pods)
                         if (type === 'webapp') {
                           actions.push({
                             label: 'PODs',
                             icon: <Server size={14} />,
                             onClick: () => navigate(`/applications/${applicationUuid}/instances/${instanceUuid}/components/${component.uuid}`),
+                            variant: 'default' as const,
+                          })
+                        }
+                        if (type === 'worker') {
+                          actions.push({
+                            label: 'PODs',
+                            icon: <Server size={14} />,
+                            onClick: () => navigate(`/applications/${applicationUuid}/instances/${instanceUuid}/components/${component.uuid}/pods`),
                             variant: 'default' as const,
                           })
                         }
@@ -999,6 +1153,7 @@ function InstanceDetail() {
                     gatewayResources={gatewayResources}
                     gatewayReference={gatewayReference}
                     isAdmin={isAdmin}
+                    organizationUuid={selectedOrganizationUuid}
                     componentUuid={editingComponentUuid || undefined}
                     title={editingComponentUuid
                       ? `Edit ${component.type.charAt(0).toUpperCase() + component.type.slice(1)}`
@@ -1085,49 +1240,58 @@ function InstanceDetail() {
                               settings: component.settings,
                               enabled: component.enabled,
                             }
-                            cronsApi.update(editingComponentUuid, componentData).then(() => {
-                              setNotification({ type: 'success', message: 'Component updated successfully' })
-                              queryClient.invalidateQueries({ queryKey: ['instances'] })
-                              queryClient.invalidateQueries({ queryKey: ['application-components'] })
-                              setEditingComponentUuid(null)
-                              setComponent(null)
-                              setModalNotification(null)
-                              setIsAddComponentsModalOpen(false)
-                              setTimeout(() => setNotification(null), 5000)
-                            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                            }).catch((error: any) => {
-                              setModalNotification({
-                                type: 'error',
-                                message: error.response?.data?.detail || 'Error updating component',
-                              })
-                              setTimeout(() => {
-                                modalContentRef.current?.scrollTo({ top: 0, behavior: 'smooth' })
-                              }, 100)
-                            })
+                            updateCronComponentMutation.mutate(
+                              { uuid: editingComponentUuid, data: componentData },
+                              {
+                                onSuccess: () => {
+                                  setNotification({ type: 'success', message: 'Component updated successfully' })
+                                  queryClient.invalidateQueries({ queryKey: ['instances'] })
+                                  queryClient.invalidateQueries({ queryKey: ['application-components'] })
+                                  setEditingComponentUuid(null)
+                                  setComponent(null)
+                                  setModalNotification(null)
+                                  setIsAddComponentsModalOpen(false)
+                                  setTimeout(() => setNotification(null), 5000)
+                                },
+                                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                                onError: (error: any) => {
+                                  setModalNotification({
+                                    type: 'error',
+                                    message: error.response?.data?.detail || 'Error updating component',
+                                  })
+                                  setTimeout(() => {
+                                    modalContentRef.current?.scrollTo({ top: 0, behavior: 'smooth' })
+                                  }, 100)
+                                },
+                              }
+                            )
                           } else if (component.type === 'worker') {
                             const componentData: Partial<ApplicationComponentCreate> = {
                               type: 'worker',
                               settings: component.settings,
                               enabled: component.enabled,
                             }
-                            workersApi.update(editingComponentUuid, componentData).then(() => {
-                              setNotification({ type: 'success', message: 'Component updated successfully' })
-                              queryClient.invalidateQueries({ queryKey: ['instances'] })
-                              queryClient.invalidateQueries({ queryKey: ['application-components'] })
-                              setEditingComponentUuid(null)
-                              setComponent(null)
-                              setModalNotification(null)
-                              setIsAddComponentsModalOpen(false)
-                              setTimeout(() => setNotification(null), 5000)
-                            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                            }).catch((error: any) => {
-                              setModalNotification({
-                                type: 'error',
-                                message: error.response?.data?.detail || 'Error updating component',
-                              })
-                              setTimeout(() => {
-                                modalContentRef.current?.scrollTo({ top: 0, behavior: 'smooth' })
-                              }, 100)
+                            updateWorkerComponentMutation.mutate({ uuid: editingComponentUuid, data: componentData }, {
+                              onSuccess: () => {
+                                setNotification({ type: 'success', message: 'Component updated successfully' })
+                                queryClient.invalidateQueries({ queryKey: ['instances'] })
+                                queryClient.invalidateQueries({ queryKey: ['application-components'] })
+                                setEditingComponentUuid(null)
+                                setComponent(null)
+                                setModalNotification(null)
+                                setIsAddComponentsModalOpen(false)
+                                setTimeout(() => setNotification(null), 5000)
+                              },
+                              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                              onError: (error: any) => {
+                                setModalNotification({
+                                  type: 'error',
+                                  message: error.response?.data?.detail || 'Error updating component',
+                                })
+                                setTimeout(() => {
+                                  modalContentRef.current?.scrollTo({ top: 0, behavior: 'smooth' })
+                                }, 100)
+                              },
                             })
                           } else {
                             // exposure.visibility is already in settings.exposure.visibility
@@ -1163,23 +1327,26 @@ function InstanceDetail() {
                               settings: component.settings,
                               enabled: component.enabled,
                             }
-                            cronsApi.create(componentData).then(() => {
-                              setNotification({ type: 'success', message: 'Component added successfully' })
-                              queryClient.invalidateQueries({ queryKey: ['instances'] })
-                              queryClient.invalidateQueries({ queryKey: ['application-components'] })
-                              setComponent(null)
-                              setModalNotification(null)
-                              setIsAddComponentsModalOpen(false)
-                              setTimeout(() => setNotification(null), 5000)
-                            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                            }).catch((error: any) => {
-                              setModalNotification({
-                                type: 'error',
-                                message: error.response?.data?.detail || 'Error adding component',
-                              })
-                              setTimeout(() => {
-                                modalContentRef.current?.scrollTo({ top: 0, behavior: 'smooth' })
-                              }, 100)
+                            createCronComponentMutation.mutate(componentData, {
+                              onSuccess: () => {
+                                setNotification({ type: 'success', message: 'Component added successfully' })
+                                queryClient.invalidateQueries({ queryKey: ['instances'] })
+                                queryClient.invalidateQueries({ queryKey: ['application-components'] })
+                                setComponent(null)
+                                setModalNotification(null)
+                                setIsAddComponentsModalOpen(false)
+                                setTimeout(() => setNotification(null), 5000)
+                              },
+                              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                              onError: (error: any) => {
+                                setModalNotification({
+                                  type: 'error',
+                                  message: error.response?.data?.detail || 'Error adding component',
+                                })
+                                setTimeout(() => {
+                                  modalContentRef.current?.scrollTo({ top: 0, behavior: 'smooth' })
+                                }, 100)
+                              },
                             })
                           } else if (component.type === 'worker') {
                             const componentData: ApplicationComponentCreate = {
@@ -1189,23 +1356,26 @@ function InstanceDetail() {
                               settings: component.settings,
                               enabled: component.enabled,
                             }
-                            workersApi.create(componentData).then(() => {
-                              setNotification({ type: 'success', message: 'Component added successfully' })
-                              queryClient.invalidateQueries({ queryKey: ['instances'] })
-                              queryClient.invalidateQueries({ queryKey: ['application-components'] })
-                              setComponent(null)
-                              setModalNotification(null)
-                              setIsAddComponentsModalOpen(false)
-                              setTimeout(() => setNotification(null), 5000)
-                            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                            }).catch((error: any) => {
-                              setModalNotification({
-                                type: 'error',
-                                message: error.response?.data?.detail || 'Error adding component',
-                              })
-                              setTimeout(() => {
-                                modalContentRef.current?.scrollTo({ top: 0, behavior: 'smooth' })
-                              }, 100)
+                            createWorkerComponentMutation.mutate(componentData, {
+                              onSuccess: () => {
+                                setNotification({ type: 'success', message: 'Component added successfully' })
+                                queryClient.invalidateQueries({ queryKey: ['instances'] })
+                                queryClient.invalidateQueries({ queryKey: ['application-components'] })
+                                setComponent(null)
+                                setModalNotification(null)
+                                setIsAddComponentsModalOpen(false)
+                                setTimeout(() => setNotification(null), 5000)
+                              },
+                              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                              onError: (error: any) => {
+                                setModalNotification({
+                                  type: 'error',
+                                  message: error.response?.data?.detail || 'Error adding component',
+                                })
+                                setTimeout(() => {
+                                  modalContentRef.current?.scrollTo({ top: 0, behavior: 'smooth' })
+                                }, 100)
+                              },
                             })
                           } else {
                             // exposure.visibility is already in settings.exposure.visibility
@@ -1235,10 +1405,10 @@ function InstanceDetail() {
                           }
                         }
                       }}
-                    disabled={addComponentToInstanceMutation.isPending || updateComponentMutation.isPending}
+                    disabled={createWebappComponentMutation.isPending || createCronComponentMutation.isPending || createWorkerComponentMutation.isPending || updateWebappComponentMutation.isPending || updateCronComponentMutation.isPending || updateWorkerComponentMutation.isPending}
                     className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors shadow-soft text-sm font-medium disabled:opacity-50"
                   >
-                    {addComponentToInstanceMutation.isPending || updateComponentMutation.isPending
+                    {(createWebappComponentMutation.isPending || createCronComponentMutation.isPending || createWorkerComponentMutation.isPending || updateWebappComponentMutation.isPending || updateCronComponentMutation.isPending || updateWorkerComponentMutation.isPending)
                       ? (editingComponentUuid ? 'Updating...' : 'Adding...')
                       : (editingComponentUuid ? 'Update Component' : 'Add Component')}
                   </button>
@@ -1256,7 +1426,7 @@ function InstanceDetail() {
               <div>
                 <h2 className="text-lg font-semibold text-slate-800">Edit Instance</h2>
                 <p className="text-xs text-slate-500 mt-1">
-                  Application: {application?.name || 'N/A'} | Environment: {instance.environment.name}
+                  Application: {instance.application?.name || 'N/A'} | Environment: {instance.environment.name}
                 </p>
               </div>
               <button

@@ -3,6 +3,8 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { renderHook, waitFor } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { BrowserRouter } from 'react-router-dom'
+import { OrganizationProvider } from '../../../contexts/OrganizationContext'
+import { AuthProvider } from '../../../contexts/AuthContext'
 import { useInstanceDetail } from './useInstanceDetail'
 
 // Mock dependencies
@@ -69,6 +71,23 @@ vi.mock('../../../features/components', () => ({
   })),
 }))
 
+vi.mock('../../../services/api', () => ({
+  authApi: {
+    getMe: vi.fn(() => Promise.resolve({
+      uuid: 'user-1',
+      email: 'test@example.com',
+      full_name: 'Test User',
+      role: 'admin',
+      organizations: [
+        { uuid: 'org-1', name: 'Default Organization' },
+      ],
+    })),
+    login: vi.fn(),
+    register: vi.fn(),
+    refresh: vi.fn(),
+  },
+}))
+
 // Mock do window.confirm
 ;(globalThis as unknown as { confirm: typeof confirm }).confirm = vi.fn(() => true)
 
@@ -82,7 +101,11 @@ const createWrapper = () => {
 
   return ({ children }: { children: React.ReactNode }) => (
     <QueryClientProvider client={queryClient}>
-      <BrowserRouter>{children}</BrowserRouter>
+      <BrowserRouter>
+        <AuthProvider>
+          <OrganizationProvider>{children}</OrganizationProvider>
+        </AuthProvider>
+      </BrowserRouter>
     </QueryClientProvider>
   )
 }

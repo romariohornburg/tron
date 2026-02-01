@@ -6,18 +6,21 @@ from uuid import uuid4
 
 
 @pytest.fixture
-def test_environment(test_db, admin_user):
+def test_environment(test_db, admin_user, test_organization):
     """Create a test environment."""
     from app.environments.infra.environment_model import Environment
     from app.environments.infra.environment_repository import EnvironmentRepository
 
     environment_repo = EnvironmentRepository(test_db)
     environment = Environment(
-        name="test-environment"
+        name="test-environment",
+        organization_id=test_organization.id
     )
     environment = environment_repo.create(environment)
     test_db.commit()
     test_db.refresh(environment)
+    # Add organization relationship for easy access
+    environment.organization = test_organization
     return environment
 
 
@@ -30,7 +33,7 @@ def test_create_cluster_success(mock_k8s_client, client, admin_token, test_envir
     mock_k8s_client.return_value = mock_client_instance
 
     response = client.post(
-        "/clusters/",
+        f"/organizations/{test_environment.organization.uuid}/clusters/",
         headers={"Authorization": f"Bearer {admin_token}"},
         json={
             "name": "test-cluster",
@@ -52,7 +55,7 @@ def test_create_cluster_success(mock_k8s_client, client, admin_token, test_envir
 def test_create_cluster_requires_authentication(client, test_environment):
     """Test that cluster creation requires authentication."""
     response = client.post(
-        "/clusters/",
+        f"/organizations/{test_environment.organization.uuid}/clusters/",
         json={
             "name": "test-cluster",
             "api_address": "https://k8s.example.com",
@@ -67,7 +70,7 @@ def test_create_cluster_requires_authentication(client, test_environment):
 def test_create_cluster_requires_admin_role(client, user_token, test_environment):
     """Test that cluster creation requires admin role."""
     response = client.post(
-        "/clusters/",
+        f"/organizations/{test_environment.organization.uuid}/clusters/",
         headers={"Authorization": f"Bearer {user_token}"},
         json={
             "name": "test-cluster",
@@ -80,10 +83,10 @@ def test_create_cluster_requires_admin_role(client, user_token, test_environment
     assert response.status_code == status.HTTP_403_FORBIDDEN
 
 
-def test_create_cluster_invalid_environment(client, admin_token):
+def test_create_cluster_invalid_environment(client, admin_token, test_organization):
     """Test cluster creation with invalid environment UUID."""
     response = client.post(
-        "/clusters/",
+        f"/organizations/{test_organization.uuid}/clusters/",
         headers={"Authorization": f"Bearer {admin_token}"},
         json={
             "name": "test-cluster",
@@ -99,7 +102,7 @@ def test_create_cluster_invalid_environment(client, admin_token):
 def test_create_cluster_missing_fields(client, admin_token, test_environment):
     """Test cluster creation with missing required fields."""
     response = client.post(
-        "/clusters/",
+        f"/organizations/{test_environment.organization.uuid}/clusters/",
         headers={"Authorization": f"Bearer {admin_token}"},
         json={
             "name": "test-cluster"
@@ -122,7 +125,7 @@ def test_list_clusters_success(mock_k8s_client, mock_gateway_ref, client, admin_
 
     # First create a cluster
     create_response = client.post(
-        "/clusters/",
+        f"/organizations/{test_environment.organization.uuid}/clusters/",
         headers={"Authorization": f"Bearer {admin_token}"},
         json={
             "name": "test-cluster",
@@ -135,7 +138,7 @@ def test_list_clusters_success(mock_k8s_client, mock_gateway_ref, client, admin_
 
     # Then list clusters
     response = client.get(
-        "/clusters/",
+        f"/organizations/{test_environment.organization.uuid}/clusters/",
         headers={"Authorization": f"Bearer {admin_token}"}
     )
 
@@ -146,9 +149,9 @@ def test_list_clusters_success(mock_k8s_client, mock_gateway_ref, client, admin_
     assert any(cluster["name"] == "test-cluster" for cluster in data)
 
 
-def test_list_clusters_requires_authentication(client):
+def test_list_clusters_requires_authentication(client, test_organization):
     """Test that listing clusters requires authentication."""
-    response = client.get("/clusters/")
+    response = client.get(f"/organizations/{test_organization.uuid}/clusters/")
 
     assert response.status_code == status.HTTP_401_UNAUTHORIZED
 
@@ -169,7 +172,7 @@ def test_get_cluster_success(mock_k8s_client, mock_gateway_ref, client, admin_to
 
     # First create a cluster
     create_response = client.post(
-        "/clusters/",
+        f"/organizations/{test_environment.organization.uuid}/clusters/",
         headers={"Authorization": f"Bearer {admin_token}"},
         json={
             "name": "test-cluster",
@@ -185,7 +188,7 @@ def test_get_cluster_success(mock_k8s_client, mock_gateway_ref, client, admin_to
 
     # Then get the cluster
     response = client.get(
-        f"/clusters/{cluster_uuid}",
+        f"/organizations/{test_environment.organization.uuid}/clusters/{cluster_uuid}",
         headers={"Authorization": f"Bearer {admin_token}"}
     )
 
@@ -195,10 +198,10 @@ def test_get_cluster_success(mock_k8s_client, mock_gateway_ref, client, admin_to
     assert data["uuid"] == cluster_uuid
 
 
-def test_get_cluster_not_found(client, admin_token):
+def test_get_cluster_not_found(client, admin_token, test_organization):
     """Test getting non-existent cluster."""
     response = client.get(
-        f"/clusters/{uuid4()}",
+        f"/organizations/{test_organization.uuid}/clusters/{uuid4()}",
         headers={"Authorization": f"Bearer {admin_token}"}
     )
 
@@ -215,7 +218,7 @@ def test_update_cluster_success(mock_k8s_client, client, admin_token, test_envir
 
     # First create a cluster
     create_response = client.post(
-        "/clusters/",
+        f"/organizations/{test_environment.organization.uuid}/clusters/",
         headers={"Authorization": f"Bearer {admin_token}"},
         json={
             "name": "test-cluster",
@@ -229,7 +232,7 @@ def test_update_cluster_success(mock_k8s_client, client, admin_token, test_envir
     # Then update the cluster (mock again for update)
     mock_k8s_client.return_value = mock_client_instance
     response = client.put(
-        f"/clusters/{cluster_uuid}",
+        f"/organizations/{test_environment.organization.uuid}/clusters/{cluster_uuid}",
         headers={"Authorization": f"Bearer {admin_token}"},
         json={
             "name": "updated-cluster",
@@ -248,7 +251,7 @@ def test_update_cluster_success(mock_k8s_client, client, admin_token, test_envir
 def test_update_cluster_not_found(client, admin_token, test_environment):
     """Test updating non-existent cluster."""
     response = client.put(
-        f"/clusters/{uuid4()}",
+        f"/organizations/{test_environment.organization.uuid}/clusters/{uuid4()}",
         headers={"Authorization": f"Bearer {admin_token}"},
         json={
             "name": "updated-cluster",
@@ -271,7 +274,7 @@ def test_delete_cluster_success(mock_k8s_client, client, admin_token, test_envir
 
     # First create a cluster
     create_response = client.post(
-        "/clusters/",
+        f"/organizations/{test_environment.organization.uuid}/clusters/",
         headers={"Authorization": f"Bearer {admin_token}"},
         json={
             "name": "test-cluster",
@@ -284,7 +287,7 @@ def test_delete_cluster_success(mock_k8s_client, client, admin_token, test_envir
 
     # Then delete the cluster
     response = client.delete(
-        f"/clusters/{cluster_uuid}",
+        f"/organizations/{test_environment.organization.uuid}/clusters/{cluster_uuid}",
         headers={"Authorization": f"Bearer {admin_token}"}
     )
 
@@ -292,16 +295,16 @@ def test_delete_cluster_success(mock_k8s_client, client, admin_token, test_envir
 
     # Verify cluster is deleted
     get_response = client.get(
-        f"/clusters/{cluster_uuid}",
+        f"/organizations/{test_environment.organization.uuid}/clusters/{cluster_uuid}",
         headers={"Authorization": f"Bearer {admin_token}"}
     )
     assert get_response.status_code == status.HTTP_404_NOT_FOUND
 
 
-def test_delete_cluster_not_found(client, admin_token):
+def test_delete_cluster_not_found(client, admin_token, test_organization):
     """Test deleting non-existent cluster."""
     response = client.delete(
-        f"/clusters/{uuid4()}",
+        f"/organizations/{test_organization.uuid}/clusters/{uuid4()}",
         headers={"Authorization": f"Bearer {admin_token}"}
     )
 
@@ -318,7 +321,7 @@ def test_delete_cluster_requires_admin_role(mock_k8s_client, client, admin_token
 
     # First create a cluster as admin
     create_response = client.post(
-        "/clusters/",
+        f"/organizations/{test_environment.organization.uuid}/clusters/",
         headers={"Authorization": f"Bearer {admin_token}"},
         json={
             "name": "test-cluster",
@@ -331,7 +334,7 @@ def test_delete_cluster_requires_admin_role(mock_k8s_client, client, admin_token
 
     # Try to delete as regular user
     response = client.delete(
-        f"/clusters/{cluster_uuid}",
+        f"/organizations/{test_environment.organization.uuid}/clusters/{cluster_uuid}",
         headers={"Authorization": f"Bearer {user_token}"}
     )
 

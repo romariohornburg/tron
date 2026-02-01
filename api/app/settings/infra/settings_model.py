@@ -17,6 +17,11 @@ class Settings(Base):
     environment_id = Column(Integer, ForeignKey("environments.id"), nullable=False)
     environment = relationship("Environment", back_populates="settings")
 
+    organization_id = Column(
+        Integer, ForeignKey("organizations.id"), nullable=False, index=True
+    )
+    organization = relationship("Organization", back_populates="settings")
+
     __table_args__ = (
         UniqueConstraint("key", "environment_id", name="uq_key_environment"),
     )

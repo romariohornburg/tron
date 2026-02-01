@@ -23,7 +23,7 @@ def test_get_dashboard_overview_success(dashboard_service, mock_repository):
     mock_repository.count_applications.return_value = 5
     mock_repository.count_instances.return_value = 10
     mock_repository.count_total_components.return_value = 20
-    mock_repository.count_components_by_type.side_effect = lambda t: {
+    mock_repository.count_components_by_type.side_effect = lambda t, org_id=None: {
         "webapp": 8,
         "worker": 7,
         "cron": 5
@@ -83,7 +83,7 @@ def test_get_dashboard_overview_empty(dashboard_service, mock_repository):
     mock_repository.get_components_by_environment.return_value = []
     mock_repository.get_components_by_cluster.return_value = []
 
-    result = dashboard_service.get_dashboard_overview()
+    result = dashboard_service.get_dashboard_overview(organization_id=1)
 
     assert result.applications == 0
     assert result.instances == 0

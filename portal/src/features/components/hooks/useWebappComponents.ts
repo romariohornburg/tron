@@ -1,89 +1,91 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { webappComponentsApi } from '../api'
 
-export const useWebappComponents = () => {
+export const useWebappComponents = (organizationUuid: string | undefined) => {
   return useQuery({
-    queryKey: ['webapp-components'],
-    queryFn: webappComponentsApi.list,
+    queryKey: ['webapp-components', organizationUuid],
+    queryFn: () => webappComponentsApi.list(organizationUuid!),
+    enabled: !!organizationUuid,
   })
 }
 
-export const useWebappComponent = (uuid: string | undefined) => {
+export const useWebappComponent = (organizationUuid: string | undefined, uuid: string | undefined) => {
   return useQuery({
-    queryKey: ['webapp', uuid],
-    queryFn: () => webappComponentsApi.get(uuid!),
-    enabled: !!uuid,
+    queryKey: ['webapp', organizationUuid, uuid],
+    queryFn: () => webappComponentsApi.get(organizationUuid!, uuid!),
+    enabled: !!organizationUuid && !!uuid,
   })
 }
 
-export const useCreateWebappComponent = () => {
+export const useCreateWebappComponent = (organizationUuid: string | undefined) => {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: webappComponentsApi.create,
+    mutationFn: (data: import('../types').ApplicationComponentCreate) =>
+      webappComponentsApi.create(organizationUuid!, data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['webapp-components'] })
+      queryClient.invalidateQueries({ queryKey: ['webapp-components', organizationUuid] })
     },
   })
 }
 
-export const useUpdateWebappComponent = () => {
+export const useUpdateWebappComponent = (organizationUuid: string | undefined) => {
   const queryClient = useQueryClient()
 
   return useMutation({
     mutationFn: ({ uuid, data }: { uuid: string; data: Partial<import('../types').ApplicationComponentCreate> }) =>
-      webappComponentsApi.update(uuid, data),
+      webappComponentsApi.update(organizationUuid!, uuid, data),
     onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['webapp-components'] })
-      queryClient.invalidateQueries({ queryKey: ['webapp', variables.uuid] })
+      queryClient.invalidateQueries({ queryKey: ['webapp-components', organizationUuid] })
+      queryClient.invalidateQueries({ queryKey: ['webapp', organizationUuid, variables.uuid] })
     },
   })
 }
 
-export const useDeleteWebappComponent = () => {
+export const useDeleteWebappComponent = (organizationUuid: string | undefined) => {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: webappComponentsApi.delete,
+    mutationFn: (uuid: string) => webappComponentsApi.delete(organizationUuid!, uuid),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['webapp-components'] })
+      queryClient.invalidateQueries({ queryKey: ['webapp-components', organizationUuid] })
     },
   })
 }
 
-export const useWebappPods = (uuid: string | undefined, refetchInterval?: number | false) => {
+export const useWebappPods = (organizationUuid: string | undefined, uuid: string | undefined, refetchInterval?: number | false) => {
   return useQuery({
-    queryKey: ['webapp-pods', uuid],
-    queryFn: () => webappComponentsApi.getPods(uuid!),
-    enabled: !!uuid,
+    queryKey: ['webapp-pods', organizationUuid, uuid],
+    queryFn: () => webappComponentsApi.getPods(organizationUuid!, uuid!),
+    enabled: !!organizationUuid && !!uuid,
     refetchInterval: refetchInterval !== undefined ? refetchInterval : false,
   })
 }
 
-export const useDeleteWebappPod = () => {
+export const useDeleteWebappPod = (organizationUuid: string | undefined) => {
   const queryClient = useQueryClient()
 
   return useMutation({
     mutationFn: ({ uuid, podName }: { uuid: string; podName: string }) =>
-      webappComponentsApi.deletePod(uuid, podName),
+      webappComponentsApi.deletePod(organizationUuid!, uuid, podName),
     onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['webapp-pods', variables.uuid] })
+      queryClient.invalidateQueries({ queryKey: ['webapp-pods', organizationUuid, variables.uuid] })
     },
   })
 }
 
-export const useWebappPodLogs = (uuid: string | undefined, podName: string | undefined, containerName?: string, tailLines: number = 100, refetchInterval?: number | false) => {
+export const useWebappPodLogs = (organizationUuid: string | undefined, uuid: string | undefined, podName: string | undefined, containerName?: string, tailLines: number = 100, refetchInterval?: number | false) => {
   return useQuery({
-    queryKey: ['webapp-pod-logs', uuid, podName, containerName, tailLines],
-    queryFn: () => webappComponentsApi.getPodLogs(uuid!, podName!, containerName, tailLines),
-    enabled: !!uuid && !!podName,
+    queryKey: ['webapp-pod-logs', organizationUuid, uuid, podName, containerName, tailLines],
+    queryFn: () => webappComponentsApi.getPodLogs(organizationUuid!, uuid!, podName!, containerName, tailLines),
+    enabled: !!organizationUuid && !!uuid && !!podName,
     refetchInterval: refetchInterval !== undefined ? refetchInterval : false,
   })
 }
 
-export const useExecWebappPodCommand = () => {
+export const useExecWebappPodCommand = (organizationUuid: string | undefined) => {
   return useMutation({
     mutationFn: ({ uuid, podName, command, containerName }: { uuid: string; podName: string; command: string[]; containerName?: string }) =>
-      webappComponentsApi.execPodCommand(uuid, podName, command, containerName),
+      webappComponentsApi.execPodCommand(organizationUuid!, uuid, podName, command, containerName),
   })
 }

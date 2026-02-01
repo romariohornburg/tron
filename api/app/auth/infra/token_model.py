@@ -4,13 +4,6 @@ from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 from uuid import uuid4
 from app.shared.database.database import Base
-import enum
-
-
-class TokenRole(str, enum.Enum):
-    ADMIN = "admin"
-    USER = "user"
-    VIEWER = "viewer"
 
 
 class Token(Base):
@@ -20,7 +13,6 @@ class Token(Base):
     uuid = Column(UUID(as_uuid=True), default=uuid4, unique=True, nullable=False)
     name = Column(String, nullable=False)
     token_hash = Column(String, unique=True, nullable=False, index=True)
-    role = Column(String, default=TokenRole.USER.value, nullable=False)
     is_active = Column(Boolean, default=True, nullable=False)
 
     # Association with user (optional - can be token created by a user)

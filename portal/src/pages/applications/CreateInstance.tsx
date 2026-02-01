@@ -1,293 +1,42 @@
-import { useState, useMemo } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { Plus, ChevronDown, ChevronUp } from 'lucide-react'
-import { useApplication } from '../../features/applications'
-import { useClusters } from '../../features/clusters'
-import { useCreateInstance } from '../../features/instances'
-import { useCreateWebappComponent, useCreateCronComponent, useCreateWorkerComponent } from '../../features/components'
-import { instanceCreateSchema } from '../../features/instances/schemas'
-import { componentCreateSchema } from '../../features/components/schemas'
-import { validateForm } from '../../shared/utils/validation'
-import type { InstanceCreate } from '../../features/instances'
-import {
-  InstanceForm,
-  ComponentForm,
-  InfoCard,
-  type ComponentFormData,
-  getDefaultWebappSettings,
-  getDefaultCronSettings,
-  getDefaultWorkerSettings,
-} from '../../components/applications'
-import { Breadcrumbs, PageHeader } from '../../shared/components'
+import { useOrganization } from '../../contexts/OrganizationContext'
 import { useAuth } from '../../contexts/AuthContext'
+import { CreationPageLayout, Stepper, useStepper, type Step } from '../../shared/components'
+import { useCreateInstanceForm } from './hooks/useCreateInstanceForm'
+import { Step1InstanceForm } from './components/Step1InstanceForm'
+import { Step2ComponentsForm } from './components/Step2ComponentsForm'
 
 function CreateInstance() {
   const { uuid: applicationUuid } = useParams<{ uuid: string }>()
   const navigate = useNavigate()
-  const [notification, setNotification] = useState<{ type: 'success' | 'error'; message: string } | null>(null)
-  const [, setErrors] = useState<Record<string, string>>({})
+  const { selectedOrganizationUuid } = useOrganization()
   const { user } = useAuth()
   const isAdmin = user?.role === 'admin'
 
-  const { data: application } = useApplication(applicationUuid)
-  const { data: clusters } = useClusters()
-  const createInstanceMutation = useCreateInstance()
-  const createWebappComponentMutation = useCreateWebappComponent()
-  const createCronComponentMutation = useCreateCronComponent()
-  const createWorkerComponentMutation = useCreateWorkerComponent()
+  const {
+    application,
+    instanceData,
+    setInstanceData,
+    components,
+    isComponentTypeDropdownOpen,
+    setIsComponentTypeDropdownOpen,
+    addComponent,
+    removeComponent,
+    updateComponent,
+    validateStep1,
+    validateStep2,
+    canSubmit,
+    notification,
+    setNotification,
+    handleSubmit,
+    isSubmitting,
+    hasNoClusters,
+    hasGatewayApi,
+    gatewayResources,
+    gatewayReference,
+  } = useCreateInstanceForm()
 
-  // Instance form
-  const [instanceData, setInstanceData] = useState<Omit<InstanceCreate, 'application_uuid'>>({
-    environment_uuid: '',
-    image: '',
-    version: '',
-    enabled: true,
-  })
-
-  // Check if any cluster in the selected environment has gateway_api available
-  const hasGatewayApi = useMemo(() => {
-    if (!instanceData.environment_uuid || !clusters) return false
-    const environmentClusters = clusters.filter(
-      (cluster) => cluster.environment?.uuid === instanceData.environment_uuid
-    )
-    return environmentClusters.some((cluster) => cluster.gateway?.api?.enabled === true)
-  }, [instanceData.environment_uuid, clusters])
-
-  // Get Gateway API resources available in clusters of the selected environment
-  const gatewayResources = useMemo(() => {
-    if (!instanceData.environment_uuid || !clusters) return []
-    const environmentClusters = clusters.filter(
-      (cluster) => cluster.environment?.uuid === instanceData.environment_uuid
-    )
-    // Get resources from all clusters that have Gateway API enabled
-    const allResources = new Set<string>()
-    environmentClusters.forEach((cluster) => {
-      if (cluster.gateway?.api?.enabled && cluster.gateway.api.resources) {
-        cluster.gateway.api.resources.forEach((resource) => allResources.add(resource))
-      }
-    })
-    return Array.from(allResources)
-  }, [instanceData.environment_uuid, clusters])
-
-  // Get Gateway reference (namespace and name) from clusters of the selected environment
-  const gatewayReference = useMemo(() => {
-    if (!instanceData.environment_uuid || !clusters) return { namespace: '', name: '' }
-    const environmentClusters = clusters.filter(
-      (cluster) => cluster.environment?.uuid === instanceData.environment_uuid
-    )
-    // Get the first gateway reference found that has namespace and name filled
-    // Use private gateway as default reference (both public and private use same auto-discovery if not configured)
-    for (const cluster of environmentClusters) {
-      if (cluster.gateway?.reference) {
-        const ref = cluster.gateway.reference.private || cluster.gateway.reference.public || { namespace: '', name: '' }
-        const namespace = ref.namespace || ''
-        const name = ref.name || ''
-        if (namespace && name) {
-          return { namespace, name }
-        }
-      }
-    }
-    return { namespace: '', name: '' }
-  }, [instanceData.environment_uuid, clusters])
-
-  // Components
-  const [components, setComponents] = useState<ComponentFormData[]>([])
-  const [isComponentTypeDropdownOpen, setIsComponentTypeDropdownOpen] = useState(false)
-
-  const addComponent = (type: 'webapp' | 'worker' | 'cron' = 'webapp') => {
-    if (type === 'webapp') {
-      setComponents([
-        ...components,
-        {
-          name: '',
-          type: 'webapp',
-          url: null,
-          visibility: 'private',
-          enabled: true,
-          settings: getDefaultWebappSettings(),
-        },
-      ])
-    } else if (type === 'cron') {
-      setComponents([
-        ...components,
-        {
-          name: '',
-          type: 'cron',
-          url: null,
-          visibility: 'private',
-          enabled: true,
-          settings: getDefaultCronSettings(),
-        },
-      ])
-    } else {
-      setComponents([
-        ...components,
-        {
-          name: '',
-          type: 'worker',
-          url: null,
-          visibility: 'private',
-          enabled: true,
-          settings: getDefaultWorkerSettings(),
-        },
-      ])
-    }
-    setIsComponentTypeDropdownOpen(false)
-  }
-
-  const removeComponent = (index: number) => {
-    setComponents(components.filter((_, i) => i !== index))
-  }
-
-  const updateComponent = (index: number, component: ComponentFormData) => {
-    const updated = [...components]
-    updated[index] = component
-    setComponents(updated)
-  }
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setNotification(null)
-    setErrors({})
-
-    if (!applicationUuid) {
-      setNotification({ type: 'error', message: 'Application UUID is required' })
-      setTimeout(() => setNotification(null), 5000)
-      return
-    }
-
-    // Validate instance
-    const instanceValidation = validateForm(instanceCreateSchema, {
-      ...instanceData,
-      application_uuid: applicationUuid,
-    })
-    if (!instanceValidation.success) {
-      setErrors(instanceValidation.errors || {})
-      setNotification({ type: 'error', message: 'Please fix instance form errors' })
-      setTimeout(() => setNotification(null), 5000)
-      return
-    }
-
-    // Validate components
-    for (let i = 0; i < components.length; i++) {
-      const component = components[i]
-      const componentValidation = validateForm(componentCreateSchema, component)
-      if (!componentValidation.success) {
-        setNotification({
-          type: 'error',
-          message: `Component ${i + 1}: ${Object.values(componentValidation.errors || {}).join(', ')}`
-        })
-        setTimeout(() => setNotification(null), 5000)
-        return
-      }
-    }
-
-    // Validate envs and secrets for empty values
-    for (const component of components) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const settings = component.settings as any
-      if (!settings) continue
-
-      // Check envs
-      if (settings.envs && Array.isArray(settings.envs)) {
-        for (const env of settings.envs) {
-          if (!env.key?.trim() && !env.value?.trim()) continue // Skip completely empty rows
-          if (!env.key?.trim()) {
-            setNotification({ type: 'error', message: `Component "${component.name}": Environment variable is missing a key` })
-            return
-          }
-          if (!env.value?.trim()) {
-            setNotification({ type: 'error', message: `Component "${component.name}": Environment variable "${env.key}" is missing a value` })
-            return
-          }
-        }
-      }
-
-      // Check secrets
-      if (settings.secrets && Array.isArray(settings.secrets)) {
-        for (const secret of settings.secrets) {
-          if (secret.value === '********') continue // Skip masked values
-          if (!secret.key?.trim() && !secret.value?.trim()) continue // Skip completely empty rows
-          if (!secret.key?.trim()) {
-            setNotification({ type: 'error', message: `Component "${component.name}": Secret is missing a key` })
-            return
-          }
-          if (!secret.value?.trim()) {
-            setNotification({ type: 'error', message: `Component "${component.name}": Secret "${secret.key}" is missing a value` })
-            return
-          }
-        }
-      }
-    }
-
-    try {
-      // Step 1: Create instance
-      const instance = await createInstanceMutation.mutateAsync({
-        ...instanceData,
-        application_uuid: applicationUuid,
-      })
-
-      // Step 2: Create components
-      if (components.length > 0) {
-        const componentPromises = components.map((component) => {
-          // Filter out completely empty rows (both key and value empty)
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          let cleanedSettings = component.settings as any
-          if (cleanedSettings) {
-            if (cleanedSettings.envs && Array.isArray(cleanedSettings.envs)) {
-              cleanedSettings = {
-                ...cleanedSettings,
-                envs: cleanedSettings.envs.filter(
-                  (env: { key: string; value: string }) => env.key?.trim() || env.value?.trim()
-                ),
-              }
-            }
-            if (cleanedSettings.secrets && Array.isArray(cleanedSettings.secrets)) {
-              cleanedSettings = {
-                ...cleanedSettings,
-                secrets: cleanedSettings.secrets.filter(
-                  (secret: { key: string; value: string }) => 
-                    secret.value === '********' || secret.key?.trim() || secret.value?.trim()
-                ),
-              }
-            }
-          }
-
-          const componentData = {
-            instance_uuid: instance.uuid,
-            name: component.name,
-            type: component.type,
-            settings: cleanedSettings,
-            visibility: component.visibility,
-            url: component.url,
-            enabled: component.enabled,
-          }
-
-          if (component.type === 'cron') {
-            return createCronComponentMutation.mutateAsync(componentData)
-          } else if (component.type === 'worker') {
-            return createWorkerComponentMutation.mutateAsync(componentData)
-          } else {
-            return createWebappComponentMutation.mutateAsync(componentData)
-          }
-        })
-
-        await Promise.all(componentPromises)
-      }
-
-      setNotification({ type: 'success', message: 'Instance and components created successfully!' })
-
-      // Navigate to instance detail page
-      navigate(`/applications/${applicationUuid}/instances/${instance.uuid}/components`)
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    } catch (error: any) {
-      setNotification({
-        type: 'error',
-        message: error.response?.data?.detail || 'Error creating instance',
-      })
-      setTimeout(() => setNotification(null), 5000)
-    }
-  }
+  const { currentStep, completedSteps, goToStep, completeStep } = useStepper(1)
 
   if (!application) {
     return (
@@ -299,165 +48,78 @@ function CreateInstance() {
     )
   }
 
+  const step1Content = (
+    <Step1InstanceForm
+      data={instanceData}
+      onChange={setInstanceData}
+      hasNoClusters={!!hasNoClusters}
+    />
+  )
+
+  const step2Content = (
+    <Step2ComponentsForm
+      components={components}
+      isComponentTypeDropdownOpen={isComponentTypeDropdownOpen}
+      onToggleDropdown={() => setIsComponentTypeDropdownOpen(!isComponentTypeDropdownOpen)}
+      onAddComponent={addComponent}
+      onRemoveComponent={removeComponent}
+      onUpdateComponent={updateComponent}
+      organizationUuid={selectedOrganizationUuid}
+      hasGatewayApi={hasGatewayApi}
+      gatewayResources={gatewayResources}
+      gatewayReference={gatewayReference}
+      isAdmin={isAdmin}
+      hasEnvironmentSelected={!!instanceData.environment_uuid}
+    />
+  )
+
+  const steps: Step[] = [
+    {
+      id: 1,
+      title: 'Instance',
+      summary: completedSteps.includes(1) ? `${instanceData.image}:${instanceData.version}` : undefined,
+      content: step1Content,
+      validate: validateStep1,
+    },
+    {
+      id: 2,
+      title: 'Components',
+      summary: completedSteps.includes(2) ? `${components.length} component${components.length !== 1 ? 's' : ''}` : undefined,
+      content: step2Content,
+      validate: validateStep2,
+    },
+  ]
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-50">
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <Breadcrumbs
-          items={[
-            { label: 'Applications', path: '/applications' },
-            { label: application.name },
-            { label: 'New Instance' },
-          ]}
+    <CreationPageLayout
+      breadcrumbs={[
+        { label: 'Applications', path: '/applications' },
+        { label: application.name, path: `/applications/${applicationUuid}` },
+        { label: 'New Instance' },
+      ]}
+      title="Create New Instance"
+      description={`Follow the steps below to create a new instance for ${application.name}`}
+      notification={notification}
+      onDismissNotification={() => setNotification(null)}
+      isCreating={isSubmitting}
+      creatingMessage="Please wait while we create your instance and components..."
+      onCancel={() => navigate('/applications')}
+      submitLabel="Create Instance"
+      onSubmit={handleSubmit}
+      submitDisabled={!canSubmit}
+      isSubmitting={isSubmitting}
+    >
+      <div className="bg-white rounded-xl shadow-soft border border-slate-200/60 overflow-hidden divide-y divide-slate-200">
+        <Stepper
+          steps={steps}
+          currentStep={currentStep}
+          completedSteps={completedSteps}
+          onStepChange={goToStep}
+          onStepComplete={completeStep}
+          showContinueButton={currentStep < 2}
         />
-
-        {/* Header */}
-        <div className="mb-8">
-          <PageHeader
-            title="Create New Instance"
-            description={`Create a new instance for ${application.name} with components`}
-          />
-        </div>
-
-        {/* Notification */}
-        {notification && (
-          <div
-            className={`mb-6 p-4 rounded-lg ${
-              notification.type === 'success' ? 'bg-green-50 text-green-800' : 'bg-red-50 text-red-800'
-            }`}
-          >
-            {notification.message}
-          </div>
-        )}
-
-        <form onSubmit={handleSubmit} className="space-y-8">
-          {/* Instance Section */}
-          <InstanceForm data={instanceData} onChange={setInstanceData} />
-
-          {/* Components Section */}
-          <div className="bg-white rounded-xl shadow-soft border border-slate-200/60 p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-semibold text-slate-800">Components</h2>
-              <div className="relative">
-                <button
-                  type="button"
-                  onClick={() => setIsComponentTypeDropdownOpen(!isComponentTypeDropdownOpen)}
-                  className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 shadow-soft hover:shadow-soft-lg transition-all duration-200 text-sm font-medium"
-                >
-                  <Plus size={18} />
-                  <span>Add Component</span>
-                  {isComponentTypeDropdownOpen ? (
-                    <ChevronUp size={16} />
-                  ) : (
-                    <ChevronDown size={16} />
-                  )}
-                </button>
-                {isComponentTypeDropdownOpen && (
-                  <>
-                    <div
-                      className="fixed inset-0 z-10"
-                      onClick={() => setIsComponentTypeDropdownOpen(false)}
-                    />
-                    <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-slate-200 z-20">
-                      <button
-                        type="button"
-                        onClick={() => addComponent('webapp')}
-                        className="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 first:rounded-t-lg last:rounded-b-lg transition-colors"
-                      >
-                        <div className="flex items-center gap-2">
-                          <Plus size={16} />
-                          <span>Webapp</span>
-                        </div>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => addComponent('cron')}
-                        className="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 first:rounded-t-lg last:rounded-b-lg transition-colors"
-                      >
-                        <div className="flex items-center gap-2">
-                          <Plus size={16} />
-                          <span>Cron</span>
-                        </div>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => addComponent('worker')}
-                        className="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 first:rounded-t-lg last:rounded-b-lg transition-colors"
-                      >
-                        <div className="flex items-center gap-2">
-                          <Plus size={16} />
-                          <span>Worker</span>
-                        </div>
-                      </button>
-                    </div>
-                  </>
-                )}
-              </div>
-            </div>
-
-            {/* Info Card */}
-            <InfoCard>
-              <p className="text-sm text-blue-900 leading-relaxed mb-2">
-                Components are the building blocks of your application instance. Each component represents a specific service or workload that runs within the same container image and version. Available component types:
-              </p>
-              <ul className="text-sm text-blue-900 space-y-1.5 ml-4 list-disc">
-                <li>
-                  <strong>Webapp:</strong> A web application component that serves HTTP/HTTPS traffic. Requires a URL and can be configured with endpoints, healthchecks, environment variables, command override, and resource limits (CPU, memory).
-                </li>
-                <li>
-                  <strong>Worker:</strong> A background worker component that processes jobs or tasks asynchronously. Typically used for long-running background processes, queue processing, or scheduled tasks.
-                </li>
-                <li>
-                  <strong>Cron:</strong> A scheduled job component that runs at specified intervals using cron syntax. Ideal for periodic maintenance tasks, data synchronization, or scheduled reports.
-                </li>
-              </ul>
-            </InfoCard>
-
-            {components.length === 0 ? (
-              <div className="text-center py-8 text-slate-500">
-                <p>No components added yet. Click "Add Component" to get started.</p>
-              </div>
-            ) : (
-              <div className="space-y-6">
-                {components.map((component, index) => (
-                  <ComponentForm
-                    key={index}
-                    component={component}
-                    onChange={(updatedComponent) => updateComponent(index, updatedComponent)}
-                    onRemove={() => removeComponent(index)}
-                    hasGatewayApi={hasGatewayApi}
-                    gatewayResources={gatewayResources}
-                    gatewayReference={gatewayReference}
-                    isAdmin={isAdmin}
-                    title={`Component ${index + 1}`}
-                    hasEnvironmentSelected={!!instanceData.environment_uuid}
-                  />
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* Submit Button */}
-          <div className="flex justify-end gap-3 pt-4">
-            <button
-              type="button"
-              onClick={() => navigate('/applications')}
-              className="px-6 py-2.5 text-slate-600 bg-slate-100 rounded-lg hover:bg-slate-200 transition-colors text-sm font-medium"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={createInstanceMutation.isPending}
-              className="px-6 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors shadow-soft text-sm font-medium disabled:opacity-50"
-            >
-              {createInstanceMutation.isPending
-                ? 'Creating...'
-                : 'Create Instance'}
-            </button>
-          </div>
-        </form>
       </div>
-    </div>
+    </CreationPageLayout>
   )
 }
 

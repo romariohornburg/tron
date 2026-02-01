@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { X, Trash2, Plus, Info, Edit, CheckCircle, XCircle } from 'lucide-react'
 import { useClusters, useCreateCluster, useUpdateCluster, useDeleteCluster } from '../../features/clusters'
 import { useEnvironments } from '../../features/environments'
+import { useOrganization } from '../../contexts/OrganizationContext'
 import type { Cluster, ClusterCreate } from '../../features/clusters'
 import { DataTable, Breadcrumbs, PageHeader } from '../../shared/components'
 
@@ -11,8 +12,10 @@ function Clusters() {
   const [statusModal, setStatusModal] = useState<{ code: string; message: string } | null>(null)
   const [notification, setNotification] = useState<{ type: 'success' | 'error'; message: string } | null>(null)
 
-  const { data: clusters = [], isLoading } = useClusters()
-  const { data: environments = [] } = useEnvironments()
+  const { selectedOrganizationUuid, isLoading: isLoadingOrg } = useOrganization()
+
+  const { data: clusters = [], isLoading } = useClusters(selectedOrganizationUuid)
+  const { data: environments = [] } = useEnvironments(selectedOrganizationUuid)
 
   const [formData, setFormData] = useState<ClusterCreate>({
     name: '',
@@ -25,9 +28,9 @@ function Clusters() {
     public_gateway_name: '',
   })
 
-  const createMutation = useCreateCluster()
-  const updateMutation = useUpdateCluster()
-  const deleteMutation = useDeleteCluster()
+  const createMutation = useCreateCluster(selectedOrganizationUuid)
+  const updateMutation = useUpdateCluster(selectedOrganizationUuid)
+  const deleteMutation = useDeleteCluster(selectedOrganizationUuid)
 
   // Handle success/error callbacks
   useEffect(() => {
@@ -112,15 +115,12 @@ function Clusters() {
 
     if (editingCluster) {
       // Always send environment_uuid and token in update
+      // Gateway configuration is not editable after creation
       const updateData: ClusterCreate = {
         name: formData.name,
         api_address: formData.api_address,
         token: formData.token,
         environment_uuid: formData.environment_uuid,
-        private_gateway_namespace: formData.private_gateway_namespace || undefined,
-        private_gateway_name: formData.private_gateway_name || undefined,
-        public_gateway_namespace: formData.public_gateway_namespace || undefined,
-        public_gateway_name: formData.public_gateway_name || undefined,
       }
       updateMutation.mutate({ uuid: editingCluster.uuid, data: updateData })
     } else {
@@ -191,6 +191,33 @@ function Clusters() {
     return 'bg-slate-100 text-slate-700'
   }
 
+  if (isLoadingOrg) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+          <p className="mt-4 text-neutral-600">Loading organization...</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (!selectedOrganizationUuid) {
+    return (
+      <div className="space-y-6">
+        <Breadcrumbs
+          items={[
+            { label: 'Home', path: '/' },
+            { label: 'Clusters', path: '/clusters' },
+          ]}
+        />
+        <div className="rounded-lg p-4 bg-yellow-50 border border-yellow-200 text-yellow-800">
+          <p>No organization selected. Please select an organization first.</p>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="space-y-6">
       <Breadcrumbs
@@ -219,8 +246,8 @@ function Clusters() {
         <div
           className={`rounded-lg p-4 flex items-center justify-between ${
             notification.type === 'success'
-              ? 'bg-success/10 border border-success/20 text-success'
-              : 'bg-error/10 border border-error/20 text-error'
+              ? 'bg-green-50 border border-green-200 text-green-800'
+              : 'bg-red-50 border border-red-200 text-red-800'
           }`}
         >
           <span>{notification.message}</span>
@@ -417,77 +444,6 @@ function Clusters() {
                     Environment cannot be changed after creation.
                   </p>
                 )}
-              </div>
-
-              {/* Gateway Configuration (Optional) */}
-              <div className="border-t border-slate-200 pt-4 mt-4">
-                <div className="flex items-center gap-2 mb-3">
-                  <h3 className="text-sm font-medium text-slate-700">Gateway Configuration</h3>
-                  <span className="text-xs text-slate-400">(Optional)</span>
-                </div>
-                <p className="text-xs text-slate-500 mb-3">
-                  Leave empty to auto-detect the Gateway. Specify values to use specific Gateways for public and private visibility.
-                </p>
-                
-                {/* Private Gateway */}
-                <div className="mb-4">
-                  <div className="flex items-center gap-2 mb-2">
-                    <h4 className="text-xs font-medium text-slate-600">Private Gateway</h4>
-                    <span className="text-xs text-slate-400">- Used for visibility "private"</span>
-                  </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="block text-xs font-medium text-slate-600 mb-1">Namespace</label>
-                      <input
-                        type="text"
-                        value={formData.private_gateway_namespace || ''}
-                        onChange={(e) => setFormData({ ...formData, private_gateway_namespace: e.target.value })}
-                        className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500/50 focus:border-blue-400 transition-all text-sm"
-                        placeholder="kube-system"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-medium text-slate-600 mb-1">Gateway Name</label>
-                      <input
-                        type="text"
-                        value={formData.private_gateway_name || ''}
-                        onChange={(e) => setFormData({ ...formData, private_gateway_name: e.target.value })}
-                        className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500/50 focus:border-blue-400 transition-all text-sm"
-                        placeholder="internal-gateway"
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                {/* Public Gateway */}
-                <div>
-                  <div className="flex items-center gap-2 mb-2">
-                    <h4 className="text-xs font-medium text-slate-600">Public Gateway</h4>
-                    <span className="text-xs text-slate-400">- Used for visibility "public"</span>
-                  </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="block text-xs font-medium text-slate-600 mb-1">Namespace</label>
-                      <input
-                        type="text"
-                        value={formData.public_gateway_namespace || ''}
-                        onChange={(e) => setFormData({ ...formData, public_gateway_namespace: e.target.value })}
-                        className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500/50 focus:border-blue-400 transition-all text-sm"
-                        placeholder="kube-system"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-medium text-slate-600 mb-1">Gateway Name</label>
-                      <input
-                        type="text"
-                        value={formData.public_gateway_name || ''}
-                        onChange={(e) => setFormData({ ...formData, public_gateway_name: e.target.value })}
-                        className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500/50 focus:border-blue-400 transition-all text-sm"
-                        placeholder="external-gateway"
-                      />
-                    </div>
-                  </div>
-                </div>
               </div>
 
               <div className="flex justify-end gap-2.5 pt-3">

@@ -269,7 +269,15 @@ export interface PodCommandResponse {
 }
 
 // Auth types
-export type UserRole = 'admin' | 'user' | 'viewer'
+export type UserRole = 'admin' | 'user'
+
+export interface UserOrganizationInfo {
+  uuid: string
+  name: string
+  is_owner: boolean
+  is_admin: boolean
+  status: string
+}
 
 export interface User {
   uuid: string
@@ -280,6 +288,7 @@ export interface User {
   avatar_url: string | null
   created_at: string
   updated_at: string
+  organizations?: UserOrganizationInfo[]
 }
 
 export interface UserCreate {

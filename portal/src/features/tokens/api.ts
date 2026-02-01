@@ -2,23 +2,23 @@ import { api } from '../../shared/api'
 import type { ApiToken, ApiTokenCreate, ApiTokenUpdate, ApiTokenCreateResponse } from './types'
 
 export const tokensApi = {
-  list: async (params?: { skip?: number; limit?: number; search?: string }): Promise<ApiToken[]> => {
-    const response = await api.get<ApiToken[]>('/tokens', { params })
+  listByUser: async (userUuid: string, params?: { skip?: number; limit?: number; search?: string }): Promise<ApiToken[]> => {
+    const response = await api.get<ApiToken[]>(`/users/${userUuid}/tokens`, { params })
     return response.data
   },
-  get: async (uuid: string): Promise<ApiToken> => {
-    const response = await api.get<ApiToken>(`/tokens/${uuid}`)
+  get: async (userUuid: string, tokenUuid: string): Promise<ApiToken> => {
+    const response = await api.get<ApiToken>(`/users/${userUuid}/tokens/${tokenUuid}`)
     return response.data
   },
-  create: async (data: ApiTokenCreate): Promise<ApiTokenCreateResponse> => {
-    const response = await api.post<ApiTokenCreateResponse>('/tokens', data)
+  create: async (userUuid: string, data: ApiTokenCreate): Promise<ApiTokenCreateResponse> => {
+    const response = await api.post<ApiTokenCreateResponse>(`/users/${userUuid}/tokens`, data)
     return response.data
   },
-  update: async (uuid: string, data: ApiTokenUpdate): Promise<ApiToken> => {
-    const response = await api.put<ApiToken>(`/tokens/${uuid}`, data)
+  update: async (userUuid: string, tokenUuid: string, data: ApiTokenUpdate): Promise<ApiToken> => {
+    const response = await api.put<ApiToken>(`/users/${userUuid}/tokens/${tokenUuid}`, data)
     return response.data
   },
-  delete: async (uuid: string): Promise<void> => {
-    await api.delete(`/tokens/${uuid}`)
+  delete: async (userUuid: string, tokenUuid: string): Promise<void> => {
+    await api.delete(`/users/${userUuid}/tokens/${tokenUuid}`)
   },
 }

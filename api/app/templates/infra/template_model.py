@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, DateTime, Text
+from sqlalchemy import Column, Integer, String, DateTime, Text, ForeignKey
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
 from app.shared.database.database import Base
@@ -18,12 +18,16 @@ class Template(Base):
     variables_schema = Column(
         Text, nullable=True
     )  # JSON with schema of available variables
+    organization_id = Column(
+        Integer, ForeignKey("organizations.id"), nullable=False, index=True
+    )
 
     created_at = Column(DateTime, server_default=func.now(), nullable=False)
     updated_at = Column(
         DateTime, server_default=func.now(), server_onupdate=func.now(), nullable=False
     )
 
+    organization = relationship("Organization", back_populates="templates")
     component_configs = relationship(
         "ComponentTemplateConfig", back_populates="template", lazy="select"
     )

@@ -1,82 +1,84 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { cronComponentsApi } from '../api'
 
-export const useCronComponents = () => {
+export const useCronComponents = (organizationUuid: string | undefined) => {
   return useQuery({
-    queryKey: ['cron-components'],
-    queryFn: cronComponentsApi.list,
+    queryKey: ['cron-components', organizationUuid],
+    queryFn: () => cronComponentsApi.list(organizationUuid!),
+    enabled: !!organizationUuid,
   })
 }
 
-export const useCronComponent = (uuid: string | undefined) => {
+export const useCronComponent = (organizationUuid: string | undefined, uuid: string | undefined) => {
   return useQuery({
-    queryKey: ['cron', uuid],
-    queryFn: () => cronComponentsApi.get(uuid!),
-    enabled: !!uuid,
+    queryKey: ['cron', organizationUuid, uuid],
+    queryFn: () => cronComponentsApi.get(organizationUuid!, uuid!),
+    enabled: !!organizationUuid && !!uuid,
   })
 }
 
-export const useCreateCronComponent = () => {
+export const useCreateCronComponent = (organizationUuid: string | undefined) => {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: cronComponentsApi.create,
+    mutationFn: (data: import('../types').ApplicationComponentCreate) =>
+      cronComponentsApi.create(organizationUuid!, data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['cron-components'] })
+      queryClient.invalidateQueries({ queryKey: ['cron-components', organizationUuid] })
     },
   })
 }
 
-export const useUpdateCronComponent = () => {
+export const useUpdateCronComponent = (organizationUuid: string | undefined) => {
   const queryClient = useQueryClient()
 
   return useMutation({
     mutationFn: ({ uuid, data }: { uuid: string; data: Partial<import('../types').ApplicationComponentCreate> }) =>
-      cronComponentsApi.update(uuid, data),
+      cronComponentsApi.update(organizationUuid!, uuid, data),
     onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['cron-components'] })
-      queryClient.invalidateQueries({ queryKey: ['cron', variables.uuid] })
+      queryClient.invalidateQueries({ queryKey: ['cron-components', organizationUuid] })
+      queryClient.invalidateQueries({ queryKey: ['cron', organizationUuid, variables.uuid] })
     },
   })
 }
 
-export const useDeleteCronComponent = () => {
+export const useDeleteCronComponent = (organizationUuid: string | undefined) => {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: cronComponentsApi.delete,
+    mutationFn: (uuid: string) => cronComponentsApi.delete(organizationUuid!, uuid),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['cron-components'] })
+      queryClient.invalidateQueries({ queryKey: ['cron-components', organizationUuid] })
     },
   })
 }
 
-export const useCronJobs = (uuid: string | undefined, refetchInterval?: number | false) => {
+export const useCronJobs = (organizationUuid: string | undefined, uuid: string | undefined, refetchInterval?: number | false) => {
   return useQuery({
-    queryKey: ['cron-jobs', uuid],
-    queryFn: () => cronComponentsApi.getJobs(uuid!),
-    enabled: !!uuid,
+    queryKey: ['cron-jobs', organizationUuid, uuid],
+    queryFn: () => cronComponentsApi.getJobs(organizationUuid!, uuid!),
+    enabled: !!organizationUuid && !!uuid,
     refetchInterval: refetchInterval !== undefined ? refetchInterval : false,
   })
 }
 
-export const useCronJobLogs = (uuid: string | undefined, jobName: string | undefined, containerName?: string, tailLines: number = 100, refetchInterval?: number | false) => {
+export const useCronJobLogs = (organizationUuid: string | undefined, uuid: string | undefined, jobName: string | undefined, containerName?: string, tailLines: number = 100, refetchInterval?: number | false) => {
   return useQuery({
-    queryKey: ['cron-job-logs', uuid, jobName, containerName, tailLines],
-    queryFn: () => cronComponentsApi.getJobLogs(uuid!, jobName!, containerName, tailLines),
-    enabled: !!uuid && !!jobName,
+    queryKey: ['cron-job-logs', organizationUuid, uuid, jobName, containerName, tailLines],
+    queryFn: () => cronComponentsApi.getJobLogs(organizationUuid!, uuid!, jobName!, containerName, tailLines),
+    enabled: !!organizationUuid && !!uuid && !!jobName,
     refetchInterval: refetchInterval !== undefined ? refetchInterval : false,
   })
 }
 
-export const useDeleteCronJob = () => {
+export const useDeleteCronJob = (organizationUuid: string | undefined) => {
   const queryClient = useQueryClient()
 
   return useMutation({
     mutationFn: ({ uuid, jobName }: { uuid: string; jobName: string }) =>
-      cronComponentsApi.deleteJob(uuid, jobName),
+      cronComponentsApi.deleteJob(organizationUuid!, uuid, jobName),
     onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['cron-jobs', variables.uuid] })
+      queryClient.invalidateQueries({ queryKey: ['cron-jobs', organizationUuid, variables.uuid] })
     },
   })
 }

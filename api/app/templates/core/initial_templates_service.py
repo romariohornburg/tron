@@ -1,31 +1,27 @@
-#!/usr/bin/env python3
 """
-Script to load initial templates and component_template_config configurations.
-This script should be executed after migrations to populate the database with initial data.
+Service to seed initial Kubernetes templates and component_template_config for an organization.
+Used when creating a new organization (create_organization_with_defaults) and optionally by scripts.
+Does not commit; caller is responsible for commit.
 """
 
-import os
-import sys
 from pathlib import Path
-
-# Add root directory to path to import modules
-sys.path.insert(0, str(Path(__file__).parent.parent))
+from uuid import uuid4
+from typing import List
 
 from sqlalchemy.orm import Session
-from app.shared.database.database import SessionLocal
-from uuid import uuid4
 
 from app.templates.infra.template_model import Template as TemplateModel
-from app.templates.infra.component_template_config_model import ComponentTemplateConfig as ComponentTemplateConfigModel
+from app.templates.infra.component_template_config_model import (
+    ComponentTemplateConfig as ComponentTemplateConfigModel,
+)
 
 
-def read_template_file(file_path: Path) -> str:
-    """Read the content of a template file."""
-    with open(file_path, 'r', encoding='utf-8') as f:
-        return f.read()
+def _get_templates_base_path() -> Path:
+    """Return base path to k8s templates (api/app/k8s/templates)."""
+    return Path(__file__).resolve().parent.parent.parent / "k8s" / "templates"
 
 
-def get_variables_schema() -> str:
+def _get_variables_schema() -> str:
     """Return the JSON schema of variables available for templates."""
     return """{
   "application": {
@@ -85,15 +81,12 @@ def get_variables_schema() -> str:
 }"""
 
 
-def load_templates(db: Session):
-    """Load initial templates into the templates table."""
-    templates_base_dir = Path(__file__).parent.parent / "app" / "k8s" / "templates"
-    webapp_dir = templates_base_dir / "webapp"
-    cron_dir = templates_base_dir / "cron"
-    worker_dir = templates_base_dir / "worker"
-
-    templates_data = [
-        # Templates Webapp
+def _build_templates_data(base_path: Path) -> List[dict]:
+    """Build list of template definitions (name, description, category, file_path, render_order)."""
+    webapp_dir = base_path / "webapp"
+    cron_dir = base_path / "cron"
+    worker_dir = base_path / "worker"
+    return [
         {
             "name": "Webapp Deployment",
             "description": "Deployment template for webapp components",
@@ -136,7 +129,6 @@ def load_templates(db: Session):
             "file_path": webapp_dir / "udproute.yaml.j2",
             "render_order": 6,
         },
-        # Templates Cron
         {
             "name": "Cron CronJob",
             "description": "CronJob template for cron components",
@@ -144,7 +136,6 @@ def load_templates(db: Session):
             "file_path": cron_dir / "cron.yaml.j2",
             "render_order": 1,
         },
-
         {
             "name": "Worker Deployment",
             "description": "Deployment template for worker components",
@@ -161,111 +152,92 @@ def load_templates(db: Session):
         },
     ]
 
-    created_templates = []
+
+def seed_templates_for_organization(
+    db: Session, organization_id: int
+) -> List[TemplateModel]:
+    """
+    Seed initial templates and component_template_config for the given organization.
+    Adds to session and flushes; does NOT commit. Caller must commit.
+
+    Args:
+        db: Database session (will add templates and configs, flush, but not commit)
+        organization_id: Organization ID to associate templates with
+
+    Returns:
+        List of created Template model instances (new ones only; existing are skipped but not returned)
+    """
+    base_path = _get_templates_base_path()
+    templates_data = _build_templates_data(base_path)
+    variables_schema = _get_variables_schema()
+    created: List[TemplateModel] = []
 
     for template_data in templates_data:
-        # Check if template already exists (by name and category)
+        # Check if template already exists (by name, category, organization)
         existing_template = (
             db.query(TemplateModel)
             .filter(
                 TemplateModel.name == template_data["name"],
-                TemplateModel.category == template_data["category"]
+                TemplateModel.category == template_data["category"],
+                TemplateModel.organization_id == organization_id,
             )
             .first()
         )
 
         if existing_template:
-            print(f"Template '{template_data['name']}' already exists, checking configuration...")
-            # Check if component_template_config already exists for this template
-            # The unique constraint is by component_type and template_id
+            # Ensure component_template_config exists for this template
             existing_config = (
                 db.query(ComponentTemplateConfigModel)
                 .filter(
                     ComponentTemplateConfigModel.template_id == existing_template.id,
-                    ComponentTemplateConfigModel.component_type == template_data["category"]
+                    ComponentTemplateConfigModel.component_type
+                    == template_data["category"],
+                    ComponentTemplateConfigModel.organization_id == organization_id,
                 )
                 .first()
             )
-
             if not existing_config:
-                # Create configuration if it doesn't exist
-                try:
-                    config = ComponentTemplateConfigModel(
-                        uuid=uuid4(),
-                        component_type=template_data["category"],
-                        template_id=existing_template.id,
-                        render_order=template_data["render_order"],
-                        enabled="true",
-                    )
-                    db.add(config)
-                    db.flush()
-                    print(f"  ✓ Configuration created for template '{template_data['name']}'")
-                except Exception as e:
-                    print(f"  ⚠ Error creating configuration: {e}")
-            else:
-                # Update render_order if necessary
-                if existing_config.render_order != template_data["render_order"]:
-                    existing_config.render_order = template_data["render_order"]
-                    print(f"  ✓ Render order updated for template '{template_data['name']}'")
-                else:
-                    print(f"  ✓ Configuration already exists for template '{template_data['name']}'")
-
-            created_templates.append(existing_template)
+                config = ComponentTemplateConfigModel(
+                    uuid=uuid4(),
+                    component_type=template_data["category"],
+                    template_id=existing_template.id,
+                    render_order=template_data["render_order"],
+                    enabled="true",
+                    organization_id=organization_id,
+                )
+                db.add(config)
+                db.flush()
+            elif existing_config.render_order != template_data["render_order"]:
+                existing_config.render_order = template_data["render_order"]
             continue
 
-        # Read file content
-        if not template_data["file_path"].exists():
-            print(f"WARNING: File not found: {template_data['file_path']}")
+        file_path = template_data["file_path"]
+        if not file_path.exists():
             continue
 
-        content = read_template_file(template_data["file_path"])
-
-        # Create the template
+        content = file_path.read_text(encoding="utf-8")
         new_template = TemplateModel(
             uuid=uuid4(),
             name=template_data["name"],
             description=template_data["description"],
             category=template_data["category"],
             content=content,
-            variables_schema=get_variables_schema(),
+            variables_schema=variables_schema,
+            organization_id=organization_id,
         )
-
         db.add(new_template)
-        db.flush()  # Flush to get the ID
+        db.flush()
 
-        # Create component_template_config configuration
         config = ComponentTemplateConfigModel(
             uuid=uuid4(),
             component_type=template_data["category"],
             template_id=new_template.id,
             render_order=template_data["render_order"],
             enabled="true",
+            organization_id=organization_id,
         )
-
         db.add(config)
-        created_templates.append(new_template)
-        print(f"✓ Template '{template_data['name']}' created successfully")
+        db.flush()
+        created.append(new_template)
 
-    db.commit()
-    return created_templates
-
-
-def main():
-    """Main function."""
-    print("🚀 Loading initial templates...")
-
-    db: Session = SessionLocal()
-    try:
-        templates = load_templates(db)
-        print(f"\n✅ {len(templates)} template(s) processed successfully!")
-    except Exception as e:
-        db.rollback()
-        print(f"\n❌ Error loading templates: {e}")
-        sys.exit(1)
-    finally:
-        db.close()
-
-
-if __name__ == "__main__":
-    main()
-
+    return created

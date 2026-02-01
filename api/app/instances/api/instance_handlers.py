@@ -18,11 +18,24 @@ from app.instances.core.instance_validators import (
     ApplicationNotFoundError,
     EnvironmentNotFoundError,
 )
-from app.users.infra.user_model import User, UserRole
-from app.shared.dependencies.auth import require_role, get_current_user
+from app.users.infra.user_model import User
+from app.shared.dependencies.auth import get_current_user
+from app.organizations.api.dependencies.organization_context import (
+    getOrganizationContext,
+)
+from app.organizations.core.authorization import (
+    OrganizationAccessContext,
+    canCreateInstance,
+    canViewInstanceByUuid,
+    canViewEnvironment,
+    canViewApplication,
+    canOperateInstanceByUuid,
+    isOrgMember,
+)
 
-
-router = APIRouter()
+router = APIRouter(
+    prefix="/organizations/{organization_uuid}/instances", tags=["instances"]
+)
 
 
 def get_instance_service(
@@ -33,15 +46,28 @@ def get_instance_service(
     return InstanceService(instance_repository, database_session)
 
 
-@router.post("/instances/", response_model=Instance)
+@router.post("/", response_model=Instance)
 def create_instance(
+    organization_uuid: UUID,
     instance: InstanceCreate,
     service: InstanceService = Depends(get_instance_service),
-    current_user: User = Depends(require_role([UserRole.ADMIN])),
+    ctx: OrganizationAccessContext = Depends(getOrganizationContext),
+    current_user: User = Depends(get_current_user),
 ):
     """Create a new instance."""
     try:
-        return service.create_instance(instance)
+        environment_id = service.get_environment_id_for_organization(
+            instance.environment_uuid, ctx.organization.id
+        )
+    except EnvironmentNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    if not canCreateInstance(ctx, environment_id):
+        raise HTTPException(
+            status_code=403,
+            detail="Insufficient permissions to create instance in this environment",
+        )
+    try:
+        return service.create_instance(instance, ctx.organization.id)
     except (ApplicationNotFoundError, EnvironmentNotFoundError) as e:
         raise HTTPException(status_code=404, detail=str(e))
     except InstanceAlreadyExistsError as e:
@@ -50,14 +76,31 @@ def create_instance(
         raise HTTPException(status_code=400, detail=str(e))
 
 
-@router.put("/instances/{uuid}", response_model=Instance)
+@router.put("/{uuid}", response_model=Instance)
 def update_instance(
+    organization_uuid: UUID,
     uuid: UUID,
     instance: InstanceUpdate,
     service: InstanceService = Depends(get_instance_service),
-    current_user: User = Depends(require_role([UserRole.ADMIN])),
+    ctx: OrganizationAccessContext = Depends(getOrganizationContext),
+    current_user: User = Depends(get_current_user),
 ):
     """Update an existing instance."""
+    # First check if instance exists and belongs to organization
+    repository = InstanceRepository(service.db)
+    instance_model = repository.find_by_uuid_with_relations(uuid)
+
+    if not instance_model:
+        raise HTTPException(status_code=404, detail="Instance not found")
+
+    # Verify instance belongs to organization
+    if instance_model.application.organization_id != ctx.organization.id:
+        raise HTTPException(status_code=404, detail="Instance not found")
+
+    # Then verify user has permission to operate this instance
+    if not canOperateInstanceByUuid(ctx, uuid, service.db):
+        raise HTTPException(status_code=403, detail="Insufficient permissions")
+
     try:
         return service.update_instance(uuid, instance)
     except InstanceNotFoundError as e:
@@ -66,53 +109,135 @@ def update_instance(
         raise HTTPException(status_code=400, detail=str(e))
 
 
-@router.get("/instances/", response_model=List[Instance])
+@router.get("/", response_model=List[Instance])
 def list_instances(
+    organization_uuid: UUID,
     skip: int = 0,
     limit: int = 100,
     service: InstanceService = Depends(get_instance_service),
+    ctx: OrganizationAccessContext = Depends(getOrganizationContext),
     current_user: User = Depends(get_current_user),
 ):
-    """List all instances."""
-    return service.get_instances(skip=skip, limit=limit)
+    """List all instances for the organization."""
+    repository = InstanceRepository(service.db)
+
+    # Get all instance models with relations for the organization
+    instance_models = repository.find_by_organization_id(
+        ctx.organization.id, skip=0, limit=10000
+    )
+
+    # If user is organization member, return all instances
+    if isOrgMember(ctx):
+        # Use service method to serialize (handles secrets stripping)
+        all_instances = service.get_instances(
+            skip=0, limit=10000, organization_id=ctx.organization.id
+        )
+        return all_instances[skip : skip + limit]
+
+    # If not a member, filter instances by application or environment access
+    filtered_models = []
+    for instance_model in instance_models:
+        if canViewApplication(ctx, instance_model.application_id) or canViewEnvironment(
+            ctx, instance_model.environment_id
+        ):
+            filtered_models.append(instance_model)
+
+    # Serialize filtered instances (strip secrets and convert to DTO)
+    # Use the same serialization logic as service.get_instances
+    filtered_instances = []
+    for instance_model in filtered_models:
+        # Strip secrets from components (same as service._strip_secrets_from_instance)
+        from app.shared.crypto import strip_secrets_from_settings
+
+        if hasattr(instance_model, "components") and instance_model.components:
+            for component in instance_model.components:
+                if component.settings:
+                    component.settings = strip_secrets_from_settings(component.settings)
+        # Convert to DTO
+        filtered_instances.append(Instance.model_validate(instance_model))
+
+    # Apply pagination
+    return filtered_instances[skip : skip + limit]
 
 
-@router.get("/instances/{uuid}", response_model=Instance)
+@router.get("/{uuid}", response_model=Instance)
 def get_instance(
+    organization_uuid: UUID,
     uuid: UUID,
     service: InstanceService = Depends(get_instance_service),
+    ctx: OrganizationAccessContext = Depends(getOrganizationContext),
     current_user: User = Depends(get_current_user),
 ):
     """Get instance by UUID."""
+    # Load instance to check permissions
+    repository = InstanceRepository(service.db)
+    instance_model = repository.find_by_uuid_with_relations(uuid)
+
+    if not instance_model:
+        raise HTTPException(status_code=404, detail="Instance not found")
+
+    # Verify instance belongs to organization
+    if instance_model.application.organization_id != ctx.organization.id:
+        raise HTTPException(status_code=404, detail="Instance not found")
+
+    # Check permissions: can view instance (checks environment) OR can view application
+    if not (
+        canViewInstanceByUuid(ctx, uuid, service.db)
+        or canViewApplication(ctx, instance_model.application_id)
+    ):
+        raise HTTPException(status_code=403, detail="Insufficient permissions")
+
     try:
         return service.get_instance(uuid)
     except InstanceNotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e))
 
 
-@router.delete("/instances/{uuid}", response_model=dict)
+@router.delete("/{uuid}", response_model=dict)
 def delete_instance(
+    organization_uuid: UUID,
     uuid: UUID,
     service: InstanceService = Depends(get_instance_service),
     database_session: Session = Depends(get_db),
-    current_user: User = Depends(require_role([UserRole.ADMIN])),
+    ctx: OrganizationAccessContext = Depends(getOrganizationContext),
+    current_user: User = Depends(get_current_user),
 ):
     """Delete an instance."""
+    if not isOrgMember(ctx):
+        raise HTTPException(status_code=403, detail="Insufficient permissions")
     try:
         return service.delete_instance(uuid, database_session)
     except InstanceNotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e))
-    except Exception as e:
+    except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
 
-@router.get("/instances/{uuid}/events", response_model=List[KubernetesEvent])
+@router.get("/{uuid}/events", response_model=List[KubernetesEvent])
 def get_instance_events(
+    organization_uuid: UUID,
     uuid: UUID,
     service: InstanceService = Depends(get_instance_service),
+    ctx: OrganizationAccessContext = Depends(getOrganizationContext),
     current_user: User = Depends(get_current_user),
 ):
     """Get Kubernetes events for an instance."""
+    if canViewInstanceByUuid(ctx, uuid, service.db):
+        pass
+    else:
+        repo = InstanceRepository(service.db)
+        inst = repo.find_by_uuid_with_relations(uuid)
+        if (
+            not inst
+            or not inst.application
+            or inst.application.organization_id != ctx.organization.id
+        ):
+            raise HTTPException(status_code=404, detail="Instance not found")
+        if not (
+            canViewApplication(ctx, inst.application_id)
+            or canViewEnvironment(ctx, inst.environment_id)
+        ):
+            raise HTTPException(status_code=403, detail="Insufficient permissions")
     try:
         return service.get_instance_events(uuid)
     except InstanceNotFoundError as e:
@@ -120,18 +245,23 @@ def get_instance_events(
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        # Log error but return empty list instead of failing
-        print(f"Error getting instance events: {e}")
-        return []
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error getting instance events: {e!s}",
+        )
 
 
-@router.post("/instances/{uuid}/sync", response_model=dict)
+@router.post("/{uuid}/sync", response_model=dict)
 def sync_instance(
+    organization_uuid: UUID,
     uuid: UUID,
     service: InstanceService = Depends(get_instance_service),
-    current_user: User = Depends(require_role([UserRole.ADMIN])),
+    ctx: OrganizationAccessContext = Depends(getOrganizationContext),
+    current_user: User = Depends(get_current_user),
 ):
     """Sync instance components with Kubernetes."""
+    if not canOperateInstanceByUuid(ctx, uuid, service.db):
+        raise HTTPException(status_code=403, detail="Insufficient permissions")
     try:
         return service.sync_instance(uuid)
     except InstanceNotFoundError as e:
@@ -139,4 +269,4 @@ def sync_instance(
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error syncing instance: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error syncing instance: {e!s}")

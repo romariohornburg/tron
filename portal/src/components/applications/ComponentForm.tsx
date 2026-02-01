@@ -16,6 +16,7 @@ interface ComponentFormProps {
   gatewayResources?: string[]
   gatewayReference?: { namespace: string; name: string }
   isAdmin?: boolean
+  organizationUuid?: string
   componentUuid?: string
   hasEnvironmentSelected?: boolean
 }
@@ -50,6 +51,7 @@ export function ComponentForm({
   gatewayResources = [],
   gatewayReference = { namespace: '', name: '' },
   isAdmin = false,
+  organizationUuid,
   componentUuid,
   hasEnvironmentSelected = true,
 }: ComponentFormProps) {
@@ -154,6 +156,7 @@ export function ComponentForm({
                 gatewayResources={gatewayResources}
                 gatewayReference={gatewayReference}
                 isAdmin={isAdmin}
+                organizationUuid={organizationUuid}
                 componentUuid={componentUuid}
                 hasEnvironmentSelected={hasEnvironmentSelected}
               />
@@ -168,6 +171,7 @@ export function ComponentForm({
                 settings={component.settings as CronSettings}
                 onChange={handleSettingsChange as (settings: CronSettings) => void}
                 isAdmin={isAdmin}
+                organizationUuid={organizationUuid}
                 componentUuid={componentUuid}
               />
             )}
@@ -181,6 +185,7 @@ export function ComponentForm({
                 settings={component.settings as WorkerSettings}
                 onChange={handleSettingsChange as (settings: WorkerSettings) => void}
                 isAdmin={isAdmin}
+                organizationUuid={organizationUuid}
                 componentUuid={componentUuid}
               />
             )}

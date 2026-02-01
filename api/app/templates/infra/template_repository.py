@@ -18,13 +18,31 @@ class TemplateRepository:
         return self.db.query(TemplateModel).filter(TemplateModel.uuid == uuid).first()
 
     def find_all(
-        self, skip: int = 0, limit: int = 100, category: str = None
+        self,
+        skip: int = 0,
+        limit: int = 100,
+        category: str = None,
+        organization_id: int | None = None,
     ) -> List[TemplateModel]:
-        """Find all templates, optionally filtered by category."""
+        """Find all templates, optionally filtered by category and organization_id."""
         query = self.db.query(TemplateModel)
+        if organization_id is not None:
+            query = query.filter(TemplateModel.organization_id == organization_id)
         if category:
             query = query.filter(TemplateModel.category == category)
         return query.offset(skip).limit(limit).all()
+
+    def find_by_organization_id(
+        self,
+        organization_id: int,
+        skip: int = 0,
+        limit: int = 100,
+        category: str = None,
+    ) -> List[TemplateModel]:
+        """Find templates by organization_id, optionally filtered by category."""
+        return self.find_all(
+            skip=skip, limit=limit, category=category, organization_id=organization_id
+        )
 
     def find_component_configs_by_template_id(
         self, template_id: int

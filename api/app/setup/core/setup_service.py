@@ -30,14 +30,19 @@ class SetupService:
         admin_email: str,
         admin_password: str,
         admin_name: str = "Administrator",
+        organization_name: str = "Default Organization",
     ) -> User:
         """
-        Initialize the system with the first admin user.
+        Initialize the system with the first admin user and a default organization.
+
+        Creates the admin user, then creates a default organization (with default groups
+        and initial templates) owned by that user.
 
         Args:
             admin_email: Email for the admin user
             admin_password: Password for the admin user
             admin_name: Full name for the admin user
+            organization_name: Name for the default organization (created after user)
 
         Returns:
             The created admin user
@@ -61,5 +66,24 @@ class SetupService:
         self.db.add(admin_user)
         self.db.commit()
         self.db.refresh(admin_user)
+
+        # Create default organization with groups and initial templates for the new user
+        from app.organizations.infra.organization_repository import (
+            OrganizationRepository,
+        )
+        from app.users.infra.user_repository import UserRepository
+        from app.organizations.core.organization_service import OrganizationService
+
+        org_repository = OrganizationRepository(self.db)
+        user_repository = UserRepository(self.db)
+        org_service = OrganizationService(
+            repository=org_repository,
+            user_repository=user_repository,
+            database_session=self.db,
+        )
+        org_service.create_organization_with_defaults(
+            organization_name=organization_name,
+            owner_user_id=admin_user.id,
+        )
 
         return admin_user

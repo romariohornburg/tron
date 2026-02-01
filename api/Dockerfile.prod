@@ -18,7 +18,7 @@ RUN apk add --virtual .build-dependencies \
             postgresql-libs \
             postgresql-dev
 
-# Variáveis para otimizar o uv
+# Variables to optimize uv
 ENV UV_COMPILE_BYTECODE=1
 ENV UV_LINK_MODE=copy
 

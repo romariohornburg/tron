@@ -22,17 +22,57 @@ class EnvironmentRepository:
             .first()
         )
 
-    def find_by_name(self, name: str) -> Optional[EnvironmentModel]:
-        """Find environment by name."""
+    def find_by_name(
+        self, name: str, organization_id: int
+    ) -> Optional[EnvironmentModel]:
+        """Find environment by name within an organization."""
         return (
             self.db.query(EnvironmentModel)
-            .filter(EnvironmentModel.name == name)
+            .filter(
+                EnvironmentModel.name == name,
+                EnvironmentModel.organization_id == organization_id,
+            )
             .first()
         )
 
-    def find_all(self, skip: int = 0, limit: int = 100) -> List[EnvironmentModel]:
-        """Find all environments."""
-        return self.db.query(EnvironmentModel).offset(skip).limit(limit).all()
+    def find_by_name_excluding_uuid(
+        self, name: str, organization_id: int, exclude_uuid: UUID
+    ) -> Optional[EnvironmentModel]:
+        """Find environment by name within an organization excluding a specific UUID."""
+        return (
+            self.db.query(EnvironmentModel)
+            .filter(
+                EnvironmentModel.name == name,
+                EnvironmentModel.organization_id == organization_id,
+                EnvironmentModel.uuid != exclude_uuid,
+            )
+            .first()
+        )
+
+    def find_all(
+        self, organization_id: int, skip: int = 0, limit: int = 100
+    ) -> List[EnvironmentModel]:
+        """Find all environments within an organization."""
+        return (
+            self.db.query(EnvironmentModel)
+            .filter(EnvironmentModel.organization_id == organization_id)
+            .offset(skip)
+            .limit(limit)
+            .all()
+        )
+
+    def find_by_uuid_and_organization(
+        self, uuid: UUID, organization_id: int
+    ) -> Optional[EnvironmentModel]:
+        """Find environment by UUID within an organization."""
+        return (
+            self.db.query(EnvironmentModel)
+            .filter(
+                EnvironmentModel.uuid == uuid,
+                EnvironmentModel.organization_id == organization_id,
+            )
+            .first()
+        )
 
     def find_components_by_environment_id(
         self, environment_id: int

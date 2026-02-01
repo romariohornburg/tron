@@ -2,31 +2,52 @@ import { api } from '../../shared/api'
 import type { Instance, InstanceCreate, KubernetesEvent } from './types'
 
 export const instancesApi = {
-  list: async (): Promise<Instance[]> => {
-    const response = await api.get<Instance[]>('/instances/')
+  list: async (organizationUuid: string): Promise<Instance[]> => {
+    if (!organizationUuid) {
+      throw new Error('Organization UUID is required')
+    }
+    const response = await api.get<Instance[]>(`/organizations/${organizationUuid}/instances/`)
     return response.data
   },
-  get: async (uuid: string): Promise<Instance> => {
-    const response = await api.get<Instance>(`/instances/${uuid}`)
+  get: async (organizationUuid: string, uuid: string): Promise<Instance> => {
+    if (!organizationUuid) {
+      throw new Error('Organization UUID is required')
+    }
+    const response = await api.get<Instance>(`/organizations/${organizationUuid}/instances/${uuid}`)
     return response.data
   },
-  create: async (data: InstanceCreate): Promise<Instance> => {
-    const response = await api.post<Instance>('/instances/', data)
+  create: async (organizationUuid: string, data: InstanceCreate): Promise<Instance> => {
+    if (!organizationUuid) {
+      throw new Error('Organization UUID is required')
+    }
+    const response = await api.post<Instance>(`/organizations/${organizationUuid}/instances/`, data)
     return response.data
   },
-  update: async (uuid: string, data: Partial<InstanceCreate>): Promise<Instance> => {
-    const response = await api.put<Instance>(`/instances/${uuid}`, data)
+  update: async (organizationUuid: string, uuid: string, data: Partial<InstanceCreate>): Promise<Instance> => {
+    if (!organizationUuid) {
+      throw new Error('Organization UUID is required')
+    }
+    const response = await api.put<Instance>(`/organizations/${organizationUuid}/instances/${uuid}`, data)
     return response.data
   },
-  delete: async (uuid: string): Promise<void> => {
-    await api.delete(`/instances/${uuid}`)
+  delete: async (organizationUuid: string, uuid: string): Promise<void> => {
+    if (!organizationUuid) {
+      throw new Error('Organization UUID is required')
+    }
+    await api.delete(`/organizations/${organizationUuid}/instances/${uuid}`)
   },
-  getEvents: async (uuid: string): Promise<KubernetesEvent[]> => {
-    const response = await api.get<KubernetesEvent[]>(`/instances/${uuid}/events`)
+  getEvents: async (organizationUuid: string, uuid: string): Promise<KubernetesEvent[]> => {
+    if (!organizationUuid) {
+      throw new Error('Organization UUID is required')
+    }
+    const response = await api.get<KubernetesEvent[]>(`/organizations/${organizationUuid}/instances/${uuid}/events`)
     return response.data
   },
-  sync: async (uuid: string): Promise<{ detail: string; synced_components: number; total_components: number; errors: Array<{ component: string; error: string }> }> => {
-    const response = await api.post(`/instances/${uuid}/sync`)
+  sync: async (organizationUuid: string, uuid: string): Promise<{ detail: string; synced_components: number; total_components: number; errors: Array<{ component: string; error: string }> }> => {
+    if (!organizationUuid) {
+      throw new Error('Organization UUID is required')
+    }
+    const response = await api.post(`/organizations/${organizationUuid}/instances/${uuid}/sync`)
     return response.data
   },
 }

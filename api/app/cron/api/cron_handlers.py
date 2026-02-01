@@ -18,9 +18,25 @@ from app.cron.core.cron_jobs_service import (
 )
 from app.users.infra.user_model import UserRole, User
 from app.shared.dependencies.auth import require_role, get_current_user
+from app.organizations.api.dependencies.organization_context import (
+    getOrganizationContext,
+)
+from app.organizations.core.authorization import (
+    OrganizationAccessContext,
+    canViewApplication,
+    canManageApplication,
+    canViewEnvironment,
+    isEnvMaintainer,
+    isEnvOperator,
+    isAppDeveloper,
+    isAppMaintainer,
+)
 
 
-router = APIRouter(prefix="/application_components/cron", tags=["cron"])
+router = APIRouter(
+    prefix="/organizations/{organization_uuid}/application_components/cron",
+    tags=["cron"],
+)
 
 
 def get_cron_service(database_session: Session = Depends(get_db)) -> CronService:
@@ -31,11 +47,34 @@ def get_cron_service(database_session: Session = Depends(get_db)) -> CronService
 
 @router.post("/", response_model=Cron)
 def create_cron(
+    organization_uuid: UUID,
     cron: CronCreate,
     service: CronService = Depends(get_cron_service),
-    current_user: User = Depends(require_role([UserRole.ADMIN])),
+    ctx: OrganizationAccessContext = Depends(getOrganizationContext),
+    current_user: User = Depends(get_current_user),
 ):
     """Create a new cron."""
+    # Validate instance belongs to organization; allow create by application or by env maintainer
+    from app.instances.infra.instance_repository import InstanceRepository
+
+    instance_repo = InstanceRepository(service.db)
+    instance = instance_repo.find_by_uuid(cron.instance_uuid)
+    if not instance:
+        raise HTTPException(status_code=404, detail="Instance not found")
+    if instance.application.organization_id != ctx.organization.id:
+        raise HTTPException(
+            status_code=403, detail="Instance does not belong to this organization"
+        )
+
+    if (
+        not canManageApplication(ctx, instance.application_id)
+        and not isEnvMaintainer(ctx, instance.environment_id)
+        and not isAppMaintainer(ctx, instance.application_id)
+    ):
+        raise HTTPException(
+            status_code=403, detail="Insufficient permissions to manage applications"
+        )
+
     try:
         return service.create_cron(cron)
     except (InstanceNotFoundError, ValueError) as e:
@@ -46,23 +85,44 @@ def create_cron(
 
 @router.get("/", response_model=list[Cron])
 def list_crons(
+    organization_uuid: UUID,
     skip: int = 0,
     limit: int = 100,
     service: CronService = Depends(get_cron_service),
+    ctx: OrganizationAccessContext = Depends(getOrganizationContext),
     current_user: User = Depends(get_current_user),
 ):
-    """List all crons."""
-    return service.get_crons(skip=skip, limit=limit)
+    """List all crons for the organization."""
+    # Get crons filtered by organization
+    return service.get_crons_by_organization(
+        ctx.organization.id, skip=skip, limit=limit
+    )
 
 
 @router.get("/{uuid}", response_model=Cron)
 def get_cron(
+    organization_uuid: UUID,
     uuid: UUID,
     service: CronService = Depends(get_cron_service),
+    ctx: OrganizationAccessContext = Depends(getOrganizationContext),
     current_user: User = Depends(get_current_user),
 ):
     """Get cron by UUID."""
     try:
+        repository = CronRepository(service.db)
+        cron_model = repository.find_by_uuid(uuid, load_relations=True)
+        if not cron_model:
+            raise HTTPException(status_code=404, detail="Cron not found")
+        if cron_model.type.value != "cron":
+            raise HTTPException(status_code=404, detail="Cron not found")
+        # Validate cron belongs to organization; allow view by application or by environment
+        if cron_model.instance and cron_model.instance.application:
+            if cron_model.instance.application.organization_id != ctx.organization.id:
+                raise HTTPException(status_code=404, detail="Cron not found")
+            if not canViewApplication(
+                ctx, cron_model.instance.application_id
+            ) and not canViewEnvironment(ctx, cron_model.instance.environment_id):
+                raise HTTPException(status_code=403, detail="Insufficient permissions")
         return service.get_cron(uuid)
     except (CronNotFoundError, CronNotCronTypeError) as e:
         raise HTTPException(status_code=404, detail=str(e))
@@ -70,13 +130,28 @@ def get_cron(
 
 @router.put("/{uuid}", response_model=Cron)
 def update_cron(
+    organization_uuid: UUID,
     uuid: UUID,
     cron: CronUpdate,
     service: CronService = Depends(get_cron_service),
-    current_user: User = Depends(require_role([UserRole.ADMIN])),
+    ctx: OrganizationAccessContext = Depends(getOrganizationContext),
+    current_user: User = Depends(get_current_user),
 ):
     """Update an existing cron."""
     try:
+        repository = CronRepository(service.db)
+        cron_model = repository.find_by_uuid(uuid, load_relations=True)
+        if not cron_model or cron_model.type.value != "cron":
+            raise HTTPException(status_code=404, detail="Cron not found")
+        if cron_model.instance and cron_model.instance.application:
+            if cron_model.instance.application.organization_id != ctx.organization.id:
+                raise HTTPException(status_code=404, detail="Cron not found")
+            if (
+                not canManageApplication(ctx, cron_model.instance.application_id)
+                and not isEnvOperator(ctx, cron_model.instance.environment_id)
+                and not isAppDeveloper(ctx, cron_model.instance.application_id)
+            ):
+                raise HTTPException(status_code=403, detail="Insufficient permissions")
         return service.update_cron(uuid, cron)
     except (CronNotFoundError, CronNotCronTypeError) as e:
         raise HTTPException(status_code=404, detail=str(e))
@@ -86,12 +161,28 @@ def update_cron(
 
 @router.delete("/{uuid}")
 def delete_cron(
+    organization_uuid: UUID,
     uuid: UUID,
     service: CronService = Depends(get_cron_service),
-    current_user: User = Depends(require_role([UserRole.ADMIN])),
+    ctx: OrganizationAccessContext = Depends(getOrganizationContext),
+    current_user: User = Depends(get_current_user),
 ):
     """Delete a cron."""
     try:
+        repository = CronRepository(service.db)
+        cron_model = repository.find_by_uuid(uuid, load_relations=True)
+        if not cron_model or cron_model.type.value != "cron":
+            raise HTTPException(status_code=404, detail="Cron not found")
+        # Validate cron belongs to organization; allow delete by application or by env maintainer
+        if cron_model.instance and cron_model.instance.application:
+            if cron_model.instance.application.organization_id != ctx.organization.id:
+                raise HTTPException(status_code=404, detail="Cron not found")
+            if (
+                not canManageApplication(ctx, cron_model.instance.application_id)
+                and not isEnvMaintainer(ctx, cron_model.instance.environment_id)
+                and not isAppMaintainer(ctx, cron_model.instance.application_id)
+            ):
+                raise HTTPException(status_code=403, detail="Insufficient permissions")
         return service.delete_cron(uuid)
     except (CronNotFoundError, CronNotCronTypeError) as e:
         raise HTTPException(status_code=404, detail=str(e))
@@ -101,8 +192,10 @@ def delete_cron(
 
 @router.get("/{uuid}/secrets")
 def get_cron_secrets(
+    organization_uuid: UUID,
     uuid: UUID,
     service: CronService = Depends(get_cron_service),
+    ctx: OrganizationAccessContext = Depends(getOrganizationContext),
     current_user: User = Depends(require_role([UserRole.ADMIN])),
 ):
     """
@@ -118,9 +211,16 @@ def get_cron_secrets(
     logger = logging.getLogger(__name__)
 
     try:
-        cron = service.get_cron_raw(uuid)
-        if not cron:
+        repository = CronRepository(service.db)
+        cron = repository.find_by_uuid(uuid, load_relations=True)
+        if not cron or cron.type.value != "cron":
             raise HTTPException(status_code=404, detail="Cron not found")
+        # Validate cron belongs to organization
+        if cron.instance and cron.instance.application:
+            if cron.instance.application.organization_id != ctx.organization.id:
+                raise HTTPException(status_code=404, detail="Cron not found")
+            if not canManageApplication(ctx, cron.instance.application_id):
+                raise HTTPException(status_code=403, detail="Insufficient permissions")
 
         # Audit log: Admin accessing secrets
         logger.info(
@@ -154,8 +254,10 @@ def get_cron_secrets(
 
 @router.get("/{uuid}/jobs", response_model=list[CronJob])
 def get_cron_jobs(
+    organization_uuid: UUID,
     uuid: UUID,
     database_session: Session = Depends(get_db),
+    ctx: OrganizationAccessContext = Depends(getOrganizationContext),
     current_user: User = Depends(get_current_user),
 ):
     """Get jobs for a cron."""
@@ -167,6 +269,15 @@ def get_cron_jobs(
 
     if cron.type.value != "cron":
         raise HTTPException(status_code=400, detail="Component is not a cron")
+
+    # Validate cron belongs to organization; allow view by application or by environment
+    if cron.instance and cron.instance.application:
+        if cron.instance.application.organization_id != ctx.organization.id:
+            raise HTTPException(status_code=404, detail="Cron not found")
+        if not canViewApplication(
+            ctx, cron.instance.application_id
+        ) and not canViewEnvironment(ctx, cron.instance.environment_id):
+            raise HTTPException(status_code=403, detail="Insufficient permissions")
 
     cluster_instance = repository.find_cluster_instance_by_component_id(cron.id)
     if not cluster_instance:
@@ -189,11 +300,13 @@ def get_cron_jobs(
 
 @router.get("/{uuid}/jobs/{job_name}/logs", response_model=CronJobLogs)
 def get_cron_job_logs(
+    organization_uuid: UUID,
     uuid: UUID,
     job_name: str,
     container_name: str = None,
     tail_lines: int = 100,
     database_session: Session = Depends(get_db),
+    ctx: OrganizationAccessContext = Depends(getOrganizationContext),
     current_user: User = Depends(get_current_user),
 ):
     """Get logs for a cron job."""
@@ -205,6 +318,15 @@ def get_cron_job_logs(
 
     if cron.type.value != "cron":
         raise HTTPException(status_code=400, detail="Component is not a cron")
+
+    # Validate cron belongs to organization; allow view by application or by environment
+    if cron.instance and cron.instance.application:
+        if cron.instance.application.organization_id != ctx.organization.id:
+            raise HTTPException(status_code=404, detail="Cron not found")
+        if not canViewApplication(
+            ctx, cron.instance.application_id
+        ) and not canViewEnvironment(ctx, cron.instance.environment_id):
+            raise HTTPException(status_code=403, detail="Insufficient permissions")
 
     cluster_instance = repository.find_cluster_instance_by_component_id(cron.id)
     if not cluster_instance:
@@ -230,10 +352,12 @@ def get_cron_job_logs(
 
 @router.delete("/{uuid}/jobs/{job_name}")
 def delete_cron_job(
+    organization_uuid: UUID,
     uuid: UUID,
     job_name: str,
     database_session: Session = Depends(get_db),
-    current_user: User = Depends(require_role([UserRole.ADMIN])),
+    ctx: OrganizationAccessContext = Depends(getOrganizationContext),
+    current_user: User = Depends(get_current_user),
 ):
     """Delete a cron job."""
     repository = CronRepository(database_session)
@@ -244,6 +368,17 @@ def delete_cron_job(
 
     if cron.type.value != "cron":
         raise HTTPException(status_code=400, detail="Component is not a cron")
+
+    # Validate cron belongs to organization; allow delete by application or by env maintainer
+    if cron.instance and cron.instance.application:
+        if cron.instance.application.organization_id != ctx.organization.id:
+            raise HTTPException(status_code=404, detail="Cron not found")
+        if (
+            not canManageApplication(ctx, cron.instance.application_id)
+            and not isEnvMaintainer(ctx, cron.instance.environment_id)
+            and not isAppMaintainer(ctx, cron.instance.application_id)
+        ):
+            raise HTTPException(status_code=403, detail="Insufficient permissions")
 
     cluster_instance = repository.find_cluster_instance_by_component_id(cron.id)
     if not cluster_instance:

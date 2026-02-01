@@ -62,13 +62,23 @@ export const ComponentTypeSection = ({
             actions={(component) => {
               const actions = []
 
-              // Add "PODs" only for webapp
+              // Add "PODs" for webapp (detail page) and worker (pods page)
               if (type === 'webapp') {
                 actions.push({
                   label: 'PODs',
                   icon: <Server size={14} />,
                   onClick: () => {
                     window.location.href = `/applications/${applicationUuid}/instances/${instanceUuid}/components/${component.uuid}`
+                  },
+                  variant: 'default' as const,
+                })
+              }
+              if (type === 'worker') {
+                actions.push({
+                  label: 'PODs',
+                  icon: <Server size={14} />,
+                  onClick: () => {
+                    window.location.href = `/applications/${applicationUuid}/instances/${instanceUuid}/components/${component.uuid}/pods`
                   },
                   variant: 'default' as const,
                 })
