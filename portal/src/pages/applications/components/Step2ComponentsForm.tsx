@@ -1,6 +1,5 @@
 import { Plus, ChevronDown, ChevronUp, Circle } from 'lucide-react'
 import { ComponentForm, type ComponentFormData } from '../../../components/applications'
-import type { Cluster } from '../../../features/clusters'
 
 interface Step2ComponentsFormProps {
   components: ComponentFormData[]

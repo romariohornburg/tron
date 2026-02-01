@@ -1,16 +1,12 @@
 import axios from 'axios'
 import { API_BASE_URL } from '../config/api'
 import type {
-  Cluster,
-  ClusterCreate,
   Environment,
   EnvironmentCreate,
   Namespace,
   NamespaceCreate,
   Workload,
   WorkloadCreate,
-  Application,
-  ApplicationCreate,
   WebappDeploy,
   WebappDeployCreate,
   Template,
@@ -38,7 +34,6 @@ import type {
   Pod,
   PodLogs,
   PodCommandResponse,
-  DashboardOverview,
   KubernetesEvent,
 } from '../types'
 

@@ -46,7 +46,9 @@ function OrganizationDetail() {
   const { data: groups = [] } = useGroups(uuid || undefined)
   const isOwner = !!organization && !!currentUser && organization.owner_user_id === currentUser.uuid
   const { data: membersFromEndpoint } = useOrganizationMembers(uuid, { enabled: !!uuid && !!organization && isOwner })
-  const members = isOwner ? (membersFromEndpoint ?? organization?.members ?? []) : (organization?.members ?? [])
+  const members = useMemo(() => {
+    return isOwner ? (membersFromEndpoint ?? organization?.members ?? []) : (organization?.members ?? [])
+  }, [isOwner, membersFromEndpoint, organization?.members])
   const ownerMember = members.find((m) => m.is_owner)
   const addMemberMutation = useAddMemberToOrganization()
   const updateMemberMutation = useUpdateOrganizationMember()

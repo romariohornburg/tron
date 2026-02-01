@@ -1,6 +1,7 @@
 import { useState, useMemo, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { AxiosError } from 'axios'
 import { X, Trash2, Plus, Pencil, ChevronDown, ChevronRight, Server, ChevronUp, AlertCircle, MoreVertical, RefreshCw, Globe } from 'lucide-react'
 import { instancesApi } from '../../services/api'
 import { useClustersByEnvironment } from '../../features/clusters/hooks/useClusters'
@@ -260,7 +261,7 @@ function InstanceDetail() {
       setIsAddComponentsModalOpen(false)
       setTimeout(() => setNotification(null), 5000)
     }
-    const onError = (error: any) => {
+    const onError = (error: AxiosError<{ detail?: string }>) => {
       setModalNotification({
         type: 'error',
         message: error.response?.data?.detail || 'Error updating component',
@@ -287,7 +288,7 @@ function InstanceDetail() {
       queryClient.invalidateQueries({ queryKey: ['application-components'] })
       setTimeout(() => setNotification(null), 5000)
     }
-    const onError = (error: any) => {
+    const onError = (error: AxiosError<{ detail?: string }>) => {
       setNotification({
         type: 'error',
         message: error.response?.data?.detail || 'Error deleting component',
@@ -334,7 +335,7 @@ function InstanceDetail() {
         setIsAddComponentsModalOpen(false)
         setTimeout(() => setNotification(null), 5000)
       }
-      const onError = (error: any) => {
+      const onError = (error: AxiosError<{ detail?: string }>) => {
         setModalNotification({
           type: 'error',
           message: error.response?.data?.detail || 'Error adding component',

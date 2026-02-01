@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { X, Trash2, Plus, Edit, Users, Calendar, Shield, Globe, Box } from 'lucide-react'
 import {
   useGroups,
@@ -34,6 +34,17 @@ function Groups() {
     is_default: false,
   })
 
+  const resetForm = useCallback(() => {
+    setFormData({
+      organization_id: selectedOrganizationUuid || '',
+      name: '',
+      description: '',
+      scope_level: 'org',
+      role: 'ORG_MEMBER',
+      is_default: false,
+    })
+  }, [selectedOrganizationUuid])
+
   useEffect(() => {
     if (selectedOrganizationUuid) {
       setFormData((prev) => ({ ...prev, organization_id: selectedOrganizationUuid }))
@@ -49,7 +60,7 @@ function Groups() {
       setTimeout(() => setNotification(null), 5000)
       createMutation.reset()
     }
-  }, [createMutation.isSuccess, createMutation])
+  }, [createMutation.isSuccess, createMutation, resetForm])
 
   useEffect(() => {
     if (createMutation.isError) {
@@ -72,7 +83,7 @@ function Groups() {
       setTimeout(() => setNotification(null), 5000)
       updateMutation.reset()
     }
-  }, [updateMutation.isSuccess, updateMutation])
+  }, [updateMutation.isSuccess, updateMutation, resetForm])
 
   useEffect(() => {
     if (updateMutation.isError) {
@@ -117,17 +128,6 @@ function Groups() {
       default:
         return 'ORG_MEMBER'
     }
-  }
-
-  const resetForm = () => {
-    setFormData({
-      organization_id: selectedOrganizationUuid || '',
-      name: '',
-      description: '',
-      scope_level: 'org',
-      role: 'ORG_MEMBER',
-      is_default: false,
-    })
   }
 
   const handleOpenCreate = () => {

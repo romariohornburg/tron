@@ -12,20 +12,13 @@ from app.environments.api.environment_dto import (
     EnvironmentWithClusters,
 )
 from app.environments.core.environment_validators import (
-    EnvironmentNotFoundError,
     EnvironmentHasComponentsError,
 )
-from app.users.infra.user_model import User, UserRole
-from app.shared.dependencies.auth import require_role, get_current_user
 from app.organizations.api.dependencies.organization_context import getOrganizationContext
 from app.organizations.core.authorization import (
     OrganizationAccessContext,
     canViewEnvironment,
-    canManageEnvironment,
-    canDeployToEnvironment,
-    canViewEnvironmentByUuid,
     canManageEnvironmentByUuid,
-    canDeployToEnvironmentByUuid,
     isOrgAdmin,
     isOrgMember,
 )

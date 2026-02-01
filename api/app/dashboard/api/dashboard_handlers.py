@@ -6,8 +6,6 @@ from app.shared.database.database import get_db
 from app.dashboard.infra.dashboard_repository import DashboardRepository
 from app.dashboard.core.dashboard_service import DashboardService
 from app.dashboard.api.dashboard_dto import DashboardOverview
-from app.users.infra.user_model import User
-from app.shared.dependencies.auth import get_current_user
 from app.organizations.api.dependencies.organization_context import getOrganizationContext
 from app.organizations.core.authorization import (
     OrganizationAccessContext,

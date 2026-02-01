@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react'
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { useAuth } from './AuthContext'
 
 interface OrganizationContextType {
@@ -13,7 +13,7 @@ const STORAGE_KEY = 'selected_organization_uuid'
 
 export function OrganizationProvider({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, user } = useAuth()
-  const organizationsFromMe = user?.organizations ?? []
+  const organizationsFromMe = useMemo(() => user?.organizations ?? [], [user?.organizations])
   const [selectedOrganizationUuid, setSelectedOrganizationUuidState] = useState<string | undefined>(undefined)
   const [isInitialized, setIsInitialized] = useState(false)
   const hasAutoSelectedRef = useRef(false)
@@ -54,7 +54,7 @@ export function OrganizationProvider({ children }: { children: React.ReactNode }
     setSelectedOrganizationUuidState(firstOrgUuid)
     sessionStorage.setItem(STORAGE_KEY, firstOrgUuid)
     hasAutoSelectedRef.current = true
-  }, [isInitialized, isAuthenticated, user?.organizations, selectedOrganizationUuid])
+  }, [isInitialized, isAuthenticated, user?.organizations, selectedOrganizationUuid, organizationsFromMe])
 
   // Reset auto-select flag when user logs out
   useEffect(() => {

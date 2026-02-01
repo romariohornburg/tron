@@ -4,10 +4,8 @@ from uuid import UUID
 from typing import Optional, List
 from app.organizations.infra.organization_model import Organization as OrganizationModel
 from app.organizations.infra.organization_member_model import OrganizationMember as OrganizationMemberModel
-from app.environments.infra.environment_model import Environment as EnvironmentModel
 from app.organizations.infra.group_model import Group as GroupModel
 from app.organizations.infra.group_member_model import GroupMember as GroupMemberModel
-from app.applications.infra.application_model import Application as ApplicationModel
 from app.organizations.core.enums import OrganizationMemberStatus, GroupRole
 
 

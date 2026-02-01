@@ -20,7 +20,7 @@ from app.organizations.core.organization_validators import (
     UserNotFoundError,
 )
 from app.users.infra.user_repository import UserRepository
-from app.organizations.core.enums import OrganizationMemberStatus, ScopeLevel, GroupRole
+from app.organizations.core.enums import OrganizationMemberStatus, GroupRole
 from app.organizations.infra.group_model import Group as GroupModel
 from app.organizations.infra.group_member_model import GroupMember as GroupMemberModel
 
@@ -316,7 +316,6 @@ class OrganizationService:
         self, organization_uuid: UUID, user_uuid: UUID
     ) -> OrganizationMemberModel:
         """Add a user as a member to an organization."""
-        from app.organizations.api.organization_member_dto import OrganizationMemberCreate
 
         # Validate organization exists
         organization = self.repository.find_by_uuid(organization_uuid)
@@ -363,7 +362,7 @@ class OrganizationService:
             self.db.query(OrganizationMemberModel)
             .filter(
                 OrganizationMemberModel.organization_id == organization_id,
-                OrganizationMemberModel.is_owner == True,
+                OrganizationMemberModel.is_owner == True,  # noqa: E712
                 OrganizationMemberModel.id != exclude_member_id
             )
             .count()
@@ -382,7 +381,6 @@ class OrganizationService:
         self, organization_uuid: UUID, member_uuid: UUID, dto
     ) -> OrganizationMemberModel:
         """Update an organization member."""
-        from app.organizations.api.organization_member_dto import OrganizationMemberUpdate
 
         organization = self.repository.find_by_uuid(organization_uuid)
         if not organization:

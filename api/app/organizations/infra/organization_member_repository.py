@@ -2,7 +2,6 @@ from sqlalchemy.orm import Session, joinedload
 from uuid import UUID
 from typing import Optional, List
 from app.organizations.infra.organization_member_model import OrganizationMember as OrganizationMemberModel
-from app.users.infra.user_model import User as UserModel
 
 
 class OrganizationMemberRepository:

@@ -1,4 +1,3 @@
-import sqlalchemy as sa
 from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey, Enum as SAEnum, CheckConstraint
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship

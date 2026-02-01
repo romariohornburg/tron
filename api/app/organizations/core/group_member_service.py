@@ -11,8 +11,6 @@ from app.organizations.api.group_member_dto import (
     GroupMember,
 )
 from app.organizations.core.group_validators import GroupNotFoundError
-from app.organizations.infra.organization_member_model import OrganizationMember as OrganizationMemberModel
-from app.organizations.infra.organization_member_repository import OrganizationMemberRepository
 
 
 class GroupMemberNotFoundError(Exception):

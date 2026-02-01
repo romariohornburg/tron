@@ -213,7 +213,7 @@ async def create_user_token(
 
     # Verify user exists and get user_id
     try:
-        target_user = user_service.get_user(target_user_uuid)
+        user_service.get_user(target_user_uuid)
     except UserNotFoundError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
 

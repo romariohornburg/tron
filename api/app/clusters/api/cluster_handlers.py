@@ -16,11 +16,8 @@ from app.clusters.core.cluster_validators import (
     ClusterConnectionError,
     EnvironmentNotFoundError,
 )
-from app.clusters.api.cluster_dto import ClusterResponseWithValidation
 from app.environments.infra.environment_repository import EnvironmentRepository
 from app.environments.core.environment_service import EnvironmentService
-from app.users.infra.user_model import User, UserRole
-from app.shared.dependencies.auth import require_role, get_current_user
 from app.organizations.api.dependencies.organization_context import getOrganizationContext
 from app.organizations.core.authorization import (
     OrganizationAccessContext,

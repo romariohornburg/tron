@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { X, Plus, Building2, Calendar, Users, FolderTree, User } from 'lucide-react'
 import { useOrganizations, useCreateOrganization, useUpdateOrganization, useDeleteOrganization } from '../../features/organizations'
@@ -25,6 +25,13 @@ function Organizations() {
     owner_user_id: currentUser?.uuid || '',
   })
 
+  const resetForm = useCallback(() => {
+    setFormData({
+      name: '',
+      owner_user_id: currentUser?.uuid || '',
+    })
+  }, [currentUser?.uuid])
+
   useEffect(() => {
     if (createMutation.isSuccess) {
       setNotification({ type: 'success', message: 'Organization created successfully' })
@@ -34,7 +41,7 @@ function Organizations() {
       setTimeout(() => setNotification(null), 5000)
       createMutation.reset()
     }
-  }, [createMutation.isSuccess, createMutation])
+  }, [createMutation.isSuccess, createMutation, resetForm])
 
   useEffect(() => {
     if (createMutation.isError) {
@@ -57,7 +64,7 @@ function Organizations() {
       setTimeout(() => setNotification(null), 5000)
       updateMutation.reset()
     }
-  }, [updateMutation.isSuccess, updateMutation])
+  }, [updateMutation.isSuccess, updateMutation, resetForm])
 
   useEffect(() => {
     if (updateMutation.isError) {
@@ -91,33 +98,12 @@ function Organizations() {
     }
   }, [deleteMutation.isError, deleteMutation])
 
-  const resetForm = () => {
-    setFormData({
-      name: '',
-      owner_user_id: currentUser?.uuid || '',
-    })
-  }
-
   const handleOpenCreate = () => {
     setEditingOrganization(null)
     resetForm()
     setIsOpen(true)
   }
 
-  const handleEdit = (organization: Organization) => {
-    setEditingOrganization(organization)
-    setFormData({
-      name: organization.name,
-      owner_user_id: organization.owner_user_id,
-    })
-    setIsOpen(true)
-  }
-
-  const handleDelete = (uuid: string) => {
-    if (window.confirm('Are you sure you want to delete this organization? This action cannot be undone.')) {
-      deleteMutation.mutate(uuid)
-    }
-  }
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()

@@ -20,7 +20,7 @@ import {
   getDefaultCronSettings,
   getDefaultWorkerSettings,
 } from '../../components/applications'
-import { Breadcrumbs, CreationPageLayout, Stepper, useStepper, type Step } from '../../shared/components'
+import { CreationPageLayout, Stepper, useStepper, type Step } from '../../shared/components'
 import { useAuth } from '../../contexts/AuthContext'
 
 function CreateApplication() {

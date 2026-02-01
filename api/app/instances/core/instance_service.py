@@ -61,7 +61,7 @@ class InstanceService:
             raise EnvironmentNotFoundError(f"Environment with UUID '{environment_uuid}' not found")
         if environment.organization_id != organization_id:
             raise EnvironmentNotFoundError(
-                f"Environment not found or does not belong to this organization"
+                "Environment not found or does not belong to this organization"
             )
         return environment.id
 

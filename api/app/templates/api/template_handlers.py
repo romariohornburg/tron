@@ -8,8 +8,6 @@ from app.templates.infra.template_repository import TemplateRepository
 from app.templates.core.template_service import TemplateService
 from app.templates.api.template_dto import TemplateCreate, TemplateUpdate, Template
 from app.templates.core.template_validators import TemplateNotFoundError
-from app.users.infra.user_model import User, UserRole
-from app.shared.dependencies.auth import require_role, get_current_user
 from app.organizations.api.dependencies.organization_context import getOrganizationContext
 from app.organizations.core.authorization import OrganizationAccessContext, isOrgAdmin
 

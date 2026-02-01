@@ -31,8 +31,6 @@ from app.webapps.core.webapp_pods_service import (
     get_webapp_pod_logs_from_cluster,
     exec_webapp_pod_command_from_cluster,
 )
-from app.users.infra.user_model import UserRole, User
-from app.shared.dependencies.auth import require_role, get_current_user
 from app.organizations.api.dependencies.organization_context import getOrganizationContext
 from app.organizations.core.authorization import (
     OrganizationAccessContext,
@@ -45,6 +43,8 @@ from app.organizations.core.authorization import (
     isAppDeveloper,
     isAppMaintainer,
 )
+from app.users.infra.user_model import User
+from app.shared.dependencies.auth import get_current_user
 
 
 router = APIRouter(prefix="/organizations/{organization_uuid}/application_components/webapp", tags=["webapp"])

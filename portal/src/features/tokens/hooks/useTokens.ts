@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { tokensApi } from '../api'
 import { useAuth } from '../../../contexts/AuthContext'
-import type { ApiToken, ApiTokenUpdate } from '../types'
+import type { ApiTokenUpdate } from '../types'
 
 // Hook to get tokens for a specific user
 export const useUserTokens = (userUuid: string | undefined, params?: { skip?: number; limit?: number; search?: string }) => {

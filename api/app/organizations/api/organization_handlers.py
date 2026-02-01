@@ -369,8 +369,6 @@ def get_member_groups(
     ctx: OrganizationAccessContext = Depends(getOrganizationContext),
 ):
     """Get all groups for an organization member."""
-    from app.organizations.api.group_dto import Group
-
     # Verify member belongs to organization
     from app.organizations.infra.organization_member_repository import OrganizationMemberRepository
     member_repo = OrganizationMemberRepository(db)

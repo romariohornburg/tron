@@ -1,5 +1,6 @@
 import { api } from '../../shared/api'
 import type { Organization, OrganizationCreate, OrganizationUpdate, OrganizationMember } from './types'
+import type { Group } from '../groups/types'
 
 export const organizationsApi = {
   list: async (params?: { skip?: number; limit?: number }): Promise<Organization[]> => {
@@ -49,8 +50,8 @@ export const organizationsApi = {
   deleteMember: async (organizationUuid: string, memberUuid: string): Promise<void> => {
     await api.delete(`/organizations/${organizationUuid}/members/${memberUuid}`)
   },
-  getMemberGroups: async (organizationUuid: string, memberUuid: string): Promise<any[]> => {
-    const response = await api.get(`/organizations/${organizationUuid}/members/${memberUuid}/groups`)
+  getMemberGroups: async (organizationUuid: string, memberUuid: string): Promise<Group[]> => {
+    const response = await api.get<Group[]>(`/organizations/${organizationUuid}/members/${memberUuid}/groups`)
     return response.data
   },
   addMemberToGroup: async (

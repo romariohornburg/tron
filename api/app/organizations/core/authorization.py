@@ -3,7 +3,7 @@ from uuid import UUID
 from typing import List, Set
 from sqlalchemy.orm import Session
 
-from app.organizations.core.enums import ScopeLevel, GroupRole, OrganizationMemberStatus
+from app.organizations.core.enums import ScopeLevel, GroupRole
 from app.organizations.infra.organization_model import Organization
 from app.organizations.infra.organization_member_model import OrganizationMember
 from app.organizations.infra.group_model import Group

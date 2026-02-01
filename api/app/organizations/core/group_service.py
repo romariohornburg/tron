@@ -19,7 +19,6 @@ from app.organizations.core.group_validators import (
     validate_organization_exists,
     validate_environment_exists,
     validate_application_exists,
-    GroupNotFoundError,
     OrganizationNotFoundError,
     EnvironmentNotFoundError,
     ApplicationNotFoundError,

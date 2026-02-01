@@ -30,7 +30,6 @@ from app.organizations.core.authorization import (
     canOperateInstanceByUuid,
     isOrgMember,
 )
-from app.instances.infra.instance_repository import InstanceRepository
 
 router = APIRouter(prefix="/organizations/{organization_uuid}/instances", tags=["instances"])
 

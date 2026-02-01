@@ -9,7 +9,6 @@ from app.environments.api.environment_dto import (
 )
 from app.environments.core.environment_validators import (
     validate_environment_create_dto,
-    validate_environment_exists,
     validate_environment_can_be_deleted,
 )
 

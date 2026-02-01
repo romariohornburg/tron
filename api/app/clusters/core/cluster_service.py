@@ -16,6 +16,7 @@ from app.clusters.core.cluster_validators import (
     validate_cluster_exists,
     validate_environment_exists,
     ClusterConnectionError,
+    EnvironmentNotFoundError,
 )
 
 # TODO: Migrate to shared/k8s

@@ -1,11 +1,10 @@
 import os
-import logging
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.openapi.docs import get_redoc_html
 
-from app.shared.database.database import Base, engine, SessionLocal
+from app.shared.database.database import Base, engine
 
 # Also import Base from old database to ensure compatibility
 from app.database import Base as OldBase
@@ -45,21 +44,21 @@ assert Base is OldBase, (
 # Import all models to ensure they are registered with SQLAlchemy
 # Import order matters for SQLAlchemy relationships
 # Models referenced by relationships must be imported before models that reference them
-from app.users.infra.user_model import User  # noqa: F401
-from app.organizations.infra.organization_model import Organization  # noqa: F401
-from app.organizations.infra.organization_member_model import OrganizationMember  # noqa: F401
-from app.organizations.infra.group_model import Group  # noqa: F401
-from app.organizations.infra.group_member_model import GroupMember  # noqa: F401
-from app.environments.infra.environment_model import Environment  # noqa: F401
-from app.applications.infra.application_model import Application  # noqa: F401
-from app.instances.infra.instance_model import Instance  # noqa: F401
-from app.clusters.infra.cluster_model import Cluster  # noqa: F401
-from app.templates.infra.template_model import Template  # noqa: F401
-from app.templates.infra.component_template_config_model import ComponentTemplateConfig  # noqa: F401
-from app.settings.infra.settings_model import Settings  # noqa: F401
-from app.auth.infra.token_model import Token  # noqa: F401
-from app.webapps.infra.application_component_model import ApplicationComponent  # noqa: F401
-from app.shared.infra.cluster_instance_model import ClusterInstance  # noqa: F401
+from app.users.infra.user_model import User  # noqa: F401, E402
+from app.organizations.infra.organization_model import Organization  # noqa: F401, E402
+from app.organizations.infra.organization_member_model import OrganizationMember  # noqa: F401, E402
+from app.organizations.infra.group_model import Group  # noqa: F401, E402
+from app.organizations.infra.group_member_model import GroupMember  # noqa: F401, E402
+from app.environments.infra.environment_model import Environment  # noqa: F401, E402
+from app.applications.infra.application_model import Application  # noqa: F401, E402
+from app.instances.infra.instance_model import Instance  # noqa: F401, E402
+from app.clusters.infra.cluster_model import Cluster  # noqa: F401, E402
+from app.templates.infra.template_model import Template  # noqa: F401, E402
+from app.templates.infra.component_template_config_model import ComponentTemplateConfig  # noqa: F401, E402
+from app.settings.infra.settings_model import Settings  # noqa: F401, E402
+from app.auth.infra.token_model import Token  # noqa: F401, E402
+from app.webapps.infra.application_component_model import ApplicationComponent  # noqa: F401, E402
+from app.shared.infra.cluster_instance_model import ClusterInstance  # noqa: F401, E402
 
 Base.metadata.create_all(bind=engine)
 
