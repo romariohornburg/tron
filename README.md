@@ -22,8 +22,8 @@ An Internal Developer Platform that simplifies application delivery on Kubernete
 - **Applications**: Deploy and manage applications with multiple instances
 - **Templates**: Reusable Kubernetes templates with Jinja2 templating
 - **Gateway API**: Native support for Gateway API routing
-- **User Management**: Role-based access control (Admin, User, Viewer)
-- **API Tokens**: Programmatic access via REST API
+- **User Management**: Flexible group-based permission system with organization, environment, and application scopes
+- **API Tokens**: User-scoped tokens that inherit permissions from the creating user
 
 ## Quick Start
 
@@ -109,16 +109,72 @@ Application: my-api
 
 ## Authentication
 
+Tron supports two authentication methods:
+
 | Method | Use Case | Header |
 |--------|----------|--------|
 | JWT | Web Portal | `Authorization: Bearer <token>` |
 | API Token | Programmatic access | `x-tron-token: <token>` |
 
-### User Roles
+### API Tokens
 
-- **Admin**: Full access to all resources
-- **User**: Limited access (read-only on administrative resources)
-- **Viewer**: Read-only access
+API tokens are **user-scoped tokens** that inherit the same permissions as the user who created them. When you create an API token, it is associated with your user account and automatically inherits all your group memberships and roles across all organizations you belong to.
+
+**Key characteristics:**
+- Tokens are created by users and linked to their account
+- Tokens inherit all permissions from the creating user (organization, environment, and application scopes)
+- Tokens can be revoked or deactivated independently
+- Tokens can have optional expiration dates
+- Tokens without an associated user are denied access
+
+**Use cases:**
+- CI/CD pipelines that need to deploy applications
+- Automation scripts that manage resources
+- Third-party integrations that require API access
+- Service accounts for specific operations
+
+## Permission Model
+
+Tron uses a flexible group-based permission system with three levels of scope: **Organization**, **Environment**, and **Application**. Users are assigned to groups that grant specific roles at each scope level.
+
+### Scopes and Roles
+
+#### Organization Scope
+
+Groups that apply to the entire organization:
+
+- **ORG_OWNER**: Full administrative access to the entire organization
+- **ORG_ADMIN**: Can manage all applications and organization access permissions
+- **ORG_MEMBER**: Can create, delete, and edit all applications in the organization
+
+#### Environment Scope
+
+Groups that apply to a specific environment:
+
+- **ENV_MAINTAINER**: Can manage all components and instances within the environment
+- **ENV_OPERATOR**: Can edit existing components but cannot create or delete instances
+- **ENV_VIEWER**: Read-only access to all resources within the environment scope
+
+#### Application Scope
+
+Groups that apply to a specific application:
+
+- **APP_MAINTAINER**: Full access to manage all aspects of a specific application
+- **APP_DEVELOPER**: Can edit and modify components within a specific application
+- **APP_VIEWER**: Read-only access to view resources within a specific application
+
+### Permission Matrix Examples
+
+**Instance Operations:**
+- **Create Instance**: Requires `ORG_MEMBER` or `ENV_MAINTAINER` (for that environment)
+- **Update Instance**: Requires `ORG_MEMBER`, `ENV_OPERATOR`, or `ENV_MAINTAINER` (for that environment)
+- **Delete Instance**: Requires `ORG_MEMBER` (only)
+- **View Instance**: Requires `ORG_MEMBER` or any environment role (`ENV_VIEWER`, `ENV_OPERATOR`, `ENV_MAINTAINER`)
+
+**Multi-Tenant Isolation:**
+- Users can only access resources from organizations they belong to
+- Cross-organization access is strictly forbidden (returns 403 Forbidden)
+- Each organization's resources are completely isolated from others
 
 ## API Documentation
 
