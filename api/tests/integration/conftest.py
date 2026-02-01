@@ -236,3 +236,119 @@ def test_organization_with_regular_user(test_db, admin_user, regular_user):
     test_db.refresh(org_member_user)
     
     return organization
+
+
+@pytest.fixture
+def user_a(test_db):
+    """Create user A for multi-tenant isolation tests."""
+    user_repository = UserRepository(test_db)
+    auth_service = AuthService(user_repository, TokenRepository(test_db))
+
+    user = User(
+        email="usera@test.com",
+        hashed_password=auth_service.get_password_hash("usera123"),
+        full_name="User A",
+        role=UserRole.USER.value,
+        is_active=True
+    )
+
+    user = user_repository.create(user)
+    test_db.commit()
+    test_db.refresh(user)
+
+    return user
+
+
+@pytest.fixture
+def user_b(test_db):
+    """Create user B for multi-tenant isolation tests."""
+    user_repository = UserRepository(test_db)
+    auth_service = AuthService(user_repository, TokenRepository(test_db))
+
+    user = User(
+        email="userb@test.com",
+        hashed_password=auth_service.get_password_hash("userb123"),
+        full_name="User B",
+        role=UserRole.USER.value,
+        is_active=True
+    )
+
+    user = user_repository.create(user)
+    test_db.commit()
+    test_db.refresh(user)
+
+    return user
+
+
+@pytest.fixture
+def user_a_token(client, user_a):
+    """Get authentication token for user A."""
+    response = client.post(
+        "/auth/login",
+        json={"email": "usera@test.com", "password": "usera123"}
+    )
+    assert response.status_code == 200
+    return response.json()["access_token"]
+
+
+@pytest.fixture
+def user_b_token(client, user_b):
+    """Get authentication token for user B."""
+    response = client.post(
+        "/auth/login",
+        json={"email": "userb@test.com", "password": "userb123"}
+    )
+    assert response.status_code == 200
+    return response.json()["access_token"]
+
+
+@pytest.fixture
+def organization_a(test_db, user_a):
+    """Create organization A owned by user A."""
+    organization_repo = OrganizationRepository(test_db)
+    organization = Organization(
+        name="organization-a",
+        owner_user_id=user_a.id
+    )
+    organization = organization_repo.create(organization)
+    test_db.commit()
+    test_db.refresh(organization)
+    
+    # Create organization member for user_a (owner)
+    org_member = OrganizationMember(
+        organization_id=organization.id,
+        user_id=user_a.id,
+        is_owner=True,
+        status=OrganizationMemberStatus.ACTIVE
+    )
+    test_db.add(org_member)
+    test_db.commit()
+    test_db.refresh(org_member)
+    
+    return organization
+
+
+@pytest.fixture
+def organization_b(test_db, user_b):
+    """Create organization B owned by user B."""
+    organization_repo = OrganizationRepository(test_db)
+    organization = Organization(
+        name="organization-b",
+        owner_user_id=user_b.id
+    )
+    organization = organization_repo.create(organization)
+    test_db.commit()
+    test_db.refresh(organization)
+    
+    # Create organization member for user_b (owner)
+    org_member = OrganizationMember(
+        organization_id=organization.id,
+        user_id=user_b.id,
+        is_owner=True,
+        status=OrganizationMemberStatus.ACTIVE
+    )
+    test_db.add(org_member)
+    test_db.commit()
+    test_db.refresh(org_member)
+    
+    return organization
