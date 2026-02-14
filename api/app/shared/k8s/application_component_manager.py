@@ -6,9 +6,6 @@ from typing import Optional
 from jinja2 import Environment, BaseLoader
 from sqlalchemy.orm import Session
 
-# When set, rendered Jinja outputs are written here for debugging (one file per template + one combined)
-TRON_DEBUG_RENDER_DIR = os.environ.get("TRON_DEBUG_RENDER_DIR", "").strip()
-
 from app.templates.infra.component_template_config_repository import (
     ComponentTemplateConfigRepository,
 )
@@ -16,6 +13,9 @@ from app.templates.infra.template_repository import TemplateRepository
 from app.templates.core.component_template_config_service import (
     ComponentTemplateConfigService,
 )
+
+# When set, rendered Jinja outputs are written here for debugging (one file per template + one combined)
+TRON_DEBUG_RENDER_DIR = os.environ.get("TRON_DEBUG_RENDER_DIR", "").strip()
 
 def _save_rendered_debug(rendered_yaml: str, label: str) -> None:
     """If TRON_DEBUG_RENDER_DIR is set, save rendered YAML to a file for debugging."""
