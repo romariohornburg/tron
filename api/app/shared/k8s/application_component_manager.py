@@ -17,6 +17,7 @@ from app.templates.core.component_template_config_service import (
 # When set, rendered Jinja outputs are written here for debugging (one file per template + one combined)
 TRON_DEBUG_RENDER_DIR = os.environ.get("TRON_DEBUG_RENDER_DIR", "").strip()
 
+
 def _save_rendered_debug(rendered_yaml: str, label: str) -> None:
     """If TRON_DEBUG_RENDER_DIR is set, save rendered YAML to a file for debugging."""
     if not TRON_DEBUG_RENDER_DIR:
@@ -28,6 +29,7 @@ def _save_rendered_debug(rendered_yaml: str, label: str) -> None:
     with open(path, "w") as f:
         f.write(rendered_yaml)
     import logging
+
     logging.getLogger(__name__).info("Debug render saved: %s", path)
 
 
@@ -41,6 +43,7 @@ def _save_combined_debug(payloads: list) -> None:
     with open(path, "w") as f:
         yaml.dump_all(payloads, f, default_flow_style=False, sort_keys=False)
     import logging
+
     logging.getLogger(__name__).info("Debug combined render saved: %s", path)
 
 

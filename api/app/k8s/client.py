@@ -713,17 +713,22 @@ class K8sClient:
                                 if kind == "Deployment" and "spec" in document:
                                     try:
                                         read_method = getattr(
-                                            api_instance, "read_namespaced_deployment", None
+                                            api_instance,
+                                            "read_namespaced_deployment",
+                                            None,
                                         )
                                         if read_method:
                                             existing_deployment = read_method(
                                                 name=name, namespace=namespace
                                             )
 
-                                            if "replicas" not in document.get("spec", {}):
+                                            if "replicas" not in document.get(
+                                                "spec", {}
+                                            ):
                                                 if (
                                                     hasattr(
-                                                        existing_deployment.spec, "replicas"
+                                                        existing_deployment.spec,
+                                                        "replicas",
                                                     )
                                                     and existing_deployment.spec.replicas
                                                     is not None
@@ -741,9 +746,9 @@ class K8sClient:
                                             ):
                                                 if "metadata" not in document:
                                                     document["metadata"] = {}
-                                                document["metadata"]["resourceVersion"] = (
-                                                    existing_deployment.metadata.resource_version
-                                                )
+                                                document["metadata"][
+                                                    "resourceVersion"
+                                                ] = existing_deployment.metadata.resource_version
                                                 if (
                                                     hasattr(
                                                         existing_deployment.metadata,
@@ -751,9 +756,9 @@ class K8sClient:
                                                     )
                                                     and existing_deployment.metadata.generation
                                                 ):
-                                                    document["metadata"]["generation"] = (
-                                                        existing_deployment.metadata.generation
-                                                    )
+                                                    document["metadata"][
+                                                        "generation"
+                                                    ] = existing_deployment.metadata.generation
                                     except ApiException as read_e:
                                         if read_e.status != 404:
                                             print(
