@@ -28,12 +28,18 @@ def build_kubernetes_payload(
 ) -> Dict[str, Any]:
     """Build Kubernetes payload for component."""
     application_component_serialized = serialize_application_component(component)
+    organization_id = (
+        component.instance.application.organization_id
+        if component.instance and component.instance.application
+        else None
+    )
     return KubernetesApplicationComponentManager.instance_management(
         application_component_serialized,
         component_type,
         settings_serialized,
         db=database_session,
         gateway_reference=gateway_reference,
+        organization_id=organization_id,
     )
 
 

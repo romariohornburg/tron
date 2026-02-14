@@ -1,4 +1,5 @@
 import json
+import time
 
 from kubernetes import client
 from kubernetes.client.rest import ApiException
@@ -585,8 +586,6 @@ class K8sClient:
                                 if e.status == 409 and retry < max_retries - 1:
                                     # Conflict error - resourceVersion changed
                                     # Retry with fresh resourceVersion
-                                    import time
-
                                     time.sleep(0.1 * (retry + 1))  # Backoff
                                     continue
                                 elif e.status == 404:
@@ -652,8 +651,6 @@ class K8sClient:
                                 elif e.status == 409 and retry < max_retries - 1:
                                     # Conflict error - resourceVersion changed
                                     # Retry with fresh resourceVersion
-                                    import time
-
                                     time.sleep(0.1 * (retry + 1))  # Backoff
                                     continue
                                 else:
@@ -695,87 +692,87 @@ class K8sClient:
                         name=name, namespace=namespace, body=document
                     )
                 elif operation == "upsert":
-                    # Try to update first, if it doesn't exist, create
-                    # Retry on 409 Conflict (resourceVersion changed) with fresh read
-                    max_retries = 3
-                    last_exception = None
-                    for attempt in range(max_retries):
-                        try:
-                            # For Deployments, preserve current replica count and resourceVersion
-                            if kind == "Deployment" and "spec" in document:
-                                try:
-                                    read_method = getattr(
-                                        api_instance, "read_namespaced_deployment", None
-                                    )
-                                    if read_method:
-                                        existing_deployment = read_method(
-                                            name=name, namespace=namespace
+                    # Try create first (avoids 404 on replace for new resources), then replace on 409 (AlreadyExists)
+                    # Retry replace on 409 Conflict (resourceVersion changed) with fresh read
+                    if document.get("metadata"):
+                        document["metadata"].pop("resourceVersion", None)
+                        document["metadata"].pop("generation", None)
+                    try:
+                        getattr(api_instance, create_method)(
+                            namespace=namespace, body=document
+                        )
+                    except ApiException as create_e:
+                        if create_e.status != 409:
+                            # Not "AlreadyExists" - e.g. 404 namespace, 422 invalid, etc.
+                            raise create_e
+                        # Resource already exists: read + replace with retry on 409
+                        max_retries = 3
+                        last_exception = None
+                        for attempt in range(max_retries):
+                            try:
+                                if kind == "Deployment" and "spec" in document:
+                                    try:
+                                        read_method = getattr(
+                                            api_instance, "read_namespaced_deployment", None
                                         )
-
-                                        # If new document doesn't specify replicas, preserve current value
-                                        # This prevents Kubernetes from resetting to default (1) or conflicting with HPA
-                                        if "replicas" not in document.get("spec", {}):
-                                            if (
-                                                hasattr(
-                                                    existing_deployment.spec, "replicas"
-                                                )
-                                                and existing_deployment.spec.replicas
-                                                is not None
-                                            ):
-                                                document["spec"]["replicas"] = (
-                                                    existing_deployment.spec.replicas
-                                                )
-
-                                        # Also preserve resourceVersion and other necessary metadata to avoid conflicts
-                                        # resourceVersion is necessary for replace to work correctly
-                                        if (
-                                            hasattr(
-                                                existing_deployment.metadata,
-                                                "resource_version",
-                                            )
-                                            and existing_deployment.metadata.resource_version
-                                        ):
-                                            if "metadata" not in document:
-                                                document["metadata"] = {}
-                                            document["metadata"]["resourceVersion"] = (
-                                                existing_deployment.metadata.resource_version
+                                        if read_method:
+                                            existing_deployment = read_method(
+                                                name=name, namespace=namespace
                                             )
 
-                                            # Also preserve generation if it exists
+                                            if "replicas" not in document.get("spec", {}):
+                                                if (
+                                                    hasattr(
+                                                        existing_deployment.spec, "replicas"
+                                                    )
+                                                    and existing_deployment.spec.replicas
+                                                    is not None
+                                                ):
+                                                    document["spec"]["replicas"] = (
+                                                        existing_deployment.spec.replicas
+                                                    )
+
                                             if (
                                                 hasattr(
                                                     existing_deployment.metadata,
-                                                    "generation",
+                                                    "resource_version",
                                                 )
-                                                and existing_deployment.metadata.generation
+                                                and existing_deployment.metadata.resource_version
                                             ):
-                                                document["metadata"]["generation"] = (
-                                                    existing_deployment.metadata.generation
+                                                if "metadata" not in document:
+                                                    document["metadata"] = {}
+                                                document["metadata"]["resourceVersion"] = (
+                                                    existing_deployment.metadata.resource_version
                                                 )
-                                except ApiException as read_e:
-                                    if read_e.status != 404:
-                                        print(
-                                            f"Warning: Could not read existing deployment to preserve replicas: {read_e}"
-                                        )
+                                                if (
+                                                    hasattr(
+                                                        existing_deployment.metadata,
+                                                        "generation",
+                                                    )
+                                                    and existing_deployment.metadata.generation
+                                                ):
+                                                    document["metadata"]["generation"] = (
+                                                        existing_deployment.metadata.generation
+                                                    )
+                                    except ApiException as read_e:
+                                        if read_e.status != 404:
+                                            print(
+                                                f"Warning: Could not read existing deployment to preserve replicas: {read_e}"
+                                            )
 
-                            getattr(api_instance, replace_method)(
-                                name=name, namespace=namespace, body=document
-                            )
-                            last_exception = None
-                            break
-                        except ApiException as e:
-                            last_exception = e
-                            if e.status == 404:
-                                getattr(api_instance, create_method)(
-                                    namespace=namespace, body=document
+                                getattr(api_instance, replace_method)(
+                                    name=name, namespace=namespace, body=document
                                 )
+                                last_exception = None
                                 break
-                            if e.status == 409 and attempt < max_retries - 1:
-                                time.sleep(0.1 * (attempt + 1))
-                                continue
-                            raise e
-                    if last_exception is not None:
-                        raise last_exception
+                            except ApiException as e:
+                                last_exception = e
+                                if e.status == 409 and attempt < max_retries - 1:
+                                    time.sleep(0.1 * (attempt + 1))
+                                    continue
+                                raise e
+                        if last_exception is not None:
+                            raise last_exception
                 elif operation == "delete":
                     try:
                         getattr(api_instance, delete_method)(

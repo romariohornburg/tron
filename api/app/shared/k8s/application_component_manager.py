@@ -1,8 +1,13 @@
 import os
+import re
 import yaml
+from datetime import datetime
 from typing import Optional
 from jinja2 import Environment, BaseLoader
 from sqlalchemy.orm import Session
+
+# When set, rendered Jinja outputs are written here for debugging (one file per template + one combined)
+TRON_DEBUG_RENDER_DIR = os.environ.get("TRON_DEBUG_RENDER_DIR", "").strip()
 
 from app.templates.infra.component_template_config_repository import (
     ComponentTemplateConfigRepository,
@@ -11,6 +16,33 @@ from app.templates.infra.template_repository import TemplateRepository
 from app.templates.core.component_template_config_service import (
     ComponentTemplateConfigService,
 )
+
+def _save_rendered_debug(rendered_yaml: str, label: str) -> None:
+    """If TRON_DEBUG_RENDER_DIR is set, save rendered YAML to a file for debugging."""
+    if not TRON_DEBUG_RENDER_DIR:
+        return
+    os.makedirs(TRON_DEBUG_RENDER_DIR, exist_ok=True)
+    safe_label = re.sub(r"[^\w\-]", "_", label)[:80]
+    timestamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+    path = os.path.join(TRON_DEBUG_RENDER_DIR, f"render_{timestamp}_{safe_label}.yaml")
+    with open(path, "w") as f:
+        f.write(rendered_yaml)
+    import logging
+    logging.getLogger(__name__).info("Debug render saved: %s", path)
+
+
+def _save_combined_debug(payloads: list) -> None:
+    """If TRON_DEBUG_RENDER_DIR is set, save combined rendered payloads as multi-doc YAML."""
+    if not TRON_DEBUG_RENDER_DIR:
+        return
+    os.makedirs(TRON_DEBUG_RENDER_DIR, exist_ok=True)
+    timestamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+    path = os.path.join(TRON_DEBUG_RENDER_DIR, f"combined_{timestamp}.yaml")
+    with open(path, "w") as f:
+        yaml.dump_all(payloads, f, default_flow_style=False, sort_keys=False)
+    import logging
+    logging.getLogger(__name__).info("Debug combined render saved: %s", path)
+
 
 # Path to the shared secrets template
 SECRETS_TEMPLATE_PATH = os.path.join(
@@ -38,6 +70,7 @@ class KubernetesApplicationComponentManager:
         settings: Optional[dict] = None,
         db: Optional[Session] = None,
         gateway_reference: Optional[dict] = None,
+        organization_id: Optional[int] = None,
     ):
         """
         Render Kubernetes templates for an application component.
@@ -48,6 +81,7 @@ class KubernetesApplicationComponentManager:
             settings: Optional dict with environment settings
             db: Database session (required)
             gateway_reference: Optional dict with gateway information (namespace, name)
+            organization_id: Optional organization id to fetch only that org's templates (avoids duplicate renders)
 
         Returns:
             List of rendered YAML dictionaries, ordered by render_order
@@ -72,12 +106,22 @@ class KubernetesApplicationComponentManager:
             "cluster": {"gateway": {"reference": gateway_reference}},
         }
 
-        # Fetch configured templates for component type
+        # Fetch configured templates for component type (scoped by organization to avoid duplicates)
         # Templates already come ordered by render_order
         config_repository = ComponentTemplateConfigRepository(db)
         template_repository = TemplateRepository(db)
         service = ComponentTemplateConfigService(config_repository, template_repository)
-        templates = service.get_templates_for_component_type(component_type)
+        templates = service.get_templates_for_component_type(
+            component_type, organization_id=organization_id
+        )
+        # Deduplicate by template id (same template in multiple configs = render once)
+        seen_ids = set()
+        unique_templates = []
+        for t in templates:
+            if t.id not in seen_ids:
+                seen_ids.add(t.id)
+                unique_templates.append(t)
+        templates = unique_templates
 
         if not templates:
             raise ValueError(
@@ -104,7 +148,7 @@ class KubernetesApplicationComponentManager:
             try:
                 rendered_yaml = (
                     KubernetesApplicationComponentManager.render_template_from_string(
-                        template.content, variables
+                        template.content, variables, debug_label=template.name
                     )
                 )
                 # Filter None documents (when template doesn't render anything due to conditions)
@@ -112,6 +156,9 @@ class KubernetesApplicationComponentManager:
                     combined_payloads.append(rendered_yaml)
             except Exception as e:
                 raise ValueError(f"Error rendering template '{template.name}': {e}")
+
+        if TRON_DEBUG_RENDER_DIR and combined_payloads:
+            _save_combined_debug(combined_payloads)
 
         return combined_payloads
 
@@ -134,7 +181,7 @@ class KubernetesApplicationComponentManager:
                 template_content = f.read()
 
             return KubernetesApplicationComponentManager.render_template_from_string(
-                template_content, variables
+                template_content, variables, debug_label="secret"
             )
         except FileNotFoundError:
             # Template file not found, skip secrets
@@ -151,13 +198,16 @@ class KubernetesApplicationComponentManager:
             return None
 
     @staticmethod
-    def render_template_from_string(template_content: str, variables: dict):
+    def render_template_from_string(
+        template_content: str, variables: dict, debug_label: Optional[str] = None
+    ):
         """
         Render a Jinja2 template from a string.
 
         Args:
             template_content: Jinja2 template content
             variables: Dictionary with variables for rendering
+            debug_label: Optional label for debug output file (used when TRON_DEBUG_RENDER_DIR is set)
 
         Returns:
             Python dictionary representing the rendered YAML
@@ -174,6 +224,9 @@ class KubernetesApplicationComponentManager:
             raise FileNotFoundError(f"Template rendering error: {e}")
 
         rendered_yaml = template.render(variables)
+
+        if TRON_DEBUG_RENDER_DIR and rendered_yaml and rendered_yaml.strip():
+            _save_rendered_debug(rendered_yaml, debug_label or "template")
 
         # If template rendered an empty string or only whitespace, return None
         if not rendered_yaml or not rendered_yaml.strip():
