@@ -262,19 +262,28 @@ class K8sClient:
         Args:
             namespace: Namespace name
             pod_name: Pod name
-            container_name: Container name (optional, if pod has multiple containers)
+            container_name: Container name (optional; when None and pod has multiple
+                containers, uses the name derived from pod minus replicaset suffix)
             tail_lines: Number of tail lines to return (default: 100)
             follow: If True, follow logs in real time (default: False)
 
         Returns:
             String with pod logs
         """
+        # When not specified, derive container name from pod name (e.g. edge-7d4d664dfd-tcb49 -> edge)
+        # so multi-container pods use the main app container
+        effective_container = container_name
+        if effective_container is None or not effective_container.strip():
+            parts = pod_name.rsplit("-", 2)
+            if len(parts) == 3:
+                effective_container = parts[0]
+
         try:
             v1 = client.CoreV1Api(self.api_client)
             logs = v1.read_namespaced_pod_log(
                 name=pod_name,
                 namespace=namespace,
-                container=container_name,
+                container=effective_container,
                 tail_lines=tail_lines,
                 follow=follow,
                 _preload_content=False,
@@ -303,11 +312,19 @@ class K8sClient:
             namespace: Namespace name
             pod_name: Pod name
             command: List with command and arguments (e.g., ['ls', '-la'])
-            container_name: Container name (optional, if pod has multiple containers)
+            container_name: Container name (optional; when None and pod has multiple
+                containers, uses the name derived from pod minus replicaset suffix)
 
         Returns:
             Tuple (stdout, stderr, return_code)
         """
+        # Same as get_pod_logs: derive container from pod name when not specified
+        effective_container = container_name
+        if effective_container is None or not effective_container.strip():
+            parts = pod_name.rsplit("-", 2)
+            if len(parts) == 3:
+                effective_container = parts[0]
+
         try:
             v1 = client.CoreV1Api(self.api_client)
 
@@ -317,7 +334,7 @@ class K8sClient:
                 pod_name,
                 namespace,
                 command=command,
-                container=container_name,
+                container=effective_container,
                 stderr=True,
                 stdin=False,
                 stdout=True,
