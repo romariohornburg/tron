@@ -1,5 +1,4 @@
 import json
-import time
 
 from kubernetes import client
 from kubernetes.client.rest import ApiException
