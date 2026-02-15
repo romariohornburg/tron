@@ -105,10 +105,15 @@ class InstanceService:
         if dto.enabled is not None:
             instance.enabled = dto.enabled
 
-        # TODO: Handle Kubernetes sync when image/version/enabled changes
-        # This will be implemented when Kubernetes features are migrated
+        updated = self.repository.update(instance)
 
-        return self.repository.update(instance)
+        # Propagate image/version/enabled changes to Kubernetes
+        if self.db and (
+            dto.image is not None or dto.version is not None or dto.enabled is not None
+        ):
+            self.sync_instance(uuid)
+
+        return updated
 
     def get_instance(self, uuid: UUID) -> Instance:
         """Get instance by UUID."""
