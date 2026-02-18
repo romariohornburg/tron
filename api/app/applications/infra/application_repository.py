@@ -56,26 +56,32 @@ class ApplicationRepository:
         return self.db.query(ApplicationModel).offset(skip).limit(limit).all()
 
     def find_by_organization_id(
-        self, organization_id: int, skip: int = 0, limit: int = 100
+        self,
+        organization_id: int,
+        skip: int = 0,
+        limit: int = 100,
+        name: Optional[str] = None,
     ) -> List[ApplicationModel]:
-        """Find all applications for a specific organization."""
-        return (
-            self.db.query(ApplicationModel)
-            .filter(ApplicationModel.organization_id == organization_id)
-            .offset(skip)
-            .limit(limit)
-            .all()
+        """Find all applications for a specific organization.
+        Optionally filter by name (case-insensitive partial match)."""
+        query = self.db.query(ApplicationModel).filter(
+            ApplicationModel.organization_id == organization_id
         )
+        if name is not None and name.strip():
+            query = query.filter(ApplicationModel.name.ilike(f"%{name.strip()}%"))
+        return query.offset(skip).limit(limit).all()
 
     def find_all_by_organization_id(
-        self, organization_id: int
+        self, organization_id: int, name: Optional[str] = None
     ) -> List[ApplicationModel]:
-        """Find all applications for a specific organization without pagination."""
-        return (
-            self.db.query(ApplicationModel)
-            .filter(ApplicationModel.organization_id == organization_id)
-            .all()
+        """Find all applications for a specific organization without pagination.
+        Optionally filter by name (case-insensitive partial match)."""
+        query = self.db.query(ApplicationModel).filter(
+            ApplicationModel.organization_id == organization_id
         )
+        if name is not None and name.strip():
+            query = query.filter(ApplicationModel.name.ilike(f"%{name.strip()}%"))
+        return query.all()
 
     def find_by_name_and_organization(
         self, name: str, organization_id: int

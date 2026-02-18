@@ -1,14 +1,17 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { applicationsApi } from '../api'
 
-export const useApplications = (organizationUuid: string | undefined) => {
+export const useApplications = (
+  organizationUuid: string | undefined,
+  name?: string
+) => {
   return useQuery({
-    queryKey: ['applications', organizationUuid],
+    queryKey: ['applications', organizationUuid, name],
     queryFn: () => {
       if (!organizationUuid) {
         throw new Error('Organization UUID is required to fetch applications')
       }
-      return applicationsApi.list(organizationUuid)
+      return applicationsApi.list(organizationUuid, name)
     },
     enabled: !!organizationUuid,
   })

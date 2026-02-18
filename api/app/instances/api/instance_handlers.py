@@ -1,7 +1,7 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from uuid import UUID
-from typing import List
+from typing import List, Optional
 
 from app.shared.database.database import get_db
 from app.instances.infra.instance_repository import InstanceRepository
@@ -114,23 +114,38 @@ def list_instances(
     organization_uuid: UUID,
     skip: int = 0,
     limit: int = 100,
+    application_uuid: Optional[UUID] = Query(
+        None, description="Filter instances by application UUID"
+    ),
     service: InstanceService = Depends(get_instance_service),
     ctx: OrganizationAccessContext = Depends(getOrganizationContext),
     current_user: User = Depends(get_current_user),
 ):
-    """List all instances for the organization."""
+    """List all instances for the organization. Optionally filter by application UUID."""
     repository = InstanceRepository(service.db)
 
-    # Get all instance models with relations for the organization
+    # If application_uuid provided, validate application exists and belongs to organization
+    if application_uuid is not None:
+        application = repository.find_application_by_uuid(application_uuid)
+        if not application or application.organization_id != ctx.organization.id:
+            raise HTTPException(status_code=404, detail="Application not found")
+
+    # Get all instance models with relations for the organization (optionally by application)
     instance_models = repository.find_by_organization_id(
-        ctx.organization.id, skip=0, limit=10000
+        ctx.organization.id,
+        skip=0,
+        limit=10000,
+        application_uuid=application_uuid,
     )
 
-    # If user is organization member, return all instances
+    # If user is organization member, return all instances (already filtered by application if requested)
     if isOrgMember(ctx):
         # Use service method to serialize (handles secrets stripping)
         all_instances = service.get_instances(
-            skip=0, limit=10000, organization_id=ctx.organization.id
+            skip=0,
+            limit=10000,
+            organization_id=ctx.organization.id,
+            application_uuid=application_uuid,
         )
         return all_instances[skip : skip + limit]
 

@@ -108,6 +108,41 @@ def test_list_applications_requires_authentication(client, test_organization):
     assert response.status_code == status.HTTP_401_UNAUTHORIZED
 
 
+def test_list_applications_filter_by_name(client, admin_token, test_organization):
+    """Test that listing applications with name filter returns only matching apps."""
+    # Create two applications with distinct names
+    for app_name in ("my-foo-app", "my-bar-service"):
+        create_resp = client.post(
+            f"/organizations/{test_organization.uuid}/applications/",
+            headers={"Authorization": f"Bearer {admin_token}"},
+            json={
+                "name": app_name,
+                "repository": "https://github.com/example/test",
+            },
+        )
+        assert create_resp.status_code == status.HTTP_200_OK
+
+    base_url = f"/organizations/{test_organization.uuid}/applications/"
+    headers = {"Authorization": f"Bearer {admin_token}"}
+
+    # List without filter
+    all_resp = client.get(base_url, headers=headers)
+    assert all_resp.status_code == status.HTTP_200_OK
+    all_data = all_resp.json()
+    assert isinstance(all_data, list)
+    assert len(all_data) >= 2
+
+    # Filter by partial name (case-insensitive)
+    filtered_resp = client.get(
+        base_url, headers=headers, params={"name": "foo"}
+    )
+    assert filtered_resp.status_code == status.HTTP_200_OK
+    filtered_data = filtered_resp.json()
+    assert isinstance(filtered_data, list)
+    assert all("foo" in app["name"].lower() for app in filtered_data)
+    assert len(filtered_data) <= len(all_data)
+
+
 def test_get_application_success(client, admin_token, test_organization):
     """Test successful application retrieval."""
     # First create an application

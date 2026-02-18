@@ -1,6 +1,7 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from uuid import UUID
+from typing import Optional
 
 from app.shared.database.database import get_db
 from app.applications.infra.application_repository import ApplicationRepository
@@ -102,22 +103,31 @@ def list_applications(
     organization_uuid: UUID,
     skip: int = 0,
     limit: int = 100,
+    name: Optional[str] = Query(
+        None, description="Filter by application name (partial, case-insensitive)"
+    ),
     service: ApplicationService = Depends(get_application_service),
     ctx: OrganizationAccessContext = Depends(getOrganizationContext),
     db: Session = Depends(get_db),
 ):
-    """List all applications for an organization that the user has permission to view."""
+    """List all applications for an organization that the user has permission to view.
+    Optionally filter by application name (partial match)."""
     from app.organizations.core.authorization import isOrgAdmin, canViewApplication
 
-    # If user is org admin, return all applications
+    # If user is org admin, return all applications (optionally filtered by name)
     if isOrgAdmin(ctx):
         return service.get_applications(
-            skip=skip, limit=limit, organization_id=ctx.organization.id
+            skip=skip,
+            limit=limit,
+            organization_id=ctx.organization.id,
+            name=name,
         )
 
     # Otherwise, filter applications based on user's groups and permissions
-    # Get all applications for the organization
-    all_applications = service.get_all_applications_by_organization(ctx.organization.id)
+    # Get all applications for the organization (optionally by name)
+    all_applications = service.get_all_applications_by_organization(
+        ctx.organization.id, name=name
+    )
 
     # Filter applications the user can view
     viewable_applications = [

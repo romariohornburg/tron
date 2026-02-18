@@ -1,5 +1,5 @@
 from uuid import uuid4, UUID
-from typing import List
+from typing import List, Optional
 from sqlalchemy.orm import Session
 
 from app.applications.infra.application_repository import ApplicationRepository
@@ -84,20 +84,28 @@ class ApplicationService:
         return self.repository.find_by_uuid(uuid)
 
     def get_applications(
-        self, skip: int = 0, limit: int = 100, organization_id: int | None = None
+        self,
+        skip: int = 0,
+        limit: int = 100,
+        organization_id: int | None = None,
+        name: Optional[str] = None,
     ) -> List[Application]:
-        """Get all applications. Optionally filter by organization_id."""
+        """Get all applications. Optionally filter by organization_id and/or name."""
         if organization_id is not None:
             return self.repository.find_by_organization_id(
-                organization_id, skip=skip, limit=limit
+                organization_id,
+                skip=skip,
+                limit=limit,
+                name=name,
             )
         return self.repository.find_all(skip=skip, limit=limit)
 
     def get_all_applications_by_organization(
-        self, organization_id: int
+        self, organization_id: int, name: Optional[str] = None
     ) -> List[ApplicationModel]:
-        """Get all applications for an organization without pagination."""
-        return self.repository.find_all_by_organization_id(organization_id)
+        """Get all applications for an organization without pagination.
+        Optionally filter by name (case-insensitive partial match)."""
+        return self.repository.find_all_by_organization_id(organization_id, name=name)
 
     def delete_application(self, uuid: UUID, database_session: Session) -> dict:
         """Delete an application and all its instances."""

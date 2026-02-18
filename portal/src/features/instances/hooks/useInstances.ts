@@ -1,14 +1,17 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { instancesApi } from '../api'
 
-export const useInstances = (organizationUuid: string | undefined) => {
+export const useInstances = (
+  organizationUuid: string | undefined,
+  applicationUuid?: string
+) => {
   return useQuery({
-    queryKey: ['instances', organizationUuid],
+    queryKey: ['instances', organizationUuid, applicationUuid],
     queryFn: () => {
       if (!organizationUuid) {
         throw new Error('Organization UUID is required to fetch instances')
       }
-      return instancesApi.list(organizationUuid)
+      return instancesApi.list(organizationUuid, applicationUuid)
     },
     enabled: !!organizationUuid,
   })

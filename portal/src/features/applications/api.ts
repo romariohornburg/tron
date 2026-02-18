@@ -2,11 +2,18 @@ import { api } from '../../shared/api'
 import type { Application, ApplicationCreate, ApplicationUpdate } from './types'
 
 export const applicationsApi = {
-  list: async (organizationUuid: string): Promise<Application[]> => {
+  list: async (
+    organizationUuid: string,
+    name?: string
+  ): Promise<Application[]> => {
     if (!organizationUuid) {
       throw new Error('Organization UUID is required')
     }
-    const response = await api.get<Application[]>(`/organizations/${organizationUuid}/applications/`)
+    const params = name != null && name.trim() !== '' ? { name: name.trim() } : {}
+    const response = await api.get<Application[]>(
+      `/organizations/${organizationUuid}/applications/`,
+      { params }
+    )
     return response.data
   },
   get: async (organizationUuid: string, uuid: string): Promise<Application> => {

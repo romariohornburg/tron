@@ -2,11 +2,19 @@ import { api } from '../../shared/api'
 import type { Instance, InstanceCreate, KubernetesEvent } from './types'
 
 export const instancesApi = {
-  list: async (organizationUuid: string): Promise<Instance[]> => {
+  list: async (
+    organizationUuid: string,
+    applicationUuid?: string
+  ): Promise<Instance[]> => {
     if (!organizationUuid) {
       throw new Error('Organization UUID is required')
     }
-    const response = await api.get<Instance[]>(`/organizations/${organizationUuid}/instances/`)
+    const params =
+      applicationUuid != null ? { application_uuid: applicationUuid } : {}
+    const response = await api.get<Instance[]>(
+      `/organizations/${organizationUuid}/instances/`,
+      { params }
+    )
     return response.data
   },
   get: async (organizationUuid: string, uuid: string): Promise<Instance> => {

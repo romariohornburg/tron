@@ -145,7 +145,9 @@ def test_get_applications(application_service, mock_repository, mock_organizatio
     result = application_service.get_applications(skip=0, limit=10, organization_id=mock_organization_id)
 
     assert result == mock_apps
-    mock_repository.find_by_organization_id.assert_called_once_with(mock_organization_id, skip=0, limit=10)
+    mock_repository.find_by_organization_id.assert_called_once_with(
+        mock_organization_id, skip=0, limit=10, name=None
+    )
 
 
 def test_delete_application_success(application_service, mock_repository):
@@ -376,7 +378,9 @@ def test_get_applications_with_pagination(application_service, mock_repository, 
     result = application_service.get_applications(skip=10, limit=20, organization_id=mock_organization_id)
 
     assert len(result) == 3
-    mock_repository.find_by_organization_id.assert_called_once_with(mock_organization_id, skip=10, limit=20)
+    mock_repository.find_by_organization_id.assert_called_once_with(
+        mock_organization_id, skip=10, limit=20, name=None
+    )
 
 
 def test_get_applications_empty(application_service, mock_repository, mock_organization_id):
@@ -387,7 +391,9 @@ def test_get_applications_empty(application_service, mock_repository, mock_organ
 
     assert result == []
     assert len(result) == 0
-    mock_repository.find_by_organization_id.assert_called_once_with(mock_organization_id, skip=0, limit=10)
+    mock_repository.find_by_organization_id.assert_called_once_with(
+        mock_organization_id, skip=0, limit=10, name=None
+    )
 
 
 def test_delete_application_instance_deletion_error(application_service, mock_repository):

@@ -122,12 +122,19 @@ class InstanceService:
         return self._strip_secrets_from_instance(instance)
 
     def get_instances(
-        self, skip: int = 0, limit: int = 100, organization_id: int | None = None
+        self,
+        skip: int = 0,
+        limit: int = 100,
+        organization_id: int | None = None,
+        application_uuid: UUID | None = None,
     ) -> List[Instance]:
-        """Get all instances. Optionally filter by organization_id."""
+        """Get all instances. Optionally filter by organization_id and/or application_uuid."""
         if organization_id is not None:
             instances = self.repository.find_by_organization_id(
-                organization_id, skip=skip, limit=limit
+                organization_id,
+                skip=skip,
+                limit=limit,
+                application_uuid=application_uuid,
             )
         else:
             instances = self.repository.find_all(

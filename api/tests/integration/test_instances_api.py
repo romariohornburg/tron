@@ -158,6 +158,62 @@ def test_list_instances_requires_authentication(client, test_organization):
     assert response.status_code == status.HTTP_401_UNAUTHORIZED
 
 
+def test_list_instances_filter_by_application_uuid(
+    client, admin_token, test_application, test_environment
+):
+    """Test that listing instances with application_uuid returns only that application's instances."""
+    # Create an instance for test_application
+    create_response = client.post(
+        f"/organizations/{test_application['organization_uuid']}/instances/",
+        headers={"Authorization": f"Bearer {admin_token}"},
+        json={
+            "application_uuid": test_application["uuid"],
+            "environment_uuid": test_environment["uuid"],
+            "image": "nginx:latest",
+            "version": "1.0.0",
+        },
+    )
+    assert create_response.status_code == status.HTTP_200_OK
+
+    org_uuid = test_application["organization_uuid"]
+    app_uuid = test_application["uuid"]
+    base_url = f"/organizations/{org_uuid}/instances/"
+    headers = {"Authorization": f"Bearer {admin_token}"}
+
+    # List without filter
+    all_response = client.get(base_url, headers=headers)
+    assert all_response.status_code == status.HTTP_200_OK
+    all_data = all_response.json()
+    assert isinstance(all_data, list)
+    assert len(all_data) >= 1
+
+    # List with application_uuid filter
+    filtered_response = client.get(
+        base_url, headers=headers, params={"application_uuid": app_uuid}
+    )
+    assert filtered_response.status_code == status.HTTP_200_OK
+    filtered_data = filtered_response.json()
+    assert isinstance(filtered_data, list)
+    assert all(
+        inst["application"]["uuid"] == app_uuid for inst in filtered_data
+    )
+    assert len(filtered_data) <= len(all_data)
+
+
+def test_list_instances_application_uuid_not_found(
+    client, admin_token, test_organization
+):
+    """Test that listing with non-existent application_uuid returns 404."""
+    fake_app_uuid = uuid4()
+    response = client.get(
+        f"/organizations/{test_organization.uuid}/instances/",
+        headers={"Authorization": f"Bearer {admin_token}"},
+        params={"application_uuid": str(fake_app_uuid)},
+    )
+    assert response.status_code == status.HTTP_404_NOT_FOUND
+    assert "Application not found" in response.json().get("detail", "")
+
+
 def test_get_instance_success(client, admin_token, test_application, test_environment):
     """Test successful retrieval of instance by UUID."""
     # Create an instance

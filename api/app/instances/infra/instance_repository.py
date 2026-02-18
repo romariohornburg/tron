@@ -102,10 +102,15 @@ class InstanceRepository:
         self.db.commit()
 
     def find_by_organization_id(
-        self, organization_id: int, skip: int = 0, limit: int = 100
+        self,
+        organization_id: int,
+        skip: int = 0,
+        limit: int = 100,
+        application_uuid: Optional[UUID] = None,
     ) -> List[InstanceModel]:
-        """Find all instances for applications in a specific organization."""
-        return (
+        """Find all instances for applications in a specific organization.
+        Optionally filter by application UUID."""
+        query = (
             self.db.query(InstanceModel)
             .join(ApplicationModel, InstanceModel.application_id == ApplicationModel.id)
             .options(
@@ -114,10 +119,10 @@ class InstanceRepository:
                 joinedload(InstanceModel.components),
             )
             .filter(ApplicationModel.organization_id == organization_id)
-            .offset(skip)
-            .limit(limit)
-            .all()
         )
+        if application_uuid is not None:
+            query = query.filter(ApplicationModel.uuid == application_uuid)
+        return query.offset(skip).limit(limit).all()
 
     def rollback(self) -> None:
         """Rollback current transaction."""
