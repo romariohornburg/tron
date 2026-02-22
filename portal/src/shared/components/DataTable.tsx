@@ -32,7 +32,7 @@ function DataTable<T>({
   getRowKey,
   actions,
   searchable = true,
-  searchPlaceholder = 'Buscar...',
+  searchPlaceholder = 'Search...',
 }: DataTableProps<T>) {
   const [searchTerm, setSearchTerm] = useState('')
   const [sortColumn, setSortColumn] = useState<keyof T | string | null>(null)

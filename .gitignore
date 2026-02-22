@@ -19,3 +19,4 @@ docker/.env
 .vscode/
 
 coverage/
+figma/

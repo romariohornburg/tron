@@ -397,7 +397,7 @@ function Users() {
                   value={formData.email}
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                   className="input w-full"
-                  placeholder="usuario@exemplo.com"
+                  placeholder="user@example.com"
                   required
                 />
               </div>
