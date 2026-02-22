@@ -129,7 +129,7 @@ export default function Login() {
                     if (errors.email) setErrors({ ...errors, email: '' })
                   }}
                   className={`input pl-10 w-full ${errors.email ? 'border-red-500' : ''}`}
-                  placeholder="seu@email.com"
+                  placeholder="your@email.com"
                   autoComplete="email"
                 />
                 {errors.email && (

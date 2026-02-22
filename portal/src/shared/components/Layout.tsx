@@ -1,7 +1,7 @@
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom'
 import { useState, useRef, useEffect } from 'react'
 import {
-  Home,
+  LayoutDashboard,
   Cloud,
   Globe,
   AppWindow,
@@ -15,6 +15,7 @@ import {
   Users,
   Key,
   Search,
+  Bell,
   ChevronLeft,
   ChevronRight,
   Building2,
@@ -26,7 +27,7 @@ import { useOrganization } from '../../contexts/OrganizationContext'
 import { APP_VERSION } from '../../config/version'
 
 const generalNavItems = [
-  { label: 'Home', path: '/', icon: Home },
+  { label: 'Dashboard', path: '/', icon: LayoutDashboard },
   { label: 'Applications', path: '/applications', icon: AppWindow },
 ]
 
@@ -70,6 +71,7 @@ function Layout() {
   const [searchQuery, setSearchQuery] = useState('')
   const [orgSelectorOpen, setOrgSelectorOpen] = useState(false)
   const [userMenuOpen, setUserMenuOpen] = useState(false)
+  const [notificationsOpen, setNotificationsOpen] = useState(false)
   const location = useLocation()
   const navigate = useNavigate()
   const { user, logout, isLoading: isAuthLoading } = useAuth()
@@ -78,6 +80,7 @@ function Layout() {
   const hasNoOrganizations = !isAuthLoading && user && (!user.organizations || user.organizations.length === 0)
   const orgSelectorRef = useRef<HTMLDivElement>(null)
   const userMenuRef = useRef<HTMLDivElement>(null)
+  const notificationsRef = useRef<HTMLDivElement>(null)
 
   const handleLogout = () => {
     logout()
@@ -118,6 +121,23 @@ function Layout() {
     }
   }, [userMenuOpen])
 
+  // Close notifications dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (notificationsRef.current && !notificationsRef.current.contains(event.target as Node)) {
+        setNotificationsOpen(false)
+      }
+    }
+
+    if (notificationsOpen) {
+      document.addEventListener('mousedown', handleClickOutside)
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [notificationsOpen])
+
   const selectedOrganization = organizations.find(org => org.uuid === selectedOrganizationUuid)
   const canManageOrg = Boolean(selectedOrganization?.is_owner || selectedOrganization?.is_admin)
 
@@ -153,64 +173,42 @@ function Layout() {
 
   return (
     <div className="min-h-screen flex flex-col">
-      {/* Header */}
-      <header className="glass-effect-strong fixed top-0 left-0 right-0 z-50 border-b border-neutral-200/80 overflow-visible">
-        <div className="flex items-center justify-between px-4 py-3 md:px-8 overflow-visible">
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => setSidebarOpen(!sidebarOpen)}
-              className="md:hidden p-2 rounded-lg text-neutral-600 hover:bg-neutral-100 transition-colors"
-            >
-              {sidebarOpen ? <X size={20} /> : <Menu size={20} />}
-            </button>
-            <Logo />
-          </div>
+      {/* Header - style from figma: logo | bar | org selector | search | user */}
+      <header className="h-16 border-b border-neutral-200 bg-white/95 backdrop-blur-sm flex items-center justify-between px-4 md:px-6 fixed top-0 left-0 right-0 z-50 shrink-0 shadow-sm">
+        <div className="flex items-center gap-4 min-w-0">
+          <button
+            onClick={() => setSidebarOpen(!sidebarOpen)}
+            className="md:hidden p-2 rounded-lg text-neutral-600 hover:bg-neutral-100 transition-colors shrink-0"
+          >
+            {sidebarOpen ? <X size={20} /> : <Menu size={20} />}
+          </button>
+          <Logo />
           {user && (
-            <div className="flex items-center gap-2 min-w-0 overflow-visible">
-              <div className="relative overflow-visible" ref={orgSelectorRef}>
+            <>
+              <div className="h-8 w-px bg-neutral-200 hidden sm:block shrink-0" />
+              <div className="relative overflow-visible shrink-0" ref={orgSelectorRef}>
                 <button
                   onClick={() => setOrgSelectorOpen(!orgSelectorOpen)}
-                  className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm hover:opacity-90 transition-opacity min-w-0"
+                  className="flex items-center gap-2 w-[140px] sm:w-[160px] h-9 px-3 rounded-lg text-sm bg-neutral-50 border border-neutral-200 hover:bg-neutral-100 transition-colors min-w-0"
                   title={selectedOrganization ? selectedOrganization.name : 'Select Organization'}
                   disabled={isLoadingOrg}
                 >
+                  <Building2 className="w-4 h-4 text-neutral-500 shrink-0" />
                   {selectedOrganization && !isLoadingOrg ? (
-                    <>
-                      <span
-                        className={`hidden md:inline-flex items-center gap-2 px-2.5 py-1 rounded-md font-medium min-w-0 max-w-[220px] truncate ${getOrgColor(selectedOrganization.uuid).bg} ${getOrgColor(selectedOrganization.uuid).text}`}
-                      >
-                        <span className={`w-2 h-2 rounded-full shrink-0 ${getOrgColor(selectedOrganization.uuid).dot}`} />
-                        <span className="truncate">{selectedOrganization.name}</span>
-                      </span>
-                      <span className="md:hidden flex items-center gap-1.5 min-w-0 max-w-[120px]">
-                        <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${getOrgColor(selectedOrganization.uuid).dot}`} />
-                        <span className={`font-medium truncate ${getOrgColor(selectedOrganization.uuid).text}`}>{selectedOrganization.name}</span>
-                      </span>
-                    </>
-                  ) : selectedOrganizationUuid && !isLoadingOrg ? (
-                    <>
-                      <Building2 size={16} className="text-neutral-400" />
-                      <span className="hidden md:inline max-w-[150px] truncate text-neutral-600">
-                        Organization
-                      </span>
-                      <span className="md:hidden font-medium truncate max-w-[120px] text-neutral-600">
-                        Organization
-                      </span>
-                    </>
+                    <span className="truncate font-medium text-neutral-700">
+                      {selectedOrganization.name}
+                    </span>
                   ) : (
-                    <>
-                      <Building2 size={16} className="text-neutral-400" />
-                      <span className="hidden md:inline max-w-[150px] truncate text-neutral-600">
-                        {isLoadingOrg ? 'Loading...' : 'Select Org'}
-                      </span>
-                    </>
+                    <span className="truncate text-neutral-600">
+                      {isLoadingOrg ? 'Loading...' : 'Select org'}
+                    </span>
                   )}
-                  <ChevronDown size={14} className={`shrink-0 text-neutral-500 transition-transform ${orgSelectorOpen ? 'rotate-180' : ''}`} />
+                  <ChevronDown size={14} className={`shrink-0 text-neutral-500 transition-transform ml-auto ${orgSelectorOpen ? 'rotate-180' : ''}`} />
                 </button>
 
                 {orgSelectorOpen && organizations.length > 0 && (
-                  <div className="absolute right-0 mt-2 w-80 min-w-64 max-w-[calc(100vw-2rem)] bg-white rounded-lg shadow-soft-lg border border-slate-200/60 py-2 z-50 animate-zoom-in">
-                    <div className="px-4 py-2 border-b border-slate-200/60">
+                  <div className="absolute left-0 mt-2 w-80 min-w-64 max-w-[calc(100vw-2rem)] bg-white rounded-lg shadow-soft-lg border border-neutral-200 py-2 z-50 animate-zoom-in">
+                    <div className="px-4 py-2 border-b border-neutral-200">
                       <span className="text-xs font-semibold text-neutral-400 uppercase tracking-wider">
                         Organizations
                       </span>
@@ -240,10 +238,45 @@ function Layout() {
                   </div>
                 )}
               </div>
+            </>
+          )}
+        </div>
 
-              <div className="relative" ref={userMenuRef}>
+        {user && (
+          <div className="flex items-center gap-3 shrink-0">
+            <div className="relative" ref={notificationsRef}>
+              <button
+                type="button"
+                onClick={() => {
+                  setNotificationsOpen(!notificationsOpen)
+                  setUserMenuOpen(false)
+                }}
+                className="relative p-2 rounded-lg text-neutral-600 hover:bg-neutral-100 transition-colors"
+                title="Notifications"
+                aria-label="Notifications"
+                aria-expanded={notificationsOpen}
+              >
+                <Bell className="w-5 h-5" />
+              </button>
+              {notificationsOpen && (
+                <div className="absolute right-0 mt-2 w-72 bg-white rounded-lg shadow-soft-lg border border-neutral-200 py-4 z-50 animate-zoom-in">
+                  <div className="px-4 py-2 border-b border-neutral-200">
+                    <span className="text-xs font-semibold text-neutral-400 uppercase tracking-wider">
+                      Notifications
+                    </span>
+                  </div>
+                  <div className="px-4 py-6 text-center text-sm text-neutral-500">
+                    No new notifications.
+                  </div>
+                </div>
+              )}
+            </div>
+            <div className="relative" ref={userMenuRef}>
                 <button
-                  onClick={() => setUserMenuOpen(!userMenuOpen)}
+                  onClick={() => {
+                    setUserMenuOpen(!userMenuOpen)
+                    setNotificationsOpen(false)
+                  }}
                   className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-neutral-600 hover:bg-neutral-100 transition-colors min-w-0 max-w-[180px] md:max-w-[220px]"
                   title={user.full_name || user.email}
                 >
@@ -253,8 +286,8 @@ function Layout() {
                 </button>
 
                 {userMenuOpen && (
-                  <div className="absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-soft-lg border border-slate-200/60 py-2 z-50 animate-zoom-in">
-                    <div className="px-4 py-2 border-b border-slate-200/60">
+                  <div className="absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-soft-lg border border-neutral-200 py-2 z-50 animate-zoom-in">
+                    <div className="px-4 py-2 border-b border-neutral-200">
                       <span className="text-xs font-semibold text-neutral-400 uppercase tracking-wider">
                         Account
                       </span>
@@ -292,9 +325,8 @@ function Layout() {
                   </div>
                 )}
               </div>
-            </div>
-          )}
-        </div>
+          </div>
+        )}
       </header>
 
       <div className="flex flex-1 mt-16">
@@ -302,27 +334,27 @@ function Layout() {
         <aside
           className={`
             fixed inset-y-0 left-0 z-40
-            ${sidebarCollapsed ? 'w-16' : 'w-64'} flex-shrink-0 glass-effect-strong border-r border-neutral-200/80
-            transform transition-all duration-300 ease-in-out
+            ${sidebarCollapsed ? 'w-16' : 'w-64'} flex-shrink-0 border-r border-neutral-200 bg-neutral-50/50
+            transform transition-all duration-200 ease-in-out
             ${sidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
             pt-16
             overflow-y-auto
             flex flex-col
           `}
         >
-          <nav className="p-4 space-y-6 flex-1">
+          <nav className="p-3 space-y-1 flex-1 overflow-y-auto">
             {/* Search bar */}
             {!sidebarCollapsed && (
-              <div className="relative">
-              <Search size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-neutral-400" />
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                onKeyDown={handleSearchKeyDown}
-                placeholder="Search menu..."
-                className="w-full pl-9 pr-3 py-2 text-sm border border-neutral-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-white text-neutral-700 placeholder-neutral-400"
-              />
+              <div className="relative mb-3">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400" />
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onKeyDown={handleSearchKeyDown}
+                  placeholder="Search menu..."
+                  className="w-full pl-9 pr-3 py-2 text-sm bg-white border border-neutral-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent text-neutral-700 placeholder-neutral-400"
+                />
               </div>
             )}
 
@@ -335,7 +367,7 @@ function Layout() {
                   </span>
                 </div>
               )}
-              <ul className="space-y-1.5">
+              <ul className="space-y-1">
                 {filteredGeneralItems.map((item) => {
                   const Icon = item.icon
                   const isActive = location.pathname === item.path
@@ -345,20 +377,14 @@ function Layout() {
                         to={item.path}
                         onClick={() => setSidebarOpen(false)}
                         className={`
-                          flex items-center ${sidebarCollapsed ? 'justify-center' : 'gap-3'} px-3 py-2.5 rounded-xl
-                          transition-all duration-200
-                          ${
-                            isActive
-                              ? 'bg-gradient-primary text-white shadow-soft font-medium'
-                              : 'text-neutral-600 hover:bg-neutral-50 hover:text-primary-600'
-                          }
+                          flex items-center ${sidebarCollapsed ? 'justify-center' : 'gap-3'} px-3 py-2 rounded-lg text-sm transition-colors
+                          ${isActive
+                            ? 'bg-primary-50 text-primary-600 font-medium'
+                            : 'text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900'}
                         `}
                       >
-                        <Icon
-                          size={sidebarCollapsed ? 22 : 18}
-                          className={`${isActive ? 'text-white' : ''} ${sidebarCollapsed ? 'min-w-[22px]' : ''}`}
-                        />
-                        {!sidebarCollapsed && <span className="text-sm">{item.label}</span>}
+                        <Icon className={`w-5 h-5 shrink-0 ${sidebarCollapsed ? '' : ''}`} />
+                        {!sidebarCollapsed && <span>{item.label}</span>}
                       </Link>
                     </li>
                   )
@@ -377,7 +403,7 @@ function Layout() {
                     </span>
                   </div>
                 )}
-                <ul className="space-y-1.5">
+                <ul className="space-y-1">
                   {filteredOrgItems.map((item) => {
                     const Icon = item.icon
                     const isActive = location.pathname === item.path
@@ -387,20 +413,14 @@ function Layout() {
                           to={item.path}
                           onClick={() => setSidebarOpen(false)}
                           className={`
-                            flex items-center ${sidebarCollapsed ? 'justify-center' : 'gap-3'} px-3 py-2.5 rounded-xl
-                            transition-all duration-200
-                            ${
-                              isActive
-                                ? 'bg-gradient-primary text-white shadow-soft font-medium'
-                                : 'text-neutral-600 hover:bg-neutral-50 hover:text-primary-600'
-                            }
+                            flex items-center ${sidebarCollapsed ? 'justify-center' : 'gap-3'} px-3 py-2 rounded-lg text-sm transition-colors
+                            ${isActive
+                              ? 'bg-primary-50 text-primary-600 font-medium'
+                              : 'text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900'}
                           `}
                         >
-                          <Icon
-                            size={sidebarCollapsed ? 22 : 18}
-                            className={`${isActive ? 'text-white' : ''} ${sidebarCollapsed ? 'min-w-[22px]' : ''}`}
-                          />
-                          {!sidebarCollapsed && <span className="text-sm">{item.label}</span>}
+                          <Icon className="w-5 h-5 shrink-0" />
+                          {!sidebarCollapsed && <span>{item.label}</span>}
                         </Link>
                       </li>
                     )
@@ -420,7 +440,7 @@ function Layout() {
                     </span>
                   </div>
                 )}
-                <ul className="space-y-1.5">
+                <ul className="space-y-1">
                   {filteredAdministrativeItems.map((item) => {
                     const Icon = item.icon
                     const isActive = location.pathname === item.path
@@ -430,20 +450,14 @@ function Layout() {
                           to={item.path}
                           onClick={() => setSidebarOpen(false)}
                           className={`
-                            flex items-center ${sidebarCollapsed ? 'justify-center' : 'gap-3'} px-3 py-2.5 rounded-xl
-                            transition-all duration-200
-                            ${
-                              isActive
-                                ? 'bg-gradient-primary text-white shadow-soft font-medium'
-                                : 'text-neutral-600 hover:bg-neutral-50 hover:text-primary-600'
-                            }
+                            flex items-center ${sidebarCollapsed ? 'justify-center' : 'gap-3'} px-3 py-2 rounded-lg text-sm transition-colors
+                            ${isActive
+                              ? 'bg-primary-50 text-primary-600 font-medium'
+                              : 'text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900'}
                           `}
                         >
-                          <Icon
-                            size={sidebarCollapsed ? 22 : 18}
-                            className={`${isActive ? 'text-white' : ''} ${sidebarCollapsed ? 'min-w-[22px]' : ''}`}
-                          />
-                          {!sidebarCollapsed && <span className="text-sm">{item.label}</span>}
+                          <Icon className="w-5 h-5 shrink-0" />
+                          {!sidebarCollapsed && <span>{item.label}</span>}
                         </Link>
                       </li>
                     )
@@ -453,19 +467,19 @@ function Layout() {
             )}
           </nav>
 
-          {/* Collapse Button */}
-          <div className="border-t border-neutral-200/80 mt-auto">
+          {/* Collapse Button - style from figma */}
+          <div className="p-3 border-t border-neutral-200 mt-auto">
             <button
               onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-              className="w-full flex items-center justify-center gap-3 px-4 py-4 text-neutral-600 hover:bg-neutral-50 hover:text-primary-600 transition-all duration-200"
+              className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-sm text-neutral-600 hover:bg-neutral-100 transition-colors"
               title={sidebarCollapsed ? 'Expand menu' : 'Collapse menu'}
             >
               {sidebarCollapsed ? (
-                <ChevronRight size={18} />
+                <ChevronRight className="w-4 h-4" />
               ) : (
                 <>
-                  <ChevronLeft size={18} />
-                  <span className="text-sm">Collapse</span>
+                  <ChevronLeft className="w-4 h-4 mr-2" />
+                  <span className="text-xs">Collapse</span>
                 </>
               )}
             </button>
