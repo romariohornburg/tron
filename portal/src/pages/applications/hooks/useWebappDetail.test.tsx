@@ -8,12 +8,14 @@ import { useWebappDetail } from './useWebappDetail'
 const mockUseWebappPods = vi.fn()
 const mockUseDeleteWebappPod = vi.fn()
 const mockUseWebappPodLogs = vi.fn()
+const mockUseWebappPodDescribe = vi.fn()
 const mockUseExecWebappPodCommand = vi.fn()
 
 vi.mock('../../../features/components', () => ({
   useWebappPods: () => mockUseWebappPods(),
   useDeleteWebappPod: () => mockUseDeleteWebappPod(),
   useWebappPodLogs: () => mockUseWebappPodLogs(),
+  useWebappPodDescribe: () => mockUseWebappPodDescribe(),
   useExecWebappPodCommand: () => mockUseExecWebappPodCommand(),
 }))
 
@@ -36,6 +38,10 @@ const createWrapper = () => {
 describe('useWebappDetail', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    mockUseWebappPodDescribe.mockReturnValue({
+      data: undefined,
+      isLoading: false,
+    } as any)
   })
 
   it('should initialize with default state', async () => {
@@ -71,6 +77,7 @@ describe('useWebappDetail', () => {
     expect(result.current.selectedPod).toBeUndefined()
     expect(result.current.isLogsModalOpen).toBe(false)
     expect(result.current.isConsoleModalOpen).toBe(false)
+    expect(result.current.isDescribeModalOpen).toBe(false)
     expect(result.current.isLiveTail).toBe(true)
     expect(result.current.commandOutput).toEqual([])
     expect(result.current.currentCommand).toBe('')

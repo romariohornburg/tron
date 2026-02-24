@@ -1,4 +1,4 @@
-import { FileText, Terminal, Trash2 } from 'lucide-react'
+import { FileText, Info, Terminal, Trash2 } from 'lucide-react'
 import { DataTable } from '../../../shared/components'
 import { formatAge } from '../utils/formatAge'
 import type { Pod } from '../../../features/components'
@@ -8,6 +8,7 @@ interface PodsTableProps {
   isLoading: boolean
   onViewLogs: (podName: string) => void
   onOpenConsole: (podName: string) => void
+  onDescribe: (podName: string) => void
   onDeletePod: (podName: string) => void
 }
 
@@ -16,6 +17,7 @@ export const PodsTable = ({
   isLoading,
   onViewLogs,
   onOpenConsole,
+  onDescribe,
   onDeletePod,
 }: PodsTableProps) => {
   return (
@@ -107,6 +109,12 @@ export const PodsTable = ({
           label: 'Console',
           icon: <Terminal size={14} />,
           onClick: () => onOpenConsole(pod.name),
+          variant: 'default' as const,
+        },
+        {
+          label: 'Describe',
+          icon: <Info size={14} />,
+          onClick: () => onDescribe(pod.name),
           variant: 'default' as const,
         },
         {

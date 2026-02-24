@@ -13,6 +13,7 @@ from app.webapps.api.webapp_dto import (
     Webapp,
     Pod,
     PodLogs,
+    PodDescribe,
     PodCommandRequest,
     PodCommandResponse,
 )
@@ -29,6 +30,7 @@ from app.webapps.core.webapp_pods_service import (
     get_webapp_pods_from_cluster,
     delete_webapp_pod_from_cluster,
     get_webapp_pod_logs_from_cluster,
+    get_webapp_pod_describe_from_cluster,
     exec_webapp_pod_command_from_cluster,
 )
 from app.organizations.api.dependencies.organization_context import (
@@ -439,6 +441,54 @@ def get_webapp_pod_logs(
     except Exception as e:
         raise HTTPException(
             status_code=500, detail=f"Failed to get logs for pod {pod_name}: {str(e)}"
+        )
+
+
+@router.get("/{uuid}/pods/{pod_name}/describe", response_model=PodDescribe)
+def get_webapp_pod_describe(
+    uuid: UUID,
+    pod_name: str,
+    database_session: Session = Depends(get_db),
+    ctx: OrganizationAccessContext = Depends(getOrganizationContext),
+    current_user: User = Depends(get_current_user),
+):
+    """Get pod description (same output as kubectl describe pod)."""
+    repository = WebappRepository(database_session)
+    webapp = repository.find_by_uuid(uuid, load_relations=True)
+
+    if not webapp:
+        raise HTTPException(status_code=404, detail="Webapp not found")
+
+    if webapp.type.value != "webapp":
+        raise HTTPException(status_code=400, detail="Component is not a webapp")
+
+    if webapp.instance and webapp.instance.application:
+        if webapp.instance.application.organization_id != ctx.organization.id:
+            raise HTTPException(status_code=404, detail="Webapp not found")
+        if not canViewApplication(
+            ctx, webapp.instance.application_id
+        ) and not canViewEnvironment(ctx, webapp.instance.environment_id):
+            raise HTTPException(status_code=403, detail="Insufficient permissions")
+
+    cluster_instance = repository.find_cluster_instance_by_component_id(webapp.id)
+    if not cluster_instance:
+        raise HTTPException(
+            status_code=404, detail="Webapp is not deployed to any cluster"
+        )
+
+    cluster = cluster_instance.cluster
+    application = webapp.instance.application
+    namespace = application.namespace if application.namespace else application.name
+
+    try:
+        describe = get_webapp_pod_describe_from_cluster(cluster, namespace, pod_name)
+        return {"describe": describe, "pod_name": pod_name}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to get describe for pod {pod_name}: {str(e)}",
         )
 
 

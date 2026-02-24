@@ -7,6 +7,7 @@ import { useWorkerDetail } from './hooks/useWorkerDetail'
 import { PodsTable } from './components/PodsTable'
 import { PodLogsModal } from './components/PodLogsModal'
 import { PodConsoleModal } from './components/PodConsoleModal'
+import { PodDescribeModal } from './components/PodDescribeModal'
 import { Breadcrumbs, PageHeader } from '../../shared/components'
 import { useOrganization } from '../../contexts/OrganizationContext'
 
@@ -43,15 +44,20 @@ function WorkerDetail() {
     selectedPod,
     isLogsModalOpen,
     isConsoleModalOpen,
+    isDescribeModalOpen,
     isLiveTail,
     podLogs,
     isLoadingLogs,
+    podDescribe,
+    isLoadingDescribe,
     commandOutput,
     currentCommand,
     handleViewLogs,
     handleOpenConsole,
+    handleOpenDescribe,
     handleCloseLogsModal,
     handleCloseConsoleModal,
+    handleCloseDescribeModal,
     handleDeletePod,
     handleCommandSubmit,
     handleCommandChange,
@@ -190,6 +196,7 @@ function WorkerDetail() {
                 isLoading={isLoadingPods}
                 onViewLogs={handleViewLogs}
                 onOpenConsole={handleOpenConsole}
+                onDescribe={handleOpenDescribe}
                 onDeletePod={handleDeletePod}
               />
 
@@ -213,6 +220,14 @@ function WorkerDetail() {
                 onCommandChange={handleCommandChange}
                 onCommandSubmit={handleCommandSubmit}
                 onKeyDown={handleKeyDown}
+              />
+
+              <PodDescribeModal
+                isOpen={isDescribeModalOpen}
+                podName={selectedPod}
+                describe={podDescribe}
+                isLoading={isLoadingDescribe}
+                onClose={handleCloseDescribeModal}
               />
             </>
           )}

@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react'
-import { useWorkerPods, useDeleteWorkerPod, useWorkerPodLogs, useExecWorkerPodCommand } from '../../../features/components'
+import { useWorkerPods, useDeleteWorkerPod, useWorkerPodLogs, useWorkerPodDescribe, useExecWorkerPodCommand } from '../../../features/components'
 import type { PodCommandResponse } from '../../../features/components'
 
 export const useWorkerDetail = (organizationUuid: string | undefined, componentUuid: string | undefined, refreshInterval: number) => {
   const [selectedPod, setSelectedPod] = useState<string | undefined>(undefined)
   const [isLogsModalOpen, setIsLogsModalOpen] = useState(false)
   const [isConsoleModalOpen, setIsConsoleModalOpen] = useState(false)
+  const [isDescribeModalOpen, setIsDescribeModalOpen] = useState(false)
   const [isLiveTail, setIsLiveTail] = useState(true)
   const [commandHistory, setCommandHistory] = useState<string[]>([])
   const [historyIndex, setHistoryIndex] = useState(-1)
@@ -28,6 +29,12 @@ export const useWorkerDetail = (organizationUuid: string | undefined, componentU
     undefined,
     100,
     isLiveTail && isLogsModalOpen ? 2000 : false
+  )
+
+  const { data: podDescribe, isLoading: isLoadingDescribe } = useWorkerPodDescribe(
+    organizationUuid,
+    componentUuid,
+    isDescribeModalOpen ? selectedPod : undefined
   )
 
   useEffect(() => {
@@ -58,6 +65,16 @@ export const useWorkerDetail = (organizationUuid: string | undefined, componentU
     setCommandOutput([])
     setCommandHistory([])
     setCurrentCommand('')
+  }
+
+  const handleOpenDescribe = (podName: string) => {
+    setSelectedPod(podName)
+    setIsDescribeModalOpen(true)
+  }
+
+  const handleCloseDescribeModal = () => {
+    setIsDescribeModalOpen(false)
+    setSelectedPod(undefined)
   }
 
   const handleCloseLogsModal = () => {
@@ -121,16 +138,21 @@ export const useWorkerDetail = (organizationUuid: string | undefined, componentU
     selectedPod,
     isLogsModalOpen,
     isConsoleModalOpen,
+    isDescribeModalOpen,
     isLiveTail,
     podLogs: podLogs?.logs,
     isLoadingLogs,
+    podDescribe: podDescribe?.describe,
+    isLoadingDescribe,
     commandOutput,
     currentCommand,
     isExecuting: execCommandMutation.isPending,
     handleViewLogs,
     handleOpenConsole,
+    handleOpenDescribe,
     handleCloseLogsModal,
     handleCloseConsoleModal,
+    handleCloseDescribeModal,
     handleDeletePod,
     handleCommandSubmit,
     handleCommandChange,
