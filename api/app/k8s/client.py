@@ -373,6 +373,228 @@ class K8sClient:
                 status_code=500, detail=f"Failed to execute command: {str(e)}"
             )
 
+    def describe_pod(self, namespace: str, pod_name: str) -> str:
+        """
+        Get pod description in a format similar to kubectl describe pod.
+
+        Args:
+            namespace: Namespace name
+            pod_name: Pod name
+
+        Returns:
+            Human-readable pod description (same kind of output as kubectl describe pod)
+        """
+        try:
+            v1 = client.CoreV1Api(self.api_client)
+            pod = v1.read_namespaced_pod(name=pod_name, namespace=namespace)
+
+            lines = []
+
+            # Name & Namespace
+            lines.append(f"Name:             {pod.metadata.name}")
+            lines.append(f"Namespace:        {pod.metadata.namespace}")
+            if pod.spec and pod.spec.priority_class_name:
+                lines.append(f"Priority Class:   {pod.spec.priority_class_name}")
+            if pod.spec and pod.spec.node_name:
+                lines.append(f"Node:             {pod.spec.node_name}")
+            if pod.status and pod.status.host_ip:
+                lines.append(f"Host IP:          {pod.status.host_ip}")
+            if pod.status and pod.status.pod_ip:
+                lines.append(f"Pod IP:           {pod.status.pod_ip}")
+
+            # Labels
+            if pod.metadata.labels:
+                lines.append("Labels:")
+                for k, v in sorted(pod.metadata.labels.items()):
+                    lines.append(f"  {k}={v}")
+            else:
+                lines.append("Labels:           <none>")
+
+            # Annotations
+            if pod.metadata.annotations:
+                lines.append("Annotations:")
+                for k, v in sorted(pod.metadata.annotations.items()):
+                    lines.append(f"  {k}: {v}")
+            else:
+                lines.append("Annotations:      <none>")
+
+            # Status
+            lines.append(
+                "Status:           {}".format(
+                    pod.status.phase if pod.status else "Unknown"
+                )
+            )
+            if pod.status and pod.status.reason:
+                lines.append(f"Reason:           {pod.status.reason}")
+            if pod.status and pod.status.message:
+                lines.append(f"Message:          {pod.status.message}")
+
+            # Conditions
+            if pod.status and pod.status.conditions:
+                lines.append("Conditions:")
+                lines.append("  Type              Status")
+                for c in pod.status.conditions:
+                    status = "True" if c.status == "True" else "False"
+                    lines.append(f"  {c.type:<17} {status}")
+                    if c.reason:
+                        lines.append(f"  Reason: {c.reason}")
+                    if c.message:
+                        lines.append(f"  Message: {c.message}")
+
+            # Containers
+            if pod.spec and pod.spec.containers:
+                lines.append("Containers:")
+                for container in pod.spec.containers:
+                    lines.append(f"  {container.name}:")
+                    lines.append(f"    Image:         {container.image}")
+                    if container.image_pull_policy:
+                        lines.append(
+                            f"    Image Pull Policy: {container.image_pull_policy}"
+                        )
+                    # Container state from status
+                    if pod.status and pod.status.container_statuses:
+                        for cs in pod.status.container_statuses:
+                            if cs.name == container.name:
+                                ready = "True" if cs.ready else "False"
+                                lines.append(f"    Ready:          {ready}")
+                                lines.append(f"    Restart Count:  {cs.restart_count}")
+                                if cs.state:
+                                    if cs.state.running:
+                                        lines.append("    State:          Running")
+                                    elif cs.state.waiting:
+                                        lines.append("    State:          Waiting")
+                                        if cs.state.waiting.reason:
+                                            lines.append(
+                                                f"      Reason:       {cs.state.waiting.reason}"
+                                            )
+                                        if cs.state.waiting.message:
+                                            lines.append(
+                                                f"      Message:      {cs.state.waiting.message}"
+                                            )
+                                    elif cs.state.terminated:
+                                        lines.append("    State:          Terminated")
+                                        if cs.state.terminated.reason:
+                                            lines.append(
+                                                f"      Reason:       {cs.state.terminated.reason}"
+                                            )
+                                        if cs.state.terminated.exit_code is not None:
+                                            lines.append(
+                                                f"      Exit Code:    {cs.state.terminated.exit_code}"
+                                            )
+                                if cs.last_state:
+                                    if cs.last_state.terminated:
+                                        lines.append("    Last State:     Terminated")
+                                        if cs.last_state.terminated.reason:
+                                            lines.append(
+                                                f"      Reason:       {cs.last_state.terminated.reason}"
+                                            )
+                                        if (
+                                            cs.last_state.terminated.exit_code
+                                            is not None
+                                        ):
+                                            lines.append(
+                                                f"      Exit Code:    {cs.last_state.terminated.exit_code}"
+                                            )
+                                break
+                    lines.append("")
+            # Volumes
+            if pod.spec and pod.spec.volumes:
+                lines.append("Volumes:")
+                for vol in pod.spec.volumes:
+                    lines.append(f"  {vol.name}:")
+                    if vol.secret:
+                        lines.append(
+                            "    Type:        Secret (a volume populated by a Secret)"
+                        )
+                        lines.append(f"    SecretName:  {vol.secret.secret_name}")
+                    elif vol.config_map:
+                        lines.append(
+                            "    Type:        ConfigMap (a volume populated by a ConfigMap)"
+                        )
+                        lines.append(f"    ConfigMapName: {vol.config_map.name}")
+                    elif vol.empty_dir:
+                        lines.append(
+                            "    Type:        EmptyDir (a temporary directory that shares a pod's lifetime)"
+                        )
+                    elif vol.persistent_volume_claim:
+                        lines.append("    Type:        PersistentVolumeClaim")
+                        lines.append(
+                            f"    ClaimName:   {vol.persistent_volume_claim.claim_name}"
+                        )
+                    else:
+                        lines.append("    Type:        <unknown>")
+                lines.append("")
+
+            # Events
+            try:
+                field_selector = f"involvedObject.name={pod_name}"
+                events = v1.list_namespaced_event(
+                    namespace=namespace, field_selector=field_selector
+                ).items
+                if events:
+                    from datetime import datetime as dt, timezone as tz
+
+                    def _event_ts(e):
+                        return (
+                            e.first_timestamp
+                            or e.last_timestamp
+                            or (e.metadata.creation_timestamp if e.metadata else None)
+                            or dt.min.replace(tzinfo=tz.utc)
+                        )
+
+                    lines.append("Events:")
+                    lines.append(
+                        "  Type    Reason     Age   From               Message"
+                    )
+                    lines.append(
+                        "  ----    ------     ----  ----               -------"
+                    )
+                    for event in sorted(events, key=_event_ts):
+                        age = ""
+                        if event.first_timestamp:
+                            from datetime import datetime, timezone
+
+                            now = datetime.now(timezone.utc)
+                            age_seconds = int(
+                                (now - event.first_timestamp).total_seconds()
+                            )
+                            if age_seconds < 60:
+                                age = f"{age_seconds}s"
+                            elif age_seconds < 3600:
+                                age = f"{age_seconds // 60}m"
+                            else:
+                                age = f"{age_seconds // 3600}h"
+                        event_type = event.type or "Normal"
+                        reason = (event.reason or "")[:9]
+                        message = (event.message or "")[:50]
+                        count = event.count or 1
+                        source = (
+                            event.source.component
+                            if event.source and event.source.component
+                            else "unknown"
+                        )[:20]
+                        lines.append(
+                            f"  {event_type:<7} {reason:<9} {age:<5} {source:<20} {message} (x{count})"
+                        )
+                else:
+                    lines.append("Events:  <none>")
+            except Exception:
+                lines.append("Events:  <none>")
+
+            return "\n".join(lines)
+        except ApiException as e:
+            if e.status == 404:
+                raise HTTPException(status_code=404, detail=f"Pod {pod_name} not found")
+            print(f"Error describing pod {pod_name}: {e}")
+            raise HTTPException(
+                status_code=e.status, detail=f"Failed to describe pod: {str(e)}"
+            )
+        except Exception as e:
+            print(f"Error describing pod {pod_name}: {e}")
+            raise HTTPException(
+                status_code=500, detail=f"Failed to describe pod: {str(e)}"
+            )
+
     def cleanup_orphaned_gateway_resources(
         self, namespace: str, component_name: str, expected_resources: list
     ):

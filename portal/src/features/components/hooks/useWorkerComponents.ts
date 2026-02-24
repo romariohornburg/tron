@@ -83,6 +83,14 @@ export const useWorkerPodLogs = (organizationUuid: string | undefined, uuid: str
   })
 }
 
+export const useWorkerPodDescribe = (organizationUuid: string | undefined, uuid: string | undefined, podName: string | undefined) => {
+  return useQuery({
+    queryKey: ['worker-pod-describe', organizationUuid, uuid, podName],
+    queryFn: () => workerComponentsApi.getPodDescribe(organizationUuid!, uuid!, podName!),
+    enabled: !!organizationUuid && !!uuid && !!podName,
+  })
+}
+
 export const useExecWorkerPodCommand = (organizationUuid: string | undefined) => {
   return useMutation({
     mutationFn: ({ uuid, podName, command, containerName }: { uuid: string; podName: string; command: string[]; containerName?: string }) =>

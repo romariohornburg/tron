@@ -42,6 +42,11 @@ export interface PodLogs {
   container_name?: string | null
 }
 
+export interface PodDescribe {
+  describe: string
+  pod_name: string
+}
+
 export interface PodCommandResponse {
   stdout: string
   stderr: string

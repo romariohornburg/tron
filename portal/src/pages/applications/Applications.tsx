@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, Fragment } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Trash2, Plus, X, RefreshCw, Server, ChevronRight, ChevronDown, Layers, Globe, Clock, Cpu, Search, AppWindow } from 'lucide-react'
 import { useInstances } from '../../features/instances'
@@ -344,9 +344,8 @@ function Applications() {
                 filteredApplications.map((row) => {
                   const isExpanded = expandedApplications.has(row.application.uuid)
                   return (
-                    <>
+                    <Fragment key={row.application.uuid}>
                       <tr
-                        key={row.application.uuid}
                         className="hover:bg-primary-50/30 transition-colors border-b border-neutral-50 cursor-pointer"
                         onClick={() => toggleExpand(row.application.uuid)}
                       >
@@ -417,7 +416,8 @@ function Applications() {
                           </div>
                         </td>
                       </tr>
-                      {isExpanded && row.instances.map((instance) => (
+                      {isExpanded &&
+                        row.instances.map((instance) => (
                         <tr
                           key={instance.uuid}
                           className="bg-neutral-50/50 hover:bg-neutral-100/50 transition-colors cursor-pointer"
@@ -519,7 +519,7 @@ function Applications() {
                           </td>
                         </tr>
                       ))}
-                    </>
+                    </Fragment>
                   )
                 })
               )}

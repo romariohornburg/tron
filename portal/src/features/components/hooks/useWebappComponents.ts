@@ -83,6 +83,14 @@ export const useWebappPodLogs = (organizationUuid: string | undefined, uuid: str
   })
 }
 
+export const useWebappPodDescribe = (organizationUuid: string | undefined, uuid: string | undefined, podName: string | undefined) => {
+  return useQuery({
+    queryKey: ['webapp-pod-describe', organizationUuid, uuid, podName],
+    queryFn: () => webappComponentsApi.getPodDescribe(organizationUuid!, uuid!, podName!),
+    enabled: !!organizationUuid && !!uuid && !!podName,
+  })
+}
+
 export const useExecWebappPodCommand = (organizationUuid: string | undefined) => {
   return useMutation({
     mutationFn: ({ uuid, podName, command, containerName }: { uuid: string; podName: string; command: string[]; containerName?: string }) =>

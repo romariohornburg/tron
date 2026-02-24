@@ -7,6 +7,7 @@ import { useWebappDetail } from './hooks/useWebappDetail'
 import { PodsTable } from './components/PodsTable'
 import { PodLogsModal } from './components/PodLogsModal'
 import { PodConsoleModal } from './components/PodConsoleModal'
+import { PodDescribeModal } from './components/PodDescribeModal'
 import { Breadcrumbs, PageHeader } from '../../shared/components'
 import { useOrganization } from '../../contexts/OrganizationContext'
 
@@ -45,16 +46,21 @@ function WebappDetail() {
     selectedPod,
     isLogsModalOpen,
     isConsoleModalOpen,
+    isDescribeModalOpen,
     isLiveTail,
     podLogs,
     isLoadingLogs,
+    podDescribe,
+    isLoadingDescribe,
     commandOutput,
     currentCommand,
     isExecuting,
     handleViewLogs,
     handleOpenConsole,
+    handleOpenDescribe,
     handleCloseLogsModal,
     handleCloseConsoleModal,
+    handleCloseDescribeModal,
     handleDeletePod,
     handleCommandSubmit,
     handleCommandChange,
@@ -192,6 +198,7 @@ function WebappDetail() {
                 isLoading={isLoadingPods}
                 onViewLogs={handleViewLogs}
                 onOpenConsole={handleOpenConsole}
+                onDescribe={handleOpenDescribe}
                 onDeletePod={handleDeletePod}
               />
 
@@ -215,6 +222,14 @@ function WebappDetail() {
                 onCommandChange={handleCommandChange}
                 onCommandSubmit={handleCommandSubmit}
                 onKeyDown={handleKeyDown}
+              />
+
+              <PodDescribeModal
+                isOpen={isDescribeModalOpen}
+                podName={selectedPod}
+                describe={podDescribe}
+                isLoading={isLoadingDescribe}
+                onClose={handleCloseDescribeModal}
               />
             </>
           )}

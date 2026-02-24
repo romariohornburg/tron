@@ -11,6 +11,7 @@ from app.workers.api.worker_dto import (
     Worker,
     Pod,
     PodLogs,
+    PodDescribe,
     PodCommandRequest,
     PodCommandResponse,
 )
@@ -18,6 +19,7 @@ from app.workers.core.worker_pods_service import (
     get_worker_pods_from_cluster,
     delete_worker_pod_from_cluster,
     get_worker_pod_logs_from_cluster,
+    get_worker_pod_describe_from_cluster,
     exec_worker_pod_command_from_cluster,
 )
 from app.workers.core.worker_validators import (
@@ -399,6 +401,54 @@ def get_worker_pod_logs(
     except Exception as e:
         raise HTTPException(
             status_code=500, detail=f"Failed to get logs for pod {pod_name}: {str(e)}"
+        )
+
+
+@router.get("/{uuid}/pods/{pod_name}/describe", response_model=PodDescribe)
+def get_worker_pod_describe(
+    uuid: UUID,
+    pod_name: str,
+    database_session: Session = Depends(get_db),
+    ctx: OrganizationAccessContext = Depends(getOrganizationContext),
+    current_user: User = Depends(get_current_user),
+):
+    """Get pod description (same output as kubectl describe pod)."""
+    repository = WorkerRepository(database_session)
+    worker = repository.find_by_uuid(uuid, load_relations=True)
+
+    if not worker:
+        raise HTTPException(status_code=404, detail="Worker not found")
+
+    if worker.type.value != "worker":
+        raise HTTPException(status_code=400, detail="Component is not a worker")
+
+    if worker.instance and worker.instance.application:
+        if worker.instance.application.organization_id != ctx.organization.id:
+            raise HTTPException(status_code=404, detail="Worker not found")
+        if not canViewApplication(
+            ctx, worker.instance.application_id
+        ) and not canViewEnvironment(ctx, worker.instance.environment_id):
+            raise HTTPException(status_code=403, detail="Insufficient permissions")
+
+    cluster_instance = repository.find_cluster_instance_by_component_id(worker.id)
+    if not cluster_instance:
+        raise HTTPException(
+            status_code=404, detail="Worker is not deployed to any cluster"
+        )
+
+    cluster = cluster_instance.cluster
+    application = worker.instance.application
+    namespace = application.namespace if application.namespace else application.name
+
+    try:
+        describe = get_worker_pod_describe_from_cluster(cluster, namespace, pod_name)
+        return {"describe": describe, "pod_name": pod_name}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to get describe for pod {pod_name}: {str(e)}",
         )
 
 

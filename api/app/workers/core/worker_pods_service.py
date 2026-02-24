@@ -62,3 +62,16 @@ def exec_worker_pod_command_from_cluster(
         command=command,
         container_name=container_name,
     )
+
+
+def get_worker_pod_describe_from_cluster(
+    cluster: ClusterModel,
+    application_name: str,
+    pod_name: str,
+) -> str:
+    """Get pod description (same output as kubectl describe pod) from cluster."""
+    k8s_client = K8sClient(url=cluster.api_address, token=cluster.token)
+    return k8s_client.describe_pod(
+        namespace=application_name,
+        pod_name=pod_name,
+    )

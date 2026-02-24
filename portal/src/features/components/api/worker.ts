@@ -1,5 +1,5 @@
 import { api } from '../../../shared/api'
-import type { ApplicationComponent, ApplicationComponentCreate, Pod, PodLogs, PodCommandResponse } from '../types'
+import type { ApplicationComponent, ApplicationComponentCreate, Pod, PodLogs, PodDescribe, PodCommandResponse } from '../types'
 
 export const workerComponentsApi = {
   list: async (organizationUuid: string): Promise<ApplicationComponent[]> => {
@@ -41,6 +41,10 @@ export const workerComponentsApi = {
     }
     params.append('tail_lines', tailLines.toString())
     const response = await api.get<PodLogs>(`/organizations/${organizationUuid}/application_components/worker/${uuid}/pods/${podName}/logs?${params.toString()}`)
+    return response.data
+  },
+  getPodDescribe: async (organizationUuid: string, uuid: string, podName: string): Promise<PodDescribe> => {
+    const response = await api.get<PodDescribe>(`/organizations/${organizationUuid}/application_components/worker/${uuid}/pods/${podName}/describe`)
     return response.data
   },
   execPodCommand: async (organizationUuid: string, uuid: string, podName: string, command: string[], containerName?: string): Promise<PodCommandResponse> => {

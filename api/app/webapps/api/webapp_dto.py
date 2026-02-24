@@ -262,6 +262,11 @@ class PodLogs(BaseModel):
     container_name: str | None = None
 
 
+class PodDescribe(BaseModel):
+    describe: str
+    pod_name: str
+
+
 class PodCommandRequest(BaseModel):
     command: list[str]
     container_name: str | None = None
