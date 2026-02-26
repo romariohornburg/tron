@@ -36,7 +36,13 @@ export function WebappForm({ settings, onChange, url, onUrlChange, hasGatewayApi
   const hasAdvancedChanges = () => {
     const hasEnvs = settings.envs && settings.envs.length > 0
     const hasSecrets = settings.secrets && settings.secrets.length > 0
-    const hasCommand = settings.command && settings.command.trim() !== ''
+    const hasCommand = (() => {
+      const cmd = settings.command
+      if (cmd == null) return false
+      if (typeof cmd === 'string') return cmd.trim() !== ''
+      if (Array.isArray(cmd)) return cmd.length > 0 && cmd.some((c) => String(c).trim() !== '')
+      return false
+    })()
     const hasCustomCpu = settings.cpu !== undefined && settings.cpu !== 0.5
     const hasCustomMemory = settings.memory !== undefined && settings.memory !== 512
     return hasEnvs || hasSecrets || hasCommand || hasCustomCpu || hasCustomMemory
