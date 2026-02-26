@@ -37,10 +37,10 @@ export function WebappForm({ settings, onChange, url, onUrlChange, hasGatewayApi
     const hasEnvs = settings.envs && settings.envs.length > 0
     const hasSecrets = settings.secrets && settings.secrets.length > 0
     const hasCommand = (() => {
-      const cmd = settings.command
+      const cmd: unknown = settings.command
       if (cmd == null) return false
       if (typeof cmd === 'string') return cmd.trim() !== ''
-      if (Array.isArray(cmd)) return cmd.length > 0 && cmd.some((c) => String(c).trim() !== '')
+      if (Array.isArray(cmd)) return cmd.length > 0 && cmd.some((c: unknown) => String(c).trim() !== '')
       return false
     })()
     const hasCustomCpu = settings.cpu !== undefined && settings.cpu !== 0.5
