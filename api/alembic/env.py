@@ -25,7 +25,7 @@ from app.templates.infra.template_model import Template  # noqa: F401
 from app.templates.infra.component_template_config_model import (  # noqa: F401
     ComponentTemplateConfig,
 )
-from app.settings.infra.settings_model import Settings  # noqa: F401
+from app.environments.infra.environment_settings_model import EnvironmentSettings  # noqa: F401
 from app.auth.infra.token_model import Token  # noqa: F401
 from app.webapps.infra.application_component_model import (  # noqa: F401
     ApplicationComponent,

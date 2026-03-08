@@ -4,4 +4,6 @@ export {
   useCreateEnvironment,
   useUpdateEnvironment,
   useDeleteEnvironment,
+  useUpdateEnvironmentSettings,
+  useResetEnvironmentSettings,
 } from './useEnvironments'

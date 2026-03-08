@@ -1,7 +1,7 @@
 from pydantic import BaseModel, ConfigDict, model_validator
 from uuid import UUID
 from datetime import datetime
-from typing import Any
+from typing import Any, Union
 
 
 class EnvironmentBase(BaseModel):
@@ -18,6 +18,29 @@ class Environment(EnvironmentBase):
     model_config = ConfigDict(
         from_attributes=True,
     )
+
+
+class EnvironmentSettingItem(BaseModel):
+    """Single item in environment settings array."""
+
+    key: str
+    value: Union[str, int, float, bool, list, dict]
+    description: str = ""
+    type: str = "string"
+
+
+class EnvironmentSettingsUpdate(BaseModel):
+    """
+    Payload to update environment settings (idempotent).
+    Only values are updated; key, description and type are read-only.
+    Body is a flat object: setting key -> new value. Extra keys allowed.
+    """
+
+    model_config = ConfigDict(extra="allow")
+
+    def get_settings_dict(self) -> dict:
+        """Return key -> value dict for merging."""
+        return self.model_dump(exclude_none=True)
 
 
 class EnvironmentWithClusters(Environment):

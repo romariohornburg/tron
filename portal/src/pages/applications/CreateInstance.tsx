@@ -1,6 +1,8 @@
 import { useParams, useNavigate } from 'react-router-dom'
+import { useMemo } from 'react'
 import { useOrganization } from '../../contexts/OrganizationContext'
 import { useAuth } from '../../contexts/AuthContext'
+import { useEnvironment, getEnvironmentSettingsLimits } from '../../features/environments'
 import { CreationPageLayout, Stepper, useStepper, type Step } from '../../shared/components'
 import { useCreateInstanceForm } from './hooks/useCreateInstanceForm'
 import { Step1InstanceForm } from './components/Step1InstanceForm'
@@ -36,6 +38,15 @@ function CreateInstance() {
     gatewayReference,
   } = useCreateInstanceForm()
 
+  const { data: selectedEnvironment } = useEnvironment(
+    selectedOrganizationUuid,
+    instanceData.environment_uuid || undefined
+  )
+  const environmentLimits = useMemo(
+    () => getEnvironmentSettingsLimits(selectedEnvironment?.settings),
+    [selectedEnvironment?.settings]
+  )
+
   const { currentStep, completedSteps, goToStep, completeStep } = useStepper(1)
 
   if (!application) {
@@ -70,6 +81,7 @@ function CreateInstance() {
       gatewayReference={gatewayReference}
       isAdmin={isAdmin}
       hasEnvironmentSelected={!!instanceData.environment_uuid}
+      environmentLimits={environmentLimits}
     />
   )
 

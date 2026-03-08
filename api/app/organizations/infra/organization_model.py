@@ -25,4 +25,6 @@ class Organization(Base):
     component_template_configs = relationship(
         "ComponentTemplateConfig", back_populates="organization"
     )
-    settings = relationship("Settings", back_populates="organization")
+    environment_settings = relationship(
+        "EnvironmentSettings", back_populates="organization"
+    )

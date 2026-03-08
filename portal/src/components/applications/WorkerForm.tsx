@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { ChevronDown, ChevronRight, Settings2 } from 'lucide-react'
 import type { WorkerSettings } from './types'
+import type { EnvironmentSettingsLimits } from '../../features/environments'
 import { CpuMemoryInput } from './form-components/CpuMemoryInput'
 import { ScalingThresholdsInput } from './form-components/ScalingThresholdsInput'
 import { AutoscalingInput } from './form-components/AutoscalingInput'
@@ -15,9 +16,10 @@ interface WorkerFormProps {
   isAdmin?: boolean
   organizationUuid?: string
   componentUuid?: string
+  envLimits?: EnvironmentSettingsLimits
 }
 
-export function WorkerForm({ settings, onChange, isAdmin = false, organizationUuid, componentUuid }: WorkerFormProps) {
+export function WorkerForm({ settings, onChange, isAdmin = false, organizationUuid, componentUuid, envLimits }: WorkerFormProps) {
   const [showAdvanced, setShowAdvanced] = useState(false)
   
   const updateField = <K extends keyof WorkerSettings>(field: K, value: WorkerSettings[K]) => {
@@ -67,11 +69,16 @@ export function WorkerForm({ settings, onChange, isAdmin = false, organizationUu
             memory={settings.memory}
             onCpuChange={(cpu) => updateField('cpu', cpu)}
             onMemoryChange={(memory) => updateField('memory', memory)}
+            minCpu={envLimits?.minCpuCores}
+            maxCpu={envLimits?.maxCpuCores}
+            minMemory={envLimits?.minMemoryMegabytes}
+            maxMemory={envLimits?.maxMemoryMegabytes}
           />
 
           <AutoscalingInput
             autoscaling={settings.autoscaling}
             onChange={(autoscaling) => updateField('autoscaling', autoscaling)}
+            maxReplicas={envLimits?.maxPods}
           />
 
           <ScalingThresholdsInput

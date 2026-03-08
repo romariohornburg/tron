@@ -1,7 +1,16 @@
 from uuid import uuid4, UUID
-from typing import List
+from typing import List, Any
 from app.environments.infra.environment_repository import EnvironmentRepository
 from app.environments.infra.environment_model import Environment as EnvironmentModel
+from app.environments.infra.environment_settings_model import (
+    EnvironmentSettings as EnvironmentSettingsModel,
+)
+from app.environments.infra.environment_settings_repository import (
+    EnvironmentSettingsRepository,
+)
+from app.environments.core.environment_settings_defaults import (
+    DEFAULT_ENVIRONMENT_SETTINGS,
+)
 from app.environments.api.environment_dto import (
     EnvironmentCreate,
     Environment,
@@ -16,8 +25,13 @@ from app.environments.core.environment_validators import (
 class EnvironmentService:
     """Business logic for environments. No direct database access."""
 
-    def __init__(self, repository: EnvironmentRepository):
+    def __init__(
+        self,
+        repository: EnvironmentRepository,
+        settings_repository: EnvironmentSettingsRepository | None = None,
+    ):
         self.repository = repository
+        self.settings_repository = settings_repository
 
     def create_environment(
         self, dto: EnvironmentCreate, organization_id: int
@@ -26,7 +40,16 @@ class EnvironmentService:
         validate_environment_create_dto(dto)
 
         environment = self._build_environment_entity(dto, organization_id)
-        return self.repository.create(environment)
+        created = self.repository.create(environment)
+        if self.settings_repository:
+            settings_row = EnvironmentSettingsModel(
+                uuid=uuid4(),
+                environment_id=created.id,
+                organization_id=organization_id,
+                settings=DEFAULT_ENVIRONMENT_SETTINGS,
+            )
+            self.settings_repository.create(settings_row)
+        return created
 
     def update_environment(
         self, uuid: UUID, dto: EnvironmentCreate, organization_id: int
@@ -95,6 +118,78 @@ class EnvironmentService:
 
         return {"detail": "Environment deleted successfully"}
 
+    def update_environment_settings(
+        self,
+        environment_uuid: UUID,
+        settings_values: dict[str, Any],
+        organization_id: int,
+    ) -> List[dict]:
+        """
+        Update setting values by key (idempotent).
+        key, description and type are never changed; only value is updated per key.
+        """
+        environment = self.repository.find_by_uuid_and_organization(
+            environment_uuid, organization_id
+        )
+        if not environment:
+            raise ValueError(
+                f"Environment with UUID {environment_uuid} not found in organization"
+            )
+        if not self.settings_repository:
+            raise ValueError("Settings repository not available")
+        row = self.settings_repository.find_by_environment_id(environment.id)
+        if not row:
+            row = EnvironmentSettingsModel(
+                uuid=uuid4(),
+                environment_id=environment.id,
+                organization_id=organization_id,
+                settings=[],
+            )
+            self.settings_repository.create(row)
+        current = list(row.settings) if row.settings else []
+        keys_to_value = {
+            k: v for k, v in settings_values.items() if k and not k.startswith("_")
+        }
+        new_settings = []
+        for item in current:
+            if isinstance(item, dict):
+                copied = dict(item)
+                if copied.get("key") in keys_to_value:
+                    copied["value"] = keys_to_value[copied["key"]]
+                new_settings.append(copied)
+            else:
+                new_settings.append(item)
+        row.settings = new_settings
+        self.settings_repository.update(row)
+        return new_settings
+
+    def reset_environment_settings(
+        self, environment_uuid: UUID, organization_id: int
+    ) -> List[dict]:
+        """Reset settings to default values. Returns the new settings list."""
+        environment = self.repository.find_by_uuid_and_organization(
+            environment_uuid, organization_id
+        )
+        if not environment:
+            raise ValueError(
+                f"Environment with UUID {environment_uuid} not found in organization"
+            )
+        if not self.settings_repository:
+            raise ValueError("Settings repository not available")
+        row = self.settings_repository.find_by_environment_id(environment.id)
+        if not row:
+            row = EnvironmentSettingsModel(
+                uuid=uuid4(),
+                environment_id=environment.id,
+                organization_id=organization_id,
+                settings=[],
+            )
+            self.settings_repository.create(row)
+        defaults = [dict(item) for item in DEFAULT_ENVIRONMENT_SETTINGS]
+        row.settings = defaults
+        self.settings_repository.update(row)
+        return defaults
+
     def _build_environment_entity(
         self, dto: EnvironmentCreate, organization_id: int
     ) -> EnvironmentModel:
@@ -109,18 +204,17 @@ class EnvironmentService:
         self, environment: EnvironmentModel
     ) -> EnvironmentWithClusters:
         """Serialize environment with clusters and settings."""
+        settings_list = []
+        if (
+            environment.environment_settings
+            and environment.environment_settings.settings
+        ):
+            settings_list = environment.environment_settings.settings
         return EnvironmentWithClusters(
             uuid=environment.uuid,
             name=environment.name,
             clusters=[cluster.name for cluster in environment.clusters],
-            settings=[
-                {
-                    "key": setting.key,
-                    "value": setting.value,
-                    "description": setting.description,
-                }
-                for setting in environment.settings
-            ],
+            settings=settings_list,
             created_at=environment.created_at.isoformat(),
             updated_at=environment.updated_at.isoformat(),
         )

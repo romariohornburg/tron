@@ -41,14 +41,29 @@ from app.shared.crypto import (
     strip_secrets_from_settings,
     merge_secrets_for_update,
 )
+from app.environments.infra.environment_settings_repository import (
+    EnvironmentSettingsRepository,
+)
+from app.environments.core.environment_settings_defaults import (
+    get_environment_limits_from_settings,
+)
+from app.webapps.core.webapp_validators import (
+    validate_webapp_settings_against_environment_limits,
+)
 
 
 class CronService:
     """Business logic for crons. No direct database access."""
 
-    def __init__(self, repository: CronRepository, database_session: Session):
+    def __init__(
+        self,
+        repository: CronRepository,
+        database_session: Session,
+        settings_repository: EnvironmentSettingsRepository | None = None,
+    ):
         self.repository = repository
         self.db = database_session
+        self.settings_repository = settings_repository
 
     def create_cron(self, dto: CronCreate) -> Cron:
         """Create a new cron."""
@@ -56,6 +71,25 @@ class CronService:
         validate_instance_exists(self.repository, dto.instance_uuid)
 
         instance = self.repository.find_instance_by_uuid(dto.instance_uuid)
+
+        if self.settings_repository:
+            settings_row = self.settings_repository.find_by_environment_id(
+                instance.environment_id
+            )
+            limits = get_environment_limits_from_settings(
+                settings_row.settings
+                if settings_row and settings_row.settings
+                else None
+            )
+            # Cron has no autoscaling; pass 1, 1 so max_pods check passes
+            validate_webapp_settings_against_environment_limits(
+                limits,
+                dto.settings.cpu,
+                dto.settings.memory,
+                autoscaling_min=1,
+                autoscaling_max=1,
+            )
+
         cluster = get_cluster_for_instance(self.db, instance)
 
         settings_dict = ensure_private_exposure_settings(dto.settings.model_dump())
@@ -79,6 +113,23 @@ class CronService:
 
         cron = self.repository.find_by_uuid(uuid)
         validate_cron_type(cron)
+
+        if dto.settings is not None and self.settings_repository:
+            settings_row = self.settings_repository.find_by_environment_id(
+                cron.instance.environment_id
+            )
+            limits = get_environment_limits_from_settings(
+                settings_row.settings
+                if settings_row and settings_row.settings
+                else None
+            )
+            validate_webapp_settings_against_environment_limits(
+                limits,
+                dto.settings.cpu,
+                dto.settings.memory,
+                autoscaling_min=1,
+                autoscaling_max=1,
+            )
 
         # Check if there are any changes that require Kubernetes update
         has_changes = dto.settings is not None or dto.enabled is not None

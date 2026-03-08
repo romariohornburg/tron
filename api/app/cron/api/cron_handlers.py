@@ -5,12 +5,16 @@ from uuid import UUID
 from app.shared.database.database import get_db
 from app.cron.infra.cron_repository import CronRepository
 from app.cron.core.cron_service import CronService
+from app.environments.infra.environment_settings_repository import (
+    EnvironmentSettingsRepository,
+)
 from app.cron.api.cron_dto import CronCreate, CronUpdate, Cron, CronJob, CronJobLogs
 from app.cron.core.cron_validators import (
     CronNotFoundError,
     CronNotCronTypeError,
     InstanceNotFoundError,
 )
+from app.webapps.core.webapp_validators import EnvironmentSettingsValidationError
 from app.cron.core.cron_jobs_service import (
     get_cron_jobs_from_cluster,
     get_cron_job_logs_from_cluster,
@@ -42,7 +46,8 @@ router = APIRouter(
 def get_cron_service(database_session: Session = Depends(get_db)) -> CronService:
     """Dependency to get CronService instance."""
     cron_repository = CronRepository(database_session)
-    return CronService(cron_repository, database_session)
+    settings_repository = EnvironmentSettingsRepository(database_session)
+    return CronService(cron_repository, database_session, settings_repository)
 
 
 @router.post("/", response_model=Cron)
@@ -77,7 +82,9 @@ def create_cron(
 
     try:
         return service.create_cron(cron)
-    except (InstanceNotFoundError, ValueError) as e:
+    except (InstanceNotFoundError, EnvironmentSettingsValidationError) as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -155,7 +162,7 @@ def update_cron(
         return service.update_cron(uuid, cron)
     except (CronNotFoundError, CronNotCronTypeError) as e:
         raise HTTPException(status_code=404, detail=str(e))
-    except Exception as e:
+    except EnvironmentSettingsValidationError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
 

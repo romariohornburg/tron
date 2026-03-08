@@ -10,6 +10,7 @@ from app.environments.api.environment_dto import (
     EnvironmentCreate,
     Environment,
     EnvironmentWithClusters,
+    EnvironmentSettingsUpdate,
 )
 from app.environments.core.environment_validators import (
     EnvironmentHasComponentsError,
@@ -36,7 +37,12 @@ def get_environment_service(
 ) -> EnvironmentService:
     """Dependency to get EnvironmentService instance."""
     environment_repository = EnvironmentRepository(database_session)
-    return EnvironmentService(environment_repository)
+    from app.environments.infra.environment_settings_repository import (
+        EnvironmentSettingsRepository,
+    )
+
+    settings_repository = EnvironmentSettingsRepository(database_session)
+    return EnvironmentService(environment_repository, settings_repository)
 
 
 @router.post("/", response_model=Environment)
@@ -175,4 +181,55 @@ def delete_environment(
             raise HTTPException(status_code=404, detail=str(e))
         raise HTTPException(status_code=400, detail=str(e))
     except EnvironmentHasComponentsError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.put("/{uuid}/settings", response_model=list)
+def update_environment_settings(
+    organization_uuid: UUID,
+    uuid: UUID,
+    payload: EnvironmentSettingsUpdate,
+    service: EnvironmentService = Depends(get_environment_service),
+    ctx: OrganizationAccessContext = Depends(getOrganizationContext),
+    db: Session = Depends(get_db),
+):
+    """
+    Update setting values by key (idempotent).
+    Body: flat object with setting keys and new values, e.g. {"min_memory_megabytes": 128}.
+    key, description and type are read-only and cannot be changed.
+    """
+    if not (isOrgAdmin(ctx) or canManageEnvironmentByUuid(ctx, uuid, db)):
+        raise HTTPException(
+            status_code=403,
+            detail="Not allowed to update settings for this environment",
+        )
+    try:
+        return service.update_environment_settings(
+            uuid, payload.get_settings_dict(), ctx.organization.id
+        )
+    except ValueError as e:
+        if "not found" in str(e).lower():
+            raise HTTPException(status_code=404, detail=str(e))
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.post("/{uuid}/settings/reset", response_model=list)
+def reset_environment_settings(
+    organization_uuid: UUID,
+    uuid: UUID,
+    service: EnvironmentService = Depends(get_environment_service),
+    ctx: OrganizationAccessContext = Depends(getOrganizationContext),
+    db: Session = Depends(get_db),
+):
+    """Reset environment settings to default values."""
+    if not (isOrgAdmin(ctx) or canManageEnvironmentByUuid(ctx, uuid, db)):
+        raise HTTPException(
+            status_code=403,
+            detail="Not allowed to update settings for this environment",
+        )
+    try:
+        return service.reset_environment_settings(uuid, ctx.organization.id)
+    except ValueError as e:
+        if "not found" in str(e).lower():
+            raise HTTPException(status_code=404, detail=str(e))
         raise HTTPException(status_code=400, detail=str(e))

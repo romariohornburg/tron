@@ -359,14 +359,16 @@ class InstanceService:
             raise InstanceNotFoundError(f"Instance with UUID {uuid} not found")
 
         # Get settings for the environment
-        from app.settings.infra.settings_model import Settings as SettingsModel
+        from app.environments.infra.environment_settings_model import (
+            EnvironmentSettings as EnvironmentSettingsModel,
+        )
 
-        settings = (
-            self.db.query(SettingsModel)
-            .filter(SettingsModel.environment_id == instance.environment_id)
+        settings_row = (
+            self.db.query(EnvironmentSettingsModel)
+            .filter(EnvironmentSettingsModel.environment_id == instance.environment_id)
             .first()
         )
-        settings_serialized = serialize_settings(settings) if settings else {}
+        settings_serialized = serialize_settings(settings_row) if settings_row else {}
 
         synced_components = 0
         total_components = len([c for c in instance.components if c.enabled])
