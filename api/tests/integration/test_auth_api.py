@@ -27,7 +27,7 @@ def test_login_invalid_email(client):
     )
 
     assert response.status_code == status.HTTP_401_UNAUTHORIZED
-    assert "incorretos" in response.json()["detail"].lower()
+    assert "invalid" in response.json()["detail"].lower()
 
 
 def test_login_invalid_password(client, admin_user):
@@ -38,7 +38,7 @@ def test_login_invalid_password(client, admin_user):
     )
 
     assert response.status_code == status.HTTP_401_UNAUTHORIZED
-    assert "incorretos" in response.json()["detail"].lower()
+    assert "invalid" in response.json()["detail"].lower()
 
 
 def test_login_missing_fields(client):
