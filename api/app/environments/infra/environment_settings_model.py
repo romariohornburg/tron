@@ -25,7 +25,9 @@ class EnvironmentSettings(Base):
         nullable=False,
         index=True,
     )
-    settings = Column(JSONBCompat, nullable=False)  # list of {key, value, description, type}
+    settings = Column(
+        JSONBCompat, nullable=False
+    )  # list of {key, value, description, type}
 
     environment = relationship("Environment", back_populates="environment_settings")
     organization = relationship("Organization", back_populates="environment_settings")
