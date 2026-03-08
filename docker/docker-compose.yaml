@@ -25,6 +25,9 @@ x-env-api: &shared_env_api
     TRON_DEFAULT_ORG_PASSWORD: "admin"
     # Encryption key for secrets (development only - generate new key for production)
     TRON_SECRETS_KEY: "NfMA_cWx0cuHAGiwl-qWYfl7u1S6bXvADFt5T9WMfUM="
+    # SSO/OAuth: public API URL (redirect_uri base) and portal URL (post-login redirect)
+    API_PUBLIC_URL: "http://localhost:8000"
+    FRONTEND_URL: "http://localhost:3000"
 
 services:
   database:
