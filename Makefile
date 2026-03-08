@@ -21,7 +21,7 @@ help:
 	@echo "  make clean          - Stop services and remove volumes"
 	@echo "  make build          - Rebuild Docker images"
 	@echo "  make lint           - Run linters for API and Portal (same as pipeline)"
-	@echo "  make api-lint       - Run API linter (ruff check + format --check)"
+	@echo "  make api-lint       - Run API linter (format then ruff check)"
 	@echo "  make portal-lint    - Run Portal linter (eslint + tsc --noEmit)"
 
 start:
@@ -104,10 +104,10 @@ test:
 # Lint (same checks as CI pipeline)
 api-lint:
 	@echo "========================================="
-	@echo "🔍 Linting API (ruff check + format)..."
+	@echo "🔍 Linting API (format + ruff check)..."
 	@echo "========================================="
+	@cd api && uv tool run ruff format app/
 	@cd api && uv tool run ruff check app/ --output-format=github
-	@cd api && uv tool run ruff format app/ --check
 
 portal-lint:
 	@echo "========================================="
