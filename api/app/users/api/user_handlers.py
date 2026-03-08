@@ -11,12 +11,18 @@ from app.users.core.user_validators import (
     UserNotFoundError,
     UserEmailAlreadyExistsError,
     CannotDeleteSelfError,
+    UserIsOrganizationOwnerError,
 )
 from app.users.infra.user_model import UserRole
 from app.users.infra.user_model import User
 from app.shared.dependencies.auth import require_role, get_current_user
 from app.auth.core.auth_service import AuthService
 from app.auth.infra.token_repository import TokenRepository
+from app.auth.infra.user_social_account_repository import UserSocialAccountRepository
+from app.organizations.infra.organization_repository import OrganizationRepository
+from app.organizations.infra.organization_member_repository import (
+    OrganizationMemberRepository,
+)
 from app.auth.core.token_service import TokenService
 from app.auth.api.token_dto import (
     TokenCreate,
@@ -34,7 +40,16 @@ def get_user_service(database_session: Session = Depends(get_db)) -> UserService
     """Dependency to get UserService instance."""
     user_repository = UserRepository(database_session)
     auth_service = AuthService()
-    return UserService(user_repository, auth_service)
+    social_account_repository = UserSocialAccountRepository(database_session)
+    organization_repository = OrganizationRepository(database_session)
+    organization_member_repository = OrganizationMemberRepository(database_session)
+    return UserService(
+        user_repository,
+        auth_service,
+        social_account_repository,
+        organization_repository,
+        organization_member_repository,
+    )
 
 
 def get_token_repository(
@@ -122,6 +137,8 @@ async def delete_user(
     except UserNotFoundError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
     except CannotDeleteSelfError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    except UserIsOrganizationOwnerError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
 

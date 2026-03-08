@@ -220,6 +220,13 @@ class OAuthService:
                     status_code=status.HTTP_403_FORBIDDEN,
                     detail="User account is inactive",
                 )
+            # Refresh name and avatar from provider when user logs in with social
+            if full_name is not None:
+                user.full_name = full_name
+            if avatar_url is not None:
+                user.avatar_url = avatar_url
+            if full_name is not None or avatar_url is not None:
+                self.user_repository.update(user)
             return user
         if not email:
             raise HTTPException(
@@ -229,6 +236,13 @@ class OAuthService:
         existing = self.user_repository.find_by_email(email)
         if existing:
             user = existing
+            # Update name and avatar from provider when linking social to existing user
+            if full_name is not None:
+                user.full_name = full_name
+            if avatar_url is not None:
+                user.avatar_url = avatar_url
+            if full_name is not None or avatar_url is not None:
+                self.user_repository.update(user)
         else:
             user = User(
                 email=email,

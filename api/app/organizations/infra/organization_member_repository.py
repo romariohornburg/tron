@@ -1,9 +1,11 @@
 from sqlalchemy.orm import Session, joinedload
+from sqlalchemy import delete
 from uuid import UUID
 from typing import Optional, List
 from app.organizations.infra.organization_member_model import (
     OrganizationMember as OrganizationMemberModel,
 )
+from app.organizations.infra.group_member_model import GroupMember as GroupMemberModel
 
 
 class OrganizationMemberRepository:
@@ -53,12 +55,29 @@ class OrganizationMemberRepository:
 
     def delete_by_id(self, member_id: int) -> None:
         """Delete organization member by ID."""
-        from sqlalchemy import delete
-
         stmt = delete(OrganizationMemberModel).where(
             OrganizationMemberModel.id == member_id
         )
         self.db.execute(stmt)
+        self.db.commit()
+
+    def delete_by_user_id(self, user_id: int) -> None:
+        """Delete all organization memberships (and their group memberships) for the given user."""
+        members = (
+            self.db.query(OrganizationMemberModel)
+            .filter(OrganizationMemberModel.user_id == user_id)
+            .all()
+        )
+        member_ids = [m.id for m in members]
+        if not member_ids:
+            return
+        # Remove group_members that reference these organization_members first
+        self.db.query(GroupMemberModel).filter(
+            GroupMemberModel.organization_member_id.in_(member_ids)
+        ).delete(synchronize_session=False)
+        self.db.query(OrganizationMemberModel).filter(
+            OrganizationMemberModel.user_id == user_id
+        ).delete(synchronize_session=False)
         self.db.commit()
 
     def rollback(self) -> None:
