@@ -23,6 +23,7 @@ from app.templates.api.component_template_config_handlers import (
 )
 from app.users.api.user_handlers import router as users_router
 from app.auth.api.auth_handlers import router as auth_router
+from app.auth.api.identity_provider_handlers import router as identity_provider_router
 from app.settings.api.settings_handlers import router as settings_router
 from app.dashboard.api.dashboard_handlers import router as dashboard_router
 from app.webapps.api.webapp_handlers import router as webapps_router
@@ -57,6 +58,8 @@ from app.templates.infra.template_model import Template  # noqa: F401, E402
 from app.templates.infra.component_template_config_model import ComponentTemplateConfig  # noqa: F401, E402
 from app.settings.infra.settings_model import Settings  # noqa: F401, E402
 from app.auth.infra.token_model import Token  # noqa: F401, E402
+from app.auth.infra.identity_provider_model import IdentityProvider  # noqa: F401, E402
+from app.auth.infra.user_social_account_model import UserSocialAccount  # noqa: F401, E402
 from app.webapps.infra.application_component_model import ApplicationComponent  # noqa: F401, E402
 from app.shared.infra.cluster_instance_model import ClusterInstance  # noqa: F401, E402
 
@@ -72,14 +75,16 @@ app = FastAPI(
 )
 
 # CORS Configuration
+# Include common dev origins so preflight (OPTIONS) succeeds from portal
 CORS_ORIGINS = os.getenv(
-    "CORS_ORIGINS", "http://localhost:3000,http://localhost:80"
+    "CORS_ORIGINS",
+    "http://localhost:3000,http://localhost:80,http://127.0.0.1:3000,http://127.0.0.1:80",
 ).split(",")
 CORS_ORIGINS = [origin.strip() for origin in CORS_ORIGINS if origin.strip()]
 
 CORS_ALLOW_CREDENTIALS = os.getenv("CORS_ALLOW_CREDENTIALS", "true").lower() == "true"
 CORS_ALLOW_METHODS = os.getenv(
-    "CORS_ALLOW_METHODS", "GET,POST,PUT,DELETE,OPTIONS"
+    "CORS_ALLOW_METHODS", "GET,POST,PUT,PATCH,DELETE,OPTIONS"
 ).split(",")
 CORS_ALLOW_METHODS = [method.strip() for method in CORS_ALLOW_METHODS if method.strip()]
 
@@ -107,6 +112,7 @@ app.include_router(templates_router)
 app.include_router(component_template_config_router)
 app.include_router(users_router)
 app.include_router(auth_router)
+app.include_router(identity_provider_router, prefix="/auth")
 app.include_router(settings_router)
 app.include_router(dashboard_router)
 app.include_router(webapps_router)

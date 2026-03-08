@@ -43,7 +43,7 @@ async def list_tokens(
     service: TokenService = Depends(get_token_service),
     current_user: User = Depends(require_role([UserRole.ADMIN])),
 ):
-    """Lista todos os tokens (apenas admin)"""
+    """List all tokens (admin only)."""
     return service.list_tokens(skip=skip, limit=limit, search=search)
 
 
@@ -53,7 +53,7 @@ async def get_token(
     service: TokenService = Depends(get_token_service),
     current_user: User = Depends(require_role([UserRole.ADMIN])),
 ):
-    """Busca um token por UUID (apenas admin)"""
+    """Get token by UUID (admin only)."""
     try:
         return service.get_token(token_uuid)
     except TokenNotFoundError as e:
@@ -68,7 +68,7 @@ async def create_token(
     service: TokenService = Depends(get_token_service),
     current_user: User = Depends(require_role([UserRole.ADMIN])),
 ):
-    """Cria um novo token (apenas admin)"""
+    """Create a new token (admin only)."""
     user_id = current_user.id if hasattr(current_user, "id") else None
     return service.create_token(token_data, user_id)
 
@@ -80,7 +80,7 @@ async def update_token(
     service: TokenService = Depends(get_token_service),
     current_user: User = Depends(require_role([UserRole.ADMIN])),
 ):
-    """Atualiza um token (apenas admin)"""
+    """Update a token (admin only)."""
     try:
         return service.update_token(token_uuid, token_data)
     except TokenNotFoundError as e:
@@ -93,7 +93,7 @@ async def delete_token(
     service: TokenService = Depends(get_token_service),
     current_user: User = Depends(require_role([UserRole.ADMIN])),
 ):
-    """Deleta um token (apenas admin)"""
+    """Delete a token (admin only)."""
     try:
         service.delete_token(token_uuid)
     except TokenNotFoundError as e:

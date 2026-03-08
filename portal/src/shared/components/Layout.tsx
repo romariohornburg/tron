@@ -20,6 +20,7 @@ import {
   ChevronRight,
   Building2,
   ChevronDown,
+  ShieldCheck,
 } from 'lucide-react'
 import { Logo } from './Logo'
 import { useAuth } from '../../contexts/AuthContext'
@@ -41,6 +42,7 @@ const orgNavItems = [
 
 const administrativeNavItems = [
   { label: 'Users', path: '/users', icon: Users },
+  { label: 'Identity Providers', path: '/identity-providers', icon: ShieldCheck },
 ]
 
 // Palette for organization color badges (project colors + Tailwind)
@@ -280,7 +282,16 @@ function Layout() {
                   className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-neutral-600 hover:bg-neutral-100 transition-colors min-w-0 max-w-[180px] md:max-w-[220px]"
                   title={user.full_name || user.email}
                 >
-                  <User size={16} className="shrink-0" />
+                  {user.avatar_url ? (
+                    <img
+                      src={user.avatar_url}
+                      alt=""
+                      className="w-8 h-8 rounded-full object-cover shrink-0 bg-neutral-200"
+                      referrerPolicy="no-referrer"
+                    />
+                  ) : (
+                    <User size={16} className="shrink-0" />
+                  )}
                   <span className="truncate hidden sm:inline">{user.full_name || user.email}</span>
                   <ChevronDown size={14} className={`shrink-0 transition-transform ${userMenuOpen ? 'rotate-180' : ''}`} />
                 </button>

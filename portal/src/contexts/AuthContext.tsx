@@ -8,6 +8,7 @@ interface AuthContextType {
   isAuthenticated: boolean
   isLoading: boolean
   login: (email: string, password: string) => Promise<void>
+  loginWithTokens: (accessToken: string, refreshToken: string) => Promise<void>
   register: (data: UserCreate) => Promise<void>
   logout: () => void
   refreshToken: () => Promise<void>
@@ -52,6 +53,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(userData)
   }, [])
 
+  const loginWithTokens = useCallback(async (accessToken: string, refreshToken: string) => {
+    localStorage.setItem('access_token', accessToken)
+    localStorage.setItem('refresh_token', refreshToken)
+    const userData = await authApi.getMe()
+    setUser(userData)
+  }, [])
+
   const register = useCallback(async (data: UserCreate) => {
     await authApi.register(data)
     // After registration, automatically log in
@@ -83,6 +91,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         isAuthenticated: !!user,
         isLoading,
         login,
+        loginWithTokens,
         register,
         logout,
         refreshToken,

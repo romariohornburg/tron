@@ -4,7 +4,7 @@ COMPOSE_FILE := docker/docker-compose.yaml
 COMPOSE_TEST_FILE := docker/docker-compose.test.yaml
 COMPOSE_CLUSTER2_FILE := docker/docker-compose.cluster2.yaml
 
-.PHONY: start stop restart build logs status test api-test portal-test setup-cluster setup-cluster2 clean help
+.PHONY: start stop restart build logs status test api-test portal-test setup-cluster setup-cluster2 clean help lint api-lint portal-lint
 
 help:
 	@echo "Tron Development Commands:"
@@ -20,6 +20,9 @@ help:
 	@echo "  make setup-cluster2 - Setup k3s cluster2 with Tron (run after start)"
 	@echo "  make clean          - Stop services and remove volumes"
 	@echo "  make build          - Rebuild Docker images"
+	@echo "  make lint           - Run linters for API and Portal (same as pipeline)"
+	@echo "  make api-lint       - Run API linter (ruff check + format --check)"
+	@echo "  make portal-lint    - Run Portal linter (eslint + tsc --noEmit)"
 
 start:
 	@echo "🚀 Starting Tron development environment..."
@@ -98,9 +101,30 @@ test:
 	@echo "✅ All tests completed!"
 	@echo "========================================="
 
+# Lint (same checks as CI pipeline)
+api-lint:
+	@echo "========================================="
+	@echo "🔍 Linting API (ruff check + format)..."
+	@echo "========================================="
+	@cd api && uv tool run ruff check app/ --output-format=github
+	@cd api && uv tool run ruff format app/ --check
+
+portal-lint:
+	@echo "========================================="
+	@echo "🔍 Linting Portal (eslint + type check)..."
+	@echo "========================================="
+	@cd portal && npm run lint
+	@cd portal && npx tsc --noEmit
+
+lint: api-lint portal-lint
+	@echo ""
+	@echo "========================================="
+	@echo "✅ Lint completed!"
+	@echo "========================================="
+
 # Development helpers
 api-migrate:
-	@$(DOCKER_COMPOSE) -f $(COMPOSE_FILE) exec api alembic revision --autogenerate
+	@$(DOCKER_COMPOSE) -f $(COMPOSE_FILE) exec api alembic upgrade head
 
 api-shell:
 	@$(DOCKER_COMPOSE) -f $(COMPOSE_FILE) exec api sh
