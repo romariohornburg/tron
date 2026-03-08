@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { ChevronDown, ChevronRight, Settings2 } from 'lucide-react'
 import type { WebappSettings } from './types'
+import type { EnvironmentSettingsLimits } from '../../features/environments'
 import { CpuMemoryInput } from './form-components/CpuMemoryInput'
 import { ScalingThresholdsInput } from './form-components/ScalingThresholdsInput'
 import { AutoscalingInput } from './form-components/AutoscalingInput'
@@ -23,9 +24,11 @@ interface WebappFormProps {
   organizationUuid?: string
   componentUuid?: string
   hasEnvironmentSelected?: boolean
+  /** Limits from environment settings (CPU, memory, max replicas). */
+  envLimits?: EnvironmentSettingsLimits
 }
 
-export function WebappForm({ settings, onChange, url, onUrlChange, hasGatewayApi = true, gatewayResources = [], gatewayReference = { namespace: '', name: '' }, isAdmin = false, organizationUuid, componentUuid, hasEnvironmentSelected = true }: WebappFormProps) {
+export function WebappForm({ settings, onChange, url, onUrlChange, hasGatewayApi = true, gatewayResources = [], gatewayReference = { namespace: '', name: '' }, isAdmin = false, organizationUuid, componentUuid, hasEnvironmentSelected = true, envLimits }: WebappFormProps) {
   const [showAdvanced, setShowAdvanced] = useState(false)
   
   const updateField = <K extends keyof WebappSettings>(field: K, value: WebappSettings[K]) => {
@@ -89,11 +92,16 @@ export function WebappForm({ settings, onChange, url, onUrlChange, hasGatewayApi
             memory={settings.memory}
             onCpuChange={(cpu) => updateField('cpu', cpu)}
             onMemoryChange={(memory) => updateField('memory', memory)}
+            minCpu={envLimits?.minCpuCores}
+            maxCpu={envLimits?.maxCpuCores}
+            minMemory={envLimits?.minMemoryMegabytes}
+            maxMemory={envLimits?.maxMemoryMegabytes}
           />
 
           <AutoscalingInput
             autoscaling={settings.autoscaling}
             onChange={(autoscaling) => updateField('autoscaling', autoscaling)}
+            maxReplicas={envLimits?.maxPods}
           />
 
           <ScalingThresholdsInput

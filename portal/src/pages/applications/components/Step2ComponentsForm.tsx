@@ -1,5 +1,6 @@
 import { Plus, ChevronDown, ChevronUp, Circle } from 'lucide-react'
 import { ComponentForm, type ComponentFormData } from '../../../components/applications'
+import type { EnvironmentSettingsLimits } from '../../../features/environments'
 
 interface Step2ComponentsFormProps {
   components: ComponentFormData[]
@@ -14,6 +15,7 @@ interface Step2ComponentsFormProps {
   gatewayReference: { namespace: string; name: string }
   isAdmin: boolean
   hasEnvironmentSelected: boolean
+  environmentLimits?: EnvironmentSettingsLimits
 }
 
 export function Step2ComponentsForm({
@@ -29,6 +31,7 @@ export function Step2ComponentsForm({
   gatewayReference,
   isAdmin,
   hasEnvironmentSelected,
+  environmentLimits,
 }: Step2ComponentsFormProps) {
   return (
     <>
@@ -125,6 +128,7 @@ export function Step2ComponentsForm({
               isAdmin={isAdmin}
               title={`Component ${index + 1}: ${component.type.charAt(0).toUpperCase() + component.type.slice(1)}`}
               hasEnvironmentSelected={hasEnvironmentSelected}
+              environmentLimits={environmentLimits}
             />
           ))}
         </div>

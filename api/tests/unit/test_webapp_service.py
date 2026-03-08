@@ -7,7 +7,8 @@ from app.webapps.infra.webapp_repository import WebappRepository
 from app.webapps.api.webapp_dto import WebappCreate, WebappUpdate
 from app.webapps.core.webapp_validators import (
     WebappNotFoundError,
-    InstanceNotFoundError
+    InstanceNotFoundError,
+    EnvironmentSettingsValidationError,
 )
 from app.webapps.infra.application_component_model import WebappType
 
@@ -75,6 +76,35 @@ def mock_webapp():
     webapp.instance = MagicMock()
     webapp.instance.environment_id = 1
     return webapp
+
+
+@pytest.fixture
+def mock_settings_repository():
+    """Create a mock EnvironmentSettingsRepository that returns limits."""
+    from app.environments.infra.environment_settings_repository import (
+        EnvironmentSettingsRepository,
+    )
+    from types import SimpleNamespace
+
+    repo = MagicMock(spec=EnvironmentSettingsRepository)
+    # Use SimpleNamespace so .settings is a real list (MagicMock can break iteration)
+    mock_row = SimpleNamespace(
+        settings=[
+            {"key": "min_cpu_cores", "value": 0.25},
+            {"key": "max_cpu_cores", "value": 2},
+            {"key": "min_memory_megabytes", "value": 128},
+            {"key": "max_memory_megabytes", "value": 2048},
+            {"key": "max_pods", "value": 5},
+        ]
+    )
+    repo.find_by_environment_id.return_value = mock_row
+    return repo
+
+
+@pytest.fixture
+def webapp_service_with_limits(mock_repository, mock_db, mock_settings_repository):
+    """Create WebappService with settings_repository that enforces limits."""
+    return WebappService(mock_repository, mock_db, mock_settings_repository)
 
 
 def test_create_webapp_success(webapp_service, mock_repository, mock_db, mock_instance, mock_cluster):
@@ -161,6 +191,118 @@ def test_create_webapp_instance_not_found(webapp_service, mock_repository):
 
     with pytest.raises(InstanceNotFoundError):
         webapp_service.create_webapp(dto)
+
+
+def test_create_webapp_exceeds_environment_limits_raises(
+    webapp_service_with_limits,
+    mock_repository,
+    mock_instance,
+    mock_settings_repository,
+):
+    """Create webapp with CPU/replicas above environment limits raises EnvironmentSettingsValidationError."""
+    from app.webapps.api.webapp_dto import (
+        WebappSettings,
+        WebappExposure,
+        VisibilityType,
+        WebappCustomMetrics,
+        WebappHealthcheck,
+        WebappAutoscaling,
+    )
+    dto = WebappCreate(
+        instance_uuid=mock_instance.uuid,
+        name="test-webapp",
+        url="https://test.example.com",
+        enabled=True,
+        settings=WebappSettings(
+            cpu=4.0,
+            memory=512,
+            exposure=WebappExposure(type="http", port=80, visibility=VisibilityType.public),
+            custom_metrics=WebappCustomMetrics(enabled=False, path="/metrics", port=9090),
+            healthcheck=WebappHealthcheck(path="/health", protocol="http", port=80),
+            autoscaling=WebappAutoscaling(min=2, max=10),
+            envs=[],
+            command=None,
+        ),
+    )
+    mock_repository.find_instance_by_uuid.return_value = mock_instance
+    with pytest.raises(EnvironmentSettingsValidationError) as exc_info:
+        webapp_service_with_limits.create_webapp(dto)
+    msg = str(exc_info.value).lower()
+    assert "environment limit" in msg
+    mock_settings_repository.find_by_environment_id.assert_called_once_with(1)
+
+
+def test_create_webapp_exceeds_memory_limit_raises(
+    webapp_service_with_limits,
+    mock_repository,
+    mock_instance,
+    mock_settings_repository,
+):
+    """Create webapp with memory above max_memory_megabytes raises EnvironmentSettingsValidationError."""
+    from app.webapps.api.webapp_dto import (
+        WebappSettings,
+        WebappExposure,
+        VisibilityType,
+        WebappCustomMetrics,
+        WebappHealthcheck,
+        WebappAutoscaling,
+    )
+    dto = WebappCreate(
+        instance_uuid=mock_instance.uuid,
+        name="test-webapp",
+        url="https://test.example.com",
+        enabled=True,
+        settings=WebappSettings(
+            cpu=1.0,
+            memory=4096,
+            exposure=WebappExposure(type="http", port=80, visibility=VisibilityType.public),
+            custom_metrics=WebappCustomMetrics(enabled=False, path="/metrics", port=9090),
+            healthcheck=WebappHealthcheck(path="/health", protocol="http", port=80),
+            autoscaling=WebappAutoscaling(min=1, max=3),
+            envs=[],
+            command=None,
+        ),
+    )
+    mock_repository.find_instance_by_uuid.return_value = mock_instance
+    with pytest.raises(EnvironmentSettingsValidationError) as exc_info:
+        webapp_service_with_limits.create_webapp(dto)
+    assert "2048" in str(exc_info.value)
+    assert "Memory" in str(exc_info.value)
+
+
+def test_update_webapp_exceeds_environment_limits_raises(
+    webapp_service_with_limits,
+    mock_repository,
+    mock_webapp,
+    mock_settings_repository,
+):
+    """Update webapp with settings above environment limits raises EnvironmentSettingsValidationError."""
+    from app.webapps.api.webapp_dto import (
+        WebappSettings,
+        WebappExposure,
+        VisibilityType,
+        WebappCustomMetrics,
+        WebappHealthcheck,
+        WebappAutoscaling,
+    )
+    webapp_uuid = mock_webapp.uuid
+    dto = WebappUpdate(
+        settings=WebappSettings(
+            cpu=4.0,
+            memory=512,
+            exposure=WebappExposure(type="http", port=80, visibility=VisibilityType.public),
+            custom_metrics=WebappCustomMetrics(enabled=False, path="/metrics", port=9090),
+            healthcheck=WebappHealthcheck(path="/health", protocol="http", port=80),
+            autoscaling=WebappAutoscaling(min=2, max=10),
+            envs=[],
+            command=None,
+        ),
+    )
+    mock_repository.find_by_uuid.return_value = mock_webapp
+    with pytest.raises(EnvironmentSettingsValidationError) as exc_info:
+        webapp_service_with_limits.update_webapp(webapp_uuid, dto)
+    assert "environment limit" in str(exc_info.value).lower()
+    mock_settings_repository.find_by_environment_id.assert_called_once_with(1)
 
 
 def test_update_webapp_success(webapp_service, mock_repository, mock_db, mock_webapp, mock_cluster):

@@ -10,7 +10,7 @@ from app.shared.database.database import Base
 from app.applications.infra.application_model import Application
 from app.environments.infra.environment_model import Environment
 from app.instances.infra.instance_model import Instance
-from app.settings.infra.settings_model import Settings
+from app.environments.infra.environment_settings_model import EnvironmentSettings
 from app.clusters.infra.cluster_model import Cluster
 from app.webapps.infra.application_component_model import ApplicationComponent
 from app.shared.infra.cluster_instance_model import ClusterInstance

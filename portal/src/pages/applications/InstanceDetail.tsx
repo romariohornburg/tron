@@ -7,6 +7,7 @@ import { instancesApi } from '../../services/api'
 import { useClustersByEnvironment } from '../../features/clusters/hooks/useClusters'
 import type { ApplicationComponentCreate, InstanceComponent } from '../../types'
 import { ComponentForm, type ComponentFormData, getDefaultWebappSettings, getDefaultCronSettings, getDefaultWorkerSettings, type WebappSettings } from '../../components/applications'
+import { useEnvironment, getEnvironmentSettingsLimits } from '../../features/environments'
 import { useUpdateWebappComponent, useDeleteWebappComponent, useCreateWebappComponent, useUpdateCronComponent, useDeleteCronComponent, useCreateCronComponent, useUpdateWorkerComponent, useDeleteWorkerComponent, useCreateWorkerComponent } from '../../features/components'
 import { Breadcrumbs, PageHeader, DataTable } from '../../shared/components'
 import { useAuth } from '../../contexts/AuthContext'
@@ -60,6 +61,15 @@ function InstanceDetail() {
   const { data: environmentClusters = [] } = useClustersByEnvironment(
     selectedOrganizationUuid,
     instance?.environment?.uuid
+  )
+
+  const { data: selectedEnvironment } = useEnvironment(
+    selectedOrganizationUuid,
+    instance?.environment?.uuid
+  )
+  const environmentLimits = useMemo(
+    () => getEnvironmentSettingsLimits(selectedEnvironment?.settings),
+    [selectedEnvironment?.settings]
   )
 
   const hasNoClusters = instance?.environment && environmentClusters.length === 0
@@ -1158,6 +1168,7 @@ function InstanceDetail() {
                     title={editingComponentUuid
                       ? `Edit ${component.type.charAt(0).toUpperCase() + component.type.slice(1)}`
                       : `Add ${component.type.charAt(0).toUpperCase() + component.type.slice(1)}`}
+                    environmentLimits={environmentLimits}
                   />
                 ) : (
                   <p className="text-sm text-slate-500 text-center py-4">Component form will appear here.</p>

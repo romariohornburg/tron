@@ -149,6 +149,85 @@ def test_create_cron_requires_admin_role(client, user_token, test_instance):
 @patch('app.clusters.core.cluster_service.get_gateway_reference_from_cluster')
 @patch('app.webapps.core.webapp_kubernetes_service.apply_to_kubernetes')
 @patch('app.shared.k8s.cluster_selection.ClusterSelectionService.get_cluster_with_least_load_or_raise')
+def test_create_cron_exceeds_environment_limits_returns_400(
+    mock_get_cluster, mock_apply, mock_gateway,
+    client, admin_token, test_instance,
+):
+    """
+    Create cron with CPU or memory above environment limits returns 400.
+    Environment has default settings (max_cpu_cores=2, max_memory=2048).
+    """
+    from unittest.mock import MagicMock
+
+    mock_cluster = MagicMock(spec=['id', 'name', 'api_address', 'token', 'environment_id'])
+    mock_cluster.id = 1
+    mock_cluster.environment_id = 1
+    mock_get_cluster.return_value = mock_cluster
+    mock_apply.return_value = None
+    mock_gateway.return_value = {"namespace": "", "name": ""}
+
+    response = client.post(
+        f"/organizations/{test_instance['organization_uuid']}/application_components/cron/",
+        headers={"Authorization": f"Bearer {admin_token}"},
+        json={
+            "instance_uuid": test_instance["uuid"],
+            "name": "over-limit-cron",
+            "enabled": True,
+            "settings": {
+                "cpu": 4.0,
+                "memory": 4096,
+                "schedule": "0 0 * * *",
+            },
+        },
+    )
+
+    assert response.status_code == status.HTTP_400_BAD_REQUEST
+    data = response.json()
+    assert "detail" in data
+    detail = data["detail"].lower()
+    assert "environment limit" in detail or "2" in data["detail"] or "2048" in data["detail"]
+
+
+@patch('app.clusters.core.cluster_service.get_gateway_reference_from_cluster')
+@patch('app.webapps.core.webapp_kubernetes_service.apply_to_kubernetes')
+@patch('app.shared.k8s.cluster_selection.ClusterSelectionService.get_cluster_with_least_load_or_raise')
+def test_create_cron_exceeds_cpu_limit_returns_400(
+    mock_get_cluster, mock_apply, mock_gateway,
+    client, admin_token, test_instance,
+):
+    """Create cron with CPU above max_cpu_cores returns 400 with message about CPU limit."""
+    from unittest.mock import MagicMock
+
+    mock_cluster = MagicMock(spec=['id', 'name', 'api_address', 'token', 'environment_id'])
+    mock_cluster.id = 1
+    mock_cluster.environment_id = 1
+    mock_get_cluster.return_value = mock_cluster
+    mock_apply.return_value = None
+    mock_gateway.return_value = {"namespace": "", "name": ""}
+
+    response = client.post(
+        f"/organizations/{test_instance['organization_uuid']}/application_components/cron/",
+        headers={"Authorization": f"Bearer {admin_token}"},
+        json={
+            "instance_uuid": test_instance["uuid"],
+            "name": "over-cpu-cron",
+            "enabled": True,
+            "settings": {
+                "cpu": 8.0,
+                "memory": 512,
+                "schedule": "0 0 * * *",
+            },
+        },
+    )
+
+    assert response.status_code == status.HTTP_400_BAD_REQUEST
+    assert "2" in response.json().get("detail", "")
+    assert "CPU" in response.json().get("detail", "")
+
+
+@patch('app.clusters.core.cluster_service.get_gateway_reference_from_cluster')
+@patch('app.webapps.core.webapp_kubernetes_service.apply_to_kubernetes')
+@patch('app.shared.k8s.cluster_selection.ClusterSelectionService.get_cluster_with_least_load_or_raise')
 def test_list_crons_success(mock_get_cluster, mock_apply, mock_gateway, client, admin_token, test_instance):
     """Test successful cron listing."""
     from unittest.mock import MagicMock

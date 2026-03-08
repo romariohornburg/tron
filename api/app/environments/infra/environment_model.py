@@ -20,7 +20,12 @@ class Environment(Base):
     )
 
     organization = relationship("Organization", back_populates="environments")
-    settings = relationship("Settings", back_populates="environment")
+    environment_settings = relationship(
+        "EnvironmentSettings",
+        back_populates="environment",
+        uselist=False,
+        cascade="all, delete-orphan",
+    )
     clusters = relationship("Cluster", back_populates="environment")
     instances = relationship("Instance", back_populates="environment")
     groups = relationship("Group", back_populates="environment")

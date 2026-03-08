@@ -19,6 +19,7 @@ __all__ = [
     "InvalidURLError",
     "InvalidEnvVarError",
     "InvalidSecretError",
+    "EnvironmentSettingsValidationError",
     "validate_webapp_create_dto",
     "validate_webapp_update_dto",
     "validate_webapp_exists",
@@ -27,6 +28,7 @@ __all__ = [
     "validate_exposure_type_for_cluster",
     "validate_visibility_for_cluster",
     "validate_url_for_exposure",
+    "validate_webapp_settings_against_environment_limits",
 ]
 
 
@@ -64,6 +66,53 @@ class InvalidURLError(Exception):
     """Raised when URL validation fails."""
 
     pass
+
+
+class EnvironmentSettingsValidationError(Exception):
+    """Raised when component settings violate environment limits."""
+
+    pass
+
+
+def validate_webapp_settings_against_environment_limits(
+    limits: dict | None,
+    cpu: float,
+    memory: int,
+    autoscaling_min: int,
+    autoscaling_max: int,
+) -> None:
+    """
+    Validate webapp CPU, memory and autoscaling against environment limits.
+    If limits is None or empty, no validation is performed.
+    Raises EnvironmentSettingsValidationError if any value is out of range.
+    """
+    if not limits:
+        return
+    if "min_cpu_cores" in limits and cpu < limits["min_cpu_cores"]:
+        raise EnvironmentSettingsValidationError(
+            f"CPU must be at least {limits['min_cpu_cores']} cores (environment limit)"
+        )
+    if "max_cpu_cores" in limits and cpu > limits["max_cpu_cores"]:
+        raise EnvironmentSettingsValidationError(
+            f"CPU must be at most {limits['max_cpu_cores']} cores (environment limit)"
+        )
+    if "min_memory_megabytes" in limits and memory < limits["min_memory_megabytes"]:
+        raise EnvironmentSettingsValidationError(
+            f"Memory must be at least {limits['min_memory_megabytes']} MB (environment limit)"
+        )
+    if "max_memory_megabytes" in limits and memory > limits["max_memory_megabytes"]:
+        raise EnvironmentSettingsValidationError(
+            f"Memory must be at most {limits['max_memory_megabytes']} MB (environment limit)"
+        )
+    if "max_pods" in limits:
+        if autoscaling_min > limits["max_pods"]:
+            raise EnvironmentSettingsValidationError(
+                f"Min replicas must be at most {limits['max_pods']} (environment limit)"
+            )
+        if autoscaling_max > limits["max_pods"]:
+            raise EnvironmentSettingsValidationError(
+                f"Max replicas must be at most {limits['max_pods']} (environment limit)"
+            )
 
 
 def validate_webapp_create_dto(dto: WebappCreate) -> None:

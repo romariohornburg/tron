@@ -1,6 +1,7 @@
 import { X, Globe, Clock, Cpu } from 'lucide-react'
 import { useEffect } from 'react'
 import type { ComponentFormData, WebappSettings, CronSettings, WorkerSettings } from './types'
+import type { EnvironmentSettingsLimits } from '../../features/environments'
 import { WebappForm } from './WebappForm'
 import { CronForm } from './CronForm'
 import { WorkerForm } from './WorkerForm'
@@ -19,6 +20,8 @@ interface ComponentFormProps {
   organizationUuid?: string
   componentUuid?: string
   hasEnvironmentSelected?: boolean
+  /** Limits from environment settings (CPU, memory, max replicas). */
+  environmentLimits?: EnvironmentSettingsLimits
 }
 
 const typeIcons = {
@@ -54,6 +57,7 @@ export function ComponentForm({
   organizationUuid,
   componentUuid,
   hasEnvironmentSelected = true,
+  environmentLimits,
 }: ComponentFormProps) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const updateField = (field: keyof ComponentFormData, value: any) => {
@@ -159,6 +163,7 @@ export function ComponentForm({
                 organizationUuid={organizationUuid}
                 componentUuid={componentUuid}
                 hasEnvironmentSelected={hasEnvironmentSelected}
+                envLimits={environmentLimits}
               />
             )}
           </>
@@ -173,6 +178,7 @@ export function ComponentForm({
                 isAdmin={isAdmin}
                 organizationUuid={organizationUuid}
                 componentUuid={componentUuid}
+                envLimits={environmentLimits}
               />
             )}
           </>
@@ -187,6 +193,7 @@ export function ComponentForm({
                 isAdmin={isAdmin}
                 organizationUuid={organizationUuid}
                 componentUuid={componentUuid}
+                envLimits={environmentLimits}
               />
             )}
           </>

@@ -9,7 +9,9 @@ from app.instances.infra.instance_model import Instance as InstanceModel
 from app.shared.infra.cluster_instance_model import (
     ClusterInstance as ClusterInstanceModel,
 )
-from app.settings.infra.settings_model import Settings as SettingsModel
+from app.environments.infra.environment_settings_model import (
+    EnvironmentSettings as EnvironmentSettingsModel,
+)
 
 
 class WebappRepository:
@@ -113,12 +115,12 @@ class WebappRepository:
 
     def find_settings_by_environment_id(
         self, environment_id: int
-    ) -> List[SettingsModel]:
-        """Find settings by environment ID."""
+    ) -> Optional[EnvironmentSettingsModel]:
+        """Find the single settings row for an environment."""
         return (
-            self.db.query(SettingsModel)
-            .filter(SettingsModel.environment_id == environment_id)
-            .all()
+            self.db.query(EnvironmentSettingsModel)
+            .filter(EnvironmentSettingsModel.environment_id == environment_id)
+            .first()
         )
 
     def create(self, webapp: ApplicationComponentModel) -> ApplicationComponentModel:

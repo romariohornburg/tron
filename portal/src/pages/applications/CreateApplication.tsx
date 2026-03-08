@@ -4,6 +4,7 @@ import { Plus, ChevronDown, ChevronUp, Circle } from 'lucide-react'
 import { useCreateApplication } from '../../features/applications'
 import { useClusters } from '../../features/clusters'
 import { useOrganization } from '../../contexts/OrganizationContext'
+import { useEnvironment, getEnvironmentSettingsLimits } from '../../features/environments'
 import { useCreateInstance } from '../../features/instances'
 import { useCreateWebappComponent, useCreateCronComponent, useCreateWorkerComponent } from '../../features/components'
 import { applicationCreateSchema } from '../../features/applications/schemas'
@@ -65,6 +66,15 @@ function CreateApplication() {
       (cluster) => cluster.environment?.uuid === instanceData.environment_uuid
     )
   }, [instanceData.environment_uuid, clusters])
+
+  const { data: selectedEnvironment } = useEnvironment(
+    selectedOrganizationUuid,
+    instanceData.environment_uuid || undefined
+  )
+  const environmentLimits = useMemo(
+    () => getEnvironmentSettingsLimits(selectedEnvironment?.settings),
+    [selectedEnvironment?.settings]
+  )
 
   const hasNoClusters = instanceData.environment_uuid && environmentClusters.length === 0
 
@@ -474,6 +484,7 @@ function CreateApplication() {
               isAdmin={isAdmin}
               title={`Component ${index + 1}: ${component.type.charAt(0).toUpperCase() + component.type.slice(1)}`}
               hasEnvironmentSelected={!!instanceData.environment_uuid}
+              environmentLimits={environmentLimits}
             />
           ))}
         </div>

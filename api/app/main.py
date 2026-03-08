@@ -24,15 +24,16 @@ from app.templates.api.component_template_config_handlers import (
 from app.users.api.user_handlers import router as users_router
 from app.auth.api.auth_handlers import router as auth_router
 from app.auth.api.identity_provider_handlers import router as identity_provider_router
-from app.settings.api.settings_handlers import router as settings_router
+from app.organizations.api.group_member_handlers import router as group_members_router
 from app.dashboard.api.dashboard_handlers import router as dashboard_router
+
+# Version is injected
 from app.webapps.api.webapp_handlers import router as webapps_router
 from app.workers.api.worker_handlers import router as workers_router
 from app.cron.api.cron_handlers import router as crons_router
 from app.setup.api.setup_handlers import router as setup_router
 from app.organizations.api.organization_handlers import router as organizations_router
 from app.organizations.api.group_handlers import router as groups_router
-from app.organizations.api.group_member_handlers import router as group_members_router
 
 # Version is injected at build time via APP_VERSION environment variable
 APP_VERSION = os.getenv("APP_VERSION", "dev")
@@ -56,7 +57,7 @@ from app.instances.infra.instance_model import Instance  # noqa: F401, E402
 from app.clusters.infra.cluster_model import Cluster  # noqa: F401, E402
 from app.templates.infra.template_model import Template  # noqa: F401, E402
 from app.templates.infra.component_template_config_model import ComponentTemplateConfig  # noqa: F401, E402
-from app.settings.infra.settings_model import Settings  # noqa: F401, E402
+from app.environments.infra.environment_settings_model import EnvironmentSettings  # noqa: F401, E402
 from app.auth.infra.token_model import Token  # noqa: F401, E402
 from app.auth.infra.identity_provider_model import IdentityProvider  # noqa: F401, E402
 from app.auth.infra.user_social_account_model import UserSocialAccount  # noqa: F401, E402
@@ -113,7 +114,6 @@ app.include_router(component_template_config_router)
 app.include_router(users_router)
 app.include_router(auth_router)
 app.include_router(identity_provider_router, prefix="/auth")
-app.include_router(settings_router)
 app.include_router(dashboard_router)
 app.include_router(webapps_router)
 app.include_router(workers_router)

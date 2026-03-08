@@ -7,11 +7,12 @@ import type { ComponentFormData } from './types'
 interface MockFormProps {
   settings?: Record<string, unknown>
   onChange?: (settings: Record<string, unknown>) => void
+  envLimits?: { minCpuCores: number; maxCpuCores: number; minMemoryMegabytes: number; maxMemoryMegabytes: number; maxPods?: number }
 }
 
 vi.mock('./WebappForm', () => ({
-  WebappForm: ({ settings, onChange }: MockFormProps) => (
-    <div data-testid="webapp-form">
+  WebappForm: ({ settings, onChange, envLimits }: MockFormProps) => (
+    <div data-testid="webapp-form" data-env-limits={envLimits ? JSON.stringify(envLimits) : undefined}>
       <input
         data-testid="webapp-exposure"
         value={(settings?.exposure as { visibility?: string })?.visibility || ''}
@@ -22,8 +23,8 @@ vi.mock('./WebappForm', () => ({
 }))
 
 vi.mock('./CronForm', () => ({
-  CronForm: ({ settings, onChange }: MockFormProps) => (
-    <div data-testid="cron-form">
+  CronForm: ({ settings, onChange, envLimits }: MockFormProps) => (
+    <div data-testid="cron-form" data-env-limits={envLimits ? JSON.stringify(envLimits) : undefined}>
       <input
         data-testid="cron-schedule"
         value={(settings?.schedule as string) || ''}
@@ -34,8 +35,8 @@ vi.mock('./CronForm', () => ({
 }))
 
 vi.mock('./WorkerForm', () => ({
-  WorkerForm: ({ settings, onChange }: MockFormProps) => (
-    <div data-testid="worker-form">
+  WorkerForm: ({ settings, onChange, envLimits }: MockFormProps) => (
+    <div data-testid="worker-form" data-env-limits={envLimits ? JSON.stringify(envLimits) : undefined}>
       <input
         data-testid="worker-metrics"
         value={(settings?.custom_metrics as { enabled?: boolean })?.enabled ? 'enabled' : 'disabled'}
@@ -263,6 +264,45 @@ describe('ComponentForm', () => {
     const nameDisplay = screen.getByText('my-webapp')
     expect(nameDisplay).toBeInTheDocument()
     expect(screen.queryByPlaceholderText('my-webapp')).not.toBeInTheDocument()
+  })
+
+  it('passes environmentLimits to WebappForm when provided', () => {
+    const limits = { minCpuCores: 0.5, maxCpuCores: 4, minMemoryMegabytes: 256, maxMemoryMegabytes: 4096, maxPods: 10 }
+    render(
+      <ComponentForm
+        component={webappComponent}
+        onChange={mockOnChange}
+        environmentLimits={limits}
+      />
+    )
+    const webappForm = screen.getByTestId('webapp-form')
+    expect(webappForm).toHaveAttribute('data-env-limits', JSON.stringify(limits))
+  })
+
+  it('passes environmentLimits to CronForm when provided', () => {
+    const limits = { minCpuCores: 0.25, maxCpuCores: 2, minMemoryMegabytes: 128, maxMemoryMegabytes: 2048 }
+    render(
+      <ComponentForm
+        component={cronComponent}
+        onChange={mockOnChange}
+        environmentLimits={limits}
+      />
+    )
+    const cronForm = screen.getByTestId('cron-form')
+    expect(cronForm).toHaveAttribute('data-env-limits', JSON.stringify(limits))
+  })
+
+  it('passes environmentLimits to WorkerForm when provided', () => {
+    const limits = { minCpuCores: 0.5, maxCpuCores: 4, minMemoryMegabytes: 256, maxMemoryMegabytes: 4096, maxPods: 15 }
+    render(
+      <ComponentForm
+        component={workerComponent}
+        onChange={mockOnChange}
+        environmentLimits={limits}
+      />
+    )
+    const workerForm = screen.getByTestId('worker-form')
+    expect(workerForm).toHaveAttribute('data-env-limits', JSON.stringify(limits))
   })
 
   it('forces visibility to cluster when Gateway API is not available', async () => {

@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { ChevronDown, ChevronRight, Settings2 } from 'lucide-react'
 import type { CronSettings } from './types'
+import type { EnvironmentSettingsLimits } from '../../features/environments'
 import { CpuMemoryInput } from './form-components/CpuMemoryInput'
 import { ScheduleInput } from './form-components/ScheduleInput'
 import { EnvVarsInput } from './form-components/EnvVarsInput'
@@ -13,9 +14,10 @@ interface CronFormProps {
   isAdmin?: boolean
   organizationUuid?: string
   componentUuid?: string
+  envLimits?: EnvironmentSettingsLimits
 }
 
-export function CronForm({ settings, onChange, isAdmin = false, organizationUuid, componentUuid }: CronFormProps) {
+export function CronForm({ settings, onChange, isAdmin = false, organizationUuid, componentUuid, envLimits }: CronFormProps) {
   const [showAdvanced, setShowAdvanced] = useState(false)
   
   const updateField = <K extends keyof CronSettings>(field: K, value: CronSettings[K]) => {
@@ -66,6 +68,10 @@ export function CronForm({ settings, onChange, isAdmin = false, organizationUuid
             memory={settings.memory}
             onCpuChange={(cpu) => updateField('cpu', cpu)}
             onMemoryChange={(memory) => updateField('memory', memory)}
+            minCpu={envLimits?.minCpuCores}
+            maxCpu={envLimits?.maxCpuCores}
+            minMemory={envLimits?.minMemoryMegabytes}
+            maxMemory={envLimits?.maxMemoryMegabytes}
           />
 
           <EnvVarsInput
