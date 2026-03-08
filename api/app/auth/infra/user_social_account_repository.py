@@ -36,3 +36,10 @@ class UserSocialAccountRepository:
     def delete(self, account: UserSocialAccount) -> None:
         self.db.delete(account)
         self.db.commit()
+
+    def delete_by_user_id(self, user_id: int) -> None:
+        """Delete all social accounts for the given user (e.g. before deleting the user)."""
+        self.db.query(UserSocialAccount).filter(
+            UserSocialAccount.user_id == user_id
+        ).delete(synchronize_session=False)
+        self.db.commit()
