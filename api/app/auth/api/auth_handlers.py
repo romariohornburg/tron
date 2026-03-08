@@ -1,6 +1,9 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Query
 from fastapi.security import OAuth2PasswordRequestForm
+from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
+from typing import Optional
+import os
 
 from app.shared.database.database import get_db
 from app.users.infra.user_repository import UserRepository
@@ -27,6 +30,10 @@ from app.auth.core.auth_validators import (
     InvalidCurrentPasswordError,
     EmailAlreadyExistsError,
 )
+from app.auth.infra.identity_provider_repository import IdentityProviderRepository
+from app.auth.infra.user_social_account_repository import UserSocialAccountRepository
+from app.auth.core.identity_provider_service import IdentityProviderService
+from app.auth.core.oauth_service import OAuthService
 
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -37,6 +44,18 @@ def get_auth_service(database_session: Session = Depends(get_db)) -> AuthService
     user_repository = UserRepository(database_session)
     token_repository = TokenRepository(database_session)
     return AuthService(user_repository, token_repository)
+
+
+def get_oauth_service(database_session: Session = Depends(get_db)) -> OAuthService:
+    """Dependency for OAuth (social login) flow."""
+    secret_key = os.getenv(
+        "SECRET_KEY", "your-secret-key-change-in-production-minimum-32-characters"
+    )
+    idp_repo = IdentityProviderRepository(database_session)
+    idp_service = IdentityProviderService(idp_repo)
+    user_repo = UserRepository(database_session)
+    social_repo = UserSocialAccountRepository(database_session)
+    return OAuthService(idp_service, user_repo, social_repo, secret_key)
 
 
 @router.post("/login", response_model=Token)
@@ -52,7 +71,7 @@ async def login(
     user = service.authenticate_user(login_data.email, login_data.password)
     if not user:
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail="Email ou senha incorretos"
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid email or password"
         )
 
     access_token = service.create_access_token(data={"sub": str(user.uuid)})
@@ -74,7 +93,7 @@ async def login_form(
     user = service.authenticate_user(form_data.username, form_data.password)
     if not user:
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail="Email ou senha incorretos"
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid email or password"
         )
 
     access_token = service.create_access_token(data={"sub": str(user.uuid)})
@@ -115,7 +134,7 @@ async def refresh_token(
     payload = service.verify_token(token_data.refresh_token)
     if payload.get("type") != "refresh":
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail="Token inválido"
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token"
         )
 
     user_uuid = payload.get("sub")
@@ -123,7 +142,7 @@ async def refresh_token(
     if not user or not user.is_active:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Usuário não encontrado ou inativo",
+            detail="User not found or inactive",
         )
 
     access_token = service.create_access_token(data={"sub": str(user.uuid)})
@@ -275,10 +294,36 @@ async def update_profile(
     return current_user
 
 
-@router.get("/google/login")
-async def google_login():
-    """Endpoint to initiate Google login."""
-    raise HTTPException(
-        status_code=status.HTTP_501_NOT_IMPLEMENTED,
-        detail="Login com Google será implementado em breve",
-    )
+@router.get("/{slug}/login", include_in_schema=False)
+async def oauth_login(
+    slug: str,
+    redirect_uri: Optional[str] = Query(None, description="Override callback URL"),
+    oauth_service: OAuthService = Depends(get_oauth_service),
+    auth_service: AuthService = Depends(get_auth_service),
+):
+    """Redirect to identity provider (e.g. Google) for login."""
+    api_public_url = redirect_uri or os.getenv(
+        "API_PUBLIC_URL", "http://localhost:8000"
+    ).rstrip("/")
+    callback_url = f"{api_public_url}/auth/{slug}/callback"
+    url = oauth_service.build_authorization_url(slug, callback_url)
+    return RedirectResponse(url=url, status_code=302)
+
+
+@router.get("/{slug}/callback", include_in_schema=False)
+async def oauth_callback(
+    slug: str,
+    code: str = Query(...),
+    state: str = Query(...),
+    oauth_service: OAuthService = Depends(get_oauth_service),
+    auth_service: AuthService = Depends(get_auth_service),
+):
+    """OAuth callback: exchange code for user, issue JWT, redirect to frontend."""
+    api_public_url = os.getenv("API_PUBLIC_URL", "http://localhost:8000").rstrip("/")
+    redirect_uri = f"{api_public_url}/auth/{slug}/callback"
+    user = oauth_service.exchange_code_and_get_user(slug, code, state, redirect_uri)
+    access_token = auth_service.create_access_token(data={"sub": str(user.uuid)})
+    refresh_token = auth_service.create_refresh_token(data={"sub": str(user.uuid)})
+    frontend_url = os.getenv("FRONTEND_URL", "http://localhost:3000").rstrip("/")
+    redirect_to = f"{frontend_url}/login/callback?access_token={access_token}&refresh_token={refresh_token}"
+    return RedirectResponse(url=redirect_to, status_code=302)

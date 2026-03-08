@@ -5,6 +5,7 @@ import { ProtectedRoute, Layout } from './shared/components'
 import SetupGuard from './components/SetupGuard'
 import Home from './pages/home'
 import Login from './pages/Login'
+import LoginCallback from './pages/LoginCallback'
 import Setup from './pages/setup/Setup'
 import Clusters from './pages/clusters/Clusters'
 import Environments from './pages/environments/Environments'
@@ -19,6 +20,7 @@ import CronDetail from './pages/applications/CronDetail'
 import Templates from './pages/templates/Templates'
 import Profile from './pages/Profile'
 import Users from './pages/users/Users'
+import IdentityProviders from './pages/identity-providers/IdentityProviders'
 import Tokens from './pages/tokens/Tokens'
 import Organizations from './pages/organizations/Organizations'
 import OrganizationDetail from './pages/organizations/OrganizationDetail'
@@ -32,6 +34,7 @@ function App() {
         <Routes>
         <Route path="/setup" element={<Setup />} />
         <Route path="/login" element={<SetupGuard><Login /></SetupGuard>} />
+        <Route path="/login/callback" element={<SetupGuard><LoginCallback /></SetupGuard>} />
         <Route path="/" element={<SetupGuard><Layout /></SetupGuard>}>
           <Route index element={<ProtectedRoute><Home /></ProtectedRoute>} />
           <Route path="clusters" element={<ProtectedRoute><Clusters /></ProtectedRoute>} />
@@ -50,6 +53,7 @@ function App() {
           <Route path="groups" element={<ProtectedRoute><Groups /></ProtectedRoute>} />
           <Route path="groups/:uuid" element={<ProtectedRoute><GroupDetail /></ProtectedRoute>} />
           <Route path="users" element={<ProtectedRoute><Users /></ProtectedRoute>} />
+          <Route path="identity-providers" element={<ProtectedRoute><IdentityProviders /></ProtectedRoute>} />
           <Route path="tokens" element={<ProtectedRoute><Tokens /></ProtectedRoute>} />
           <Route path="profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
         </Route>
