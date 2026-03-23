@@ -6,6 +6,9 @@ from app.shared.database.database import get_db
 from app.webapps.infra.webapp_repository import WebappRepository
 from app.webapps.core.webapp_service import WebappService
 from app.environments.infra.environment_repository import EnvironmentRepository
+from app.environments.infra.environment_settings_repository import (
+    EnvironmentSettingsRepository,
+)
 from app.environments.core.environment_service import EnvironmentService
 from app.webapps.api.webapp_dto import (
     WebappCreate,
@@ -24,6 +27,7 @@ from app.webapps.core.webapp_validators import (
     InvalidExposureTypeError,
     InvalidVisibilityError,
     InvalidURLError,
+    EnvironmentSettingsValidationError,
 )
 
 from app.webapps.core.webapp_pods_service import (
@@ -60,7 +64,8 @@ router = APIRouter(
 def get_webapp_service(database_session: Session = Depends(get_db)) -> WebappService:
     """Dependency to get WebappService instance."""
     webapp_repository = WebappRepository(database_session)
-    return WebappService(webapp_repository, database_session)
+    settings_repository = EnvironmentSettingsRepository(database_session)
+    return WebappService(webapp_repository, database_session, settings_repository)
 
 
 def get_environment_service(
@@ -103,6 +108,7 @@ def create_webapp(
         InvalidExposureTypeError,
         InvalidVisibilityError,
         InvalidURLError,
+        EnvironmentSettingsValidationError,
     ) as e:
         raise HTTPException(status_code=400, detail=str(e))
     except ValueError as e:
@@ -199,7 +205,12 @@ def update_webapp(
         return service.update_webapp(uuid, webapp)
     except (WebappNotFoundError, WebappNotWebappTypeError) as e:
         raise HTTPException(status_code=404, detail=str(e))
-    except (InvalidURLError, InvalidExposureTypeError, InvalidVisibilityError) as e:
+    except (
+        InvalidURLError,
+        InvalidExposureTypeError,
+        InvalidVisibilityError,
+        EnvironmentSettingsValidationError,
+    ) as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))

@@ -1,5 +1,5 @@
 from uuid import UUID
-from typing import List, Optional
+from typing import List, Optional, TYPE_CHECKING
 from app.users.infra.user_repository import UserRepository
 from app.users.infra.user_model import User as UserModel, UserRole
 from app.users.api.user_dto import UserCreate, UserUpdate, UserResponse
@@ -9,16 +9,36 @@ from app.users.core.user_validators import (
     validate_user_exists,
     validate_user_email_uniqueness,
     validate_can_delete_user,
+    validate_user_is_not_org_owner,
 )
 from app.auth.core.auth_service import AuthService
+
+if TYPE_CHECKING:
+    from app.auth.infra.user_social_account_repository import (
+        UserSocialAccountRepository,
+    )
+    from app.organizations.infra.organization_repository import OrganizationRepository
+    from app.organizations.infra.organization_member_repository import (
+        OrganizationMemberRepository,
+    )
 
 
 class UserService:
     """Business logic for users. No direct database access."""
 
-    def __init__(self, repository: UserRepository, auth_service: AuthService):
+    def __init__(
+        self,
+        repository: UserRepository,
+        auth_service: AuthService,
+        social_account_repository: "Optional[UserSocialAccountRepository]" = None,
+        organization_repository: "Optional[OrganizationRepository]" = None,
+        organization_member_repository: "Optional[OrganizationMemberRepository]" = None,
+    ):
         self.repository = repository
         self.auth_service = auth_service
+        self.social_account_repository = social_account_repository
+        self.organization_repository = organization_repository
+        self.organization_member_repository = organization_member_repository
 
     def create_user(self, dto: UserCreate) -> UserResponse:
         """Create a new user."""
@@ -74,6 +94,11 @@ class UserService:
         validate_can_delete_user(self.repository, uuid, current_user_uuid)
 
         user = self.repository.find_by_uuid(uuid)
+        validate_user_is_not_org_owner(self.organization_repository, user.id)
+        if self.organization_member_repository:
+            self.organization_member_repository.delete_by_user_id(user.id)
+        if self.social_account_repository:
+            self.social_account_repository.delete_by_user_id(user.id)
         self.repository.delete(user)
 
     def _build_user_entity(self, dto: UserCreate, hashed_password: str) -> UserModel:

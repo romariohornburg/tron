@@ -79,7 +79,7 @@ class AuthService:
         except JWTError:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Token inválido ou expirado",
+                detail="Invalid or expired token",
             )
 
     def authenticate_user(self, email: str, password: str) -> Optional[User]:

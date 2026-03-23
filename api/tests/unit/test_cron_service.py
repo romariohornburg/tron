@@ -7,8 +7,9 @@ from app.cron.infra.cron_repository import CronRepository
 from app.cron.api.cron_dto import CronCreate, CronUpdate
 from app.cron.core.cron_validators import (
     CronNotFoundError,
-    InstanceNotFoundError
+    InstanceNotFoundError,
 )
+from app.webapps.core.webapp_validators import EnvironmentSettingsValidationError
 from app.cron.infra.application_component_model import WebappType
 
 
@@ -66,6 +67,34 @@ def mock_cron():
     cron.instance = MagicMock()
     cron.instance.environment_id = 1
     return cron
+
+
+@pytest.fixture
+def mock_settings_repository():
+    """Create a mock EnvironmentSettingsRepository that returns limits."""
+    from app.environments.infra.environment_settings_repository import (
+        EnvironmentSettingsRepository,
+    )
+    from types import SimpleNamespace
+
+    repo = MagicMock(spec=EnvironmentSettingsRepository)
+    mock_row = SimpleNamespace(
+        settings=[
+            {"key": "min_cpu_cores", "value": 0.25},
+            {"key": "max_cpu_cores", "value": 2},
+            {"key": "min_memory_megabytes", "value": 128},
+            {"key": "max_memory_megabytes", "value": 2048},
+            {"key": "max_pods", "value": 5},
+        ]
+    )
+    repo.find_by_environment_id.return_value = mock_row
+    return repo
+
+
+@pytest.fixture
+def cron_service_with_limits(mock_repository, mock_db, mock_settings_repository):
+    """Create CronService with settings_repository that enforces limits."""
+    return CronService(mock_repository, mock_db, mock_settings_repository)
 
 
 def test_create_cron_success(cron_service, mock_repository, mock_db, mock_instance, mock_cluster):
@@ -137,6 +166,91 @@ def test_create_cron_instance_not_found(cron_service, mock_repository):
 
     with pytest.raises(InstanceNotFoundError):
         cron_service.create_cron(dto)
+
+
+def test_create_cron_exceeds_environment_limits_raises(
+    cron_service_with_limits,
+    mock_repository,
+    mock_instance,
+    mock_settings_repository,
+):
+    """Create cron with CPU above environment limits raises EnvironmentSettingsValidationError."""
+    from app.cron.api.cron_dto import CronSettings
+
+    dto = CronCreate(
+        instance_uuid=mock_instance.uuid,
+        name="test-cron",
+        enabled=True,
+        settings=CronSettings(
+            cpu=4.0,
+            memory=512,
+            schedule="0 0 * * *",
+            envs=[],
+            secrets=[],
+            command=None,
+        ),
+    )
+    mock_repository.find_instance_by_uuid.return_value = mock_instance
+    with pytest.raises(EnvironmentSettingsValidationError) as exc_info:
+        cron_service_with_limits.create_cron(dto)
+    assert "environment limit" in str(exc_info.value).lower()
+    mock_settings_repository.find_by_environment_id.assert_called_once_with(1)
+
+
+def test_create_cron_exceeds_memory_limit_raises(
+    cron_service_with_limits,
+    mock_repository,
+    mock_instance,
+    mock_settings_repository,
+):
+    """Create cron with memory above max_memory_megabytes raises EnvironmentSettingsValidationError."""
+    from app.cron.api.cron_dto import CronSettings
+
+    dto = CronCreate(
+        instance_uuid=mock_instance.uuid,
+        name="test-cron",
+        enabled=True,
+        settings=CronSettings(
+            cpu=1.0,
+            memory=4096,
+            schedule="0 0 * * *",
+            envs=[],
+            secrets=[],
+            command=None,
+        ),
+    )
+    mock_repository.find_instance_by_uuid.return_value = mock_instance
+    with pytest.raises(EnvironmentSettingsValidationError) as exc_info:
+        cron_service_with_limits.create_cron(dto)
+    assert "2048" in str(exc_info.value)
+    assert "Memory" in str(exc_info.value)
+
+
+def test_update_cron_exceeds_environment_limits_raises(
+    cron_service_with_limits,
+    mock_repository,
+    mock_cron,
+    mock_settings_repository,
+):
+    """Update cron with settings above environment limits raises EnvironmentSettingsValidationError."""
+    from app.cron.api.cron_dto import CronSettings
+
+    cron_uuid = mock_cron.uuid
+    dto = CronUpdate(
+        settings=CronSettings(
+            cpu=4.0,
+            memory=512,
+            schedule="0 0 * * *",
+            envs=[],
+            secrets=[],
+            command=None,
+        ),
+    )
+    mock_repository.find_by_uuid.return_value = mock_cron
+    with pytest.raises(EnvironmentSettingsValidationError) as exc_info:
+        cron_service_with_limits.update_cron(cron_uuid, dto)
+    assert "environment limit" in str(exc_info.value).lower()
+    mock_settings_repository.find_by_environment_id.assert_called_once_with(1)
 
 
 def test_update_cron_success(cron_service, mock_repository, mock_db, mock_cron, mock_cluster):

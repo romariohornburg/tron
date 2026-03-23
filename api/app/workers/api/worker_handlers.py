@@ -5,6 +5,9 @@ from uuid import UUID
 from app.shared.database.database import get_db
 from app.workers.infra.worker_repository import WorkerRepository
 from app.workers.core.worker_service import WorkerService
+from app.environments.infra.environment_settings_repository import (
+    EnvironmentSettingsRepository,
+)
 from app.workers.api.worker_dto import (
     WorkerCreate,
     WorkerUpdate,
@@ -27,6 +30,7 @@ from app.workers.core.worker_validators import (
     WorkerNotWorkerTypeError,
     InstanceNotFoundError,
 )
+from app.webapps.core.webapp_validators import EnvironmentSettingsValidationError
 from app.users.infra.user_model import UserRole, User
 from app.shared.dependencies.auth import require_role, get_current_user
 from app.organizations.api.dependencies.organization_context import (
@@ -53,7 +57,8 @@ router = APIRouter(
 def get_worker_service(database_session: Session = Depends(get_db)) -> WorkerService:
     """Dependency to get WorkerService instance."""
     worker_repository = WorkerRepository(database_session)
-    return WorkerService(worker_repository, database_session)
+    settings_repository = EnvironmentSettingsRepository(database_session)
+    return WorkerService(worker_repository, database_session, settings_repository)
 
 
 @router.post("/", response_model=Worker)
@@ -88,7 +93,9 @@ def create_worker(
 
     try:
         return service.create_worker(worker)
-    except (InstanceNotFoundError, ValueError) as e:
+    except (InstanceNotFoundError, EnvironmentSettingsValidationError) as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -165,7 +172,7 @@ def update_worker(
         return service.update_worker(uuid, worker)
     except (WorkerNotFoundError, WorkerNotWorkerTypeError) as e:
         raise HTTPException(status_code=404, detail=str(e))
-    except Exception as e:
+    except EnvironmentSettingsValidationError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
 

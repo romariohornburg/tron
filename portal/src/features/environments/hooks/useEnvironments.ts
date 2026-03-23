@@ -57,3 +57,34 @@ export const useDeleteEnvironment = (organizationUuid: string | undefined) => {
     },
   })
 }
+
+export const useUpdateEnvironmentSettings = (organizationUuid: string | undefined) => {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: ({
+      environmentUuid,
+      settings,
+    }: {
+      environmentUuid: string
+      settings: import('../types').EnvironmentSettingsUpdate
+    }) => environmentsApi.updateSettings(organizationUuid!, environmentUuid, settings),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['environments', organizationUuid] })
+      queryClient.invalidateQueries({ queryKey: ['environment', organizationUuid, variables.environmentUuid] })
+    },
+  })
+}
+
+export const useResetEnvironmentSettings = (organizationUuid: string | undefined) => {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: (environmentUuid: string) =>
+      environmentsApi.resetSettings(organizationUuid!, environmentUuid),
+    onSuccess: (_, environmentUuid) => {
+      queryClient.invalidateQueries({ queryKey: ['environments', organizationUuid] })
+      queryClient.invalidateQueries({ queryKey: ['environment', organizationUuid, environmentUuid] })
+    },
+  })
+}

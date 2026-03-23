@@ -210,6 +210,103 @@ def test_create_webapp_requires_admin_role(client, user_token, test_instance):
 @patch('app.clusters.core.cluster_service.get_gateway_reference_from_cluster')
 @patch('app.webapps.core.webapp_kubernetes_service.apply_to_kubernetes')
 @patch('app.shared.k8s.cluster_selection.ClusterSelectionService.get_cluster_with_least_load_or_raise')
+def test_create_webapp_exceeds_environment_limits_returns_400(
+    mock_get_cluster, mock_apply, mock_gateway, mock_validate_visibility, mock_validate_exposure,
+    client, admin_token, test_instance,
+):
+    """
+    Create webapp with CPU, memory or replicas above environment limits returns 400.
+    Environment created by test_instance has default settings (max_cpu_cores=2, max_memory=2048, max_pods=5).
+    """
+    from unittest.mock import MagicMock
+
+    mock_cluster = MagicMock(spec=['id', 'name', 'api_address', 'token', 'environment_id'])
+    mock_cluster.id = 1
+    mock_cluster.name = "test-cluster"
+    mock_cluster.api_address = "https://k8s.example.com"
+    mock_cluster.token = "test-token"
+    mock_cluster.environment_id = 1
+    mock_get_cluster.return_value = mock_cluster
+    mock_apply.return_value = None
+    mock_gateway.return_value = {"namespace": "", "name": ""}
+    mock_validate_exposure.return_value = None
+    mock_validate_visibility.return_value = None
+
+    # Payload above default limits: cpu=4 (>2), memory=4096 (>2048), autoscaling.max=10 (>5)
+    response = client.post(
+        f"/organizations/{test_instance['organization_uuid']}/application_components/webapp/",
+        headers={"Authorization": f"Bearer {admin_token}"},
+        json={
+            "instance_uuid": test_instance["uuid"],
+            "name": "over-limit-webapp",
+            "enabled": True,
+            "settings": {
+                "exposure": {"type": "http", "port": 80, "visibility": "cluster"},
+                "cpu": 4.0,
+                "memory": 4096,
+                "healthcheck": {"path": "/health", "protocol": "http", "port": 80},
+                "custom_metrics": {"enabled": False, "path": "/metrics", "port": 8080},
+                "autoscaling": {"min": 2, "max": 10},
+            },
+        },
+    )
+
+    assert response.status_code == status.HTTP_400_BAD_REQUEST
+    data = response.json()
+    assert "detail" in data
+    detail = data["detail"].lower()
+    assert "environment limit" in detail or "2" in data["detail"] or "2048" in data["detail"] or "5" in data["detail"]
+
+
+@patch('app.webapps.core.webapp_service.validate_exposure_type_for_cluster')
+@patch('app.webapps.core.webapp_service.validate_visibility_for_cluster')
+@patch('app.clusters.core.cluster_service.get_gateway_reference_from_cluster')
+@patch('app.webapps.core.webapp_kubernetes_service.apply_to_kubernetes')
+@patch('app.shared.k8s.cluster_selection.ClusterSelectionService.get_cluster_with_least_load_or_raise')
+def test_create_webapp_exceeds_cpu_limit_returns_400(
+    mock_get_cluster, mock_apply, mock_gateway, mock_validate_visibility, mock_validate_exposure,
+    client, admin_token, test_instance,
+):
+    """Create webapp with CPU above max_cpu_cores returns 400 with message about CPU limit."""
+    from unittest.mock import MagicMock
+
+    mock_cluster = MagicMock(spec=['id', 'name', 'api_address', 'token', 'environment_id'])
+    mock_cluster.id = 1
+    mock_cluster.environment_id = 1
+    mock_get_cluster.return_value = mock_cluster
+    mock_apply.return_value = None
+    mock_gateway.return_value = {"namespace": "", "name": ""}
+    mock_validate_exposure.return_value = None
+    mock_validate_visibility.return_value = None
+
+    response = client.post(
+        f"/organizations/{test_instance['organization_uuid']}/application_components/webapp/",
+        headers={"Authorization": f"Bearer {admin_token}"},
+        json={
+            "instance_uuid": test_instance["uuid"],
+            "name": "over-cpu-webapp",
+            "enabled": True,
+            "settings": {
+                "exposure": {"type": "http", "port": 80, "visibility": "cluster"},
+                "cpu": 8.0,
+                "memory": 512,
+                "healthcheck": {"path": "/health", "protocol": "http", "port": 80},
+                "custom_metrics": {"enabled": False, "path": "/metrics", "port": 8080},
+                "autoscaling": {"min": 1, "max": 3},
+            },
+        },
+    )
+
+    assert response.status_code == status.HTTP_400_BAD_REQUEST
+    assert "2" in response.json().get("detail", "")
+    assert "CPU" in response.json().get("detail", "")
+
+
+@patch('app.webapps.core.webapp_service.validate_exposure_type_for_cluster')
+@patch('app.webapps.core.webapp_service.validate_visibility_for_cluster')
+@patch('app.clusters.core.cluster_service.get_gateway_reference_from_cluster')
+@patch('app.webapps.core.webapp_kubernetes_service.apply_to_kubernetes')
+@patch('app.shared.k8s.cluster_selection.ClusterSelectionService.get_cluster_with_least_load_or_raise')
 def test_list_webapps_success(mock_get_cluster, mock_apply, mock_gateway, mock_validate_visibility, mock_validate_exposure, client, admin_token, test_instance):
     """Test successful webapp listing."""
     from unittest.mock import MagicMock

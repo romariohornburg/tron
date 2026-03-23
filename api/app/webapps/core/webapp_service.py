@@ -19,6 +19,7 @@ from app.webapps.core.webapp_validators import (
     validate_exposure_type_for_cluster,
     validate_visibility_for_cluster,
     validate_url_for_exposure,
+    validate_webapp_settings_against_environment_limits,
     InvalidURLError,
 )
 from app.webapps.core.webapp_kubernetes_service import (
@@ -42,14 +43,26 @@ from app.shared.crypto import (
     strip_secrets_from_settings,
     merge_secrets_for_update,
 )
+from app.environments.infra.environment_settings_repository import (
+    EnvironmentSettingsRepository,
+)
+from app.environments.core.environment_settings_defaults import (
+    get_environment_limits_from_settings,
+)
 
 
 class WebappService:
     """Business logic for webapps. No direct database access."""
 
-    def __init__(self, repository: WebappRepository, database_session: Session):
+    def __init__(
+        self,
+        repository: WebappRepository,
+        database_session: Session,
+        settings_repository: EnvironmentSettingsRepository | None = None,
+    ):
         self.repository = repository
         self.db = database_session
+        self.settings_repository = settings_repository
 
     def create_webapp(self, dto: WebappCreate) -> Webapp:
         """Create a new webapp."""
@@ -57,6 +70,24 @@ class WebappService:
         validate_instance_exists(self.repository, dto.instance_uuid)
 
         instance = self.repository.find_instance_by_uuid(dto.instance_uuid)
+
+        if self.settings_repository:
+            settings_row = self.settings_repository.find_by_environment_id(
+                instance.environment_id
+            )
+            limits = get_environment_limits_from_settings(
+                settings_row.settings
+                if settings_row and settings_row.settings
+                else None
+            )
+            validate_webapp_settings_against_environment_limits(
+                limits,
+                dto.settings.cpu,
+                dto.settings.memory,
+                dto.settings.autoscaling.min,
+                dto.settings.autoscaling.max,
+            )
+
         cluster = get_cluster_for_instance(self.db, instance)
 
         self._validate_exposure_settings(dto.settings.model_dump(), cluster)
@@ -81,6 +112,23 @@ class WebappService:
 
         webapp = self.repository.find_by_uuid(uuid)
         validate_webapp_type(webapp)
+
+        if dto.settings is not None and self.settings_repository:
+            settings_row = self.settings_repository.find_by_environment_id(
+                webapp.instance.environment_id
+            )
+            limits = get_environment_limits_from_settings(
+                settings_row.settings
+                if settings_row and settings_row.settings
+                else None
+            )
+            validate_webapp_settings_against_environment_limits(
+                limits,
+                dto.settings.cpu,
+                dto.settings.memory,
+                dto.settings.autoscaling.min,
+                dto.settings.autoscaling.max,
+            )
 
         # Check if there are any changes that require Kubernetes update
         has_changes = (

@@ -132,9 +132,25 @@ def serialize_webapp_deploy(webapp_deploy):
 
 
 def serialize_settings(settings):
+    """
+    Serialize settings to a flat dict key -> value.
+
+    Accepts:
+    - List of objects with .key and .value (legacy rows)
+    - Single object with .settings (list of {key, value, ...}) - EnvironmentSettings row
+    - List of dicts with 'key' and 'value' keys
+    """
+    if settings is None:
+        return {}
+    if not isinstance(settings, list):
+        # Single row (e.g. EnvironmentSettings with .settings attribute)
+        if hasattr(settings, "settings") and settings.settings is not None:
+            return {item["key"]: item["value"] for item in settings.settings}
+        return {}
     serialized_settings = {}
-
     for item in settings:
-        serialized_settings.update({item.key: item.value})
-
+        if isinstance(item, dict):
+            serialized_settings[item.get("key")] = item.get("value")
+        else:
+            serialized_settings[item.key] = item.value
     return serialized_settings

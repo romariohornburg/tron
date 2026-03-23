@@ -6,11 +6,15 @@ interface Autoscaling {
 interface AutoscalingInputProps {
   autoscaling: Autoscaling | undefined
   onChange: (autoscaling: Autoscaling) => void
+  /** Max value for both Min Replicas and Max Replicas (from environment setting max_pods). Default 20. */
+  maxReplicas?: number
 }
 
-export function AutoscalingInput({ autoscaling, onChange }: AutoscalingInputProps) {
+const DEFAULT_MAX_REPLICAS = 20
+
+export function AutoscalingInput({ autoscaling, onChange, maxReplicas = DEFAULT_MAX_REPLICAS }: AutoscalingInputProps) {
   // Default values if autoscaling is not defined
-  const safeAutoscaling: Autoscaling = autoscaling || { min: 2, max: 10 }
+  const safeAutoscaling: Autoscaling = autoscaling || { min: 2, max: Math.min(10, maxReplicas) }
 
   return (
     <div className="border border-slate-200 rounded-lg p-3 bg-white">
@@ -23,12 +27,11 @@ export function AutoscalingInput({ autoscaling, onChange }: AutoscalingInputProp
           <input
             type="range"
             min="1"
-            max="20"
+            max={String(maxReplicas)}
             step="1"
             value={safeAutoscaling.min}
             onChange={(e) => {
               const min = parseInt(e.target.value) || 1
-              // Ensure min is not greater than max
               const newMax = Math.max(min, safeAutoscaling.max)
               onChange({ min, max: newMax })
             }}
@@ -36,7 +39,7 @@ export function AutoscalingInput({ autoscaling, onChange }: AutoscalingInputProp
           />
           <div className="flex justify-between text-xs text-slate-500 mt-1">
             <span>1</span>
-            <span>20</span>
+            <span>{maxReplicas}</span>
           </div>
         </div>
         <div>
@@ -46,12 +49,11 @@ export function AutoscalingInput({ autoscaling, onChange }: AutoscalingInputProp
           <input
             type="range"
             min="1"
-            max="20"
+            max={String(maxReplicas)}
             step="1"
             value={safeAutoscaling.max}
             onChange={(e) => {
               const max = parseInt(e.target.value) || 10
-              // Ensure max is not less than min
               const newMin = Math.min(max, safeAutoscaling.min)
               onChange({ min: newMin, max })
             }}
@@ -59,7 +61,7 @@ export function AutoscalingInput({ autoscaling, onChange }: AutoscalingInputProp
           />
           <div className="flex justify-between text-xs text-slate-500 mt-1">
             <span>1</span>
-            <span>20</span>
+            <span>{maxReplicas}</span>
           </div>
         </div>
       </div>

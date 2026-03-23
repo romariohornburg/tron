@@ -1,5 +1,6 @@
 """Configuration for integration tests."""
 import pytest
+from uuid import UUID
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine, event
 from sqlalchemy.orm import sessionmaker
@@ -82,6 +83,11 @@ def receive_before_flush(session, flush_context, instances):
                 else:
                     # Fallback: set to now
                     instance.updated_at = datetime.now()
+
+        # SQLite may return UUID columns as string; ensure uuid.UUID for flush
+        if hasattr(instance, "uuid") and instance.uuid is not None:
+            if isinstance(instance.uuid, str):
+                instance.uuid = UUID(instance.uuid)
 
 TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 

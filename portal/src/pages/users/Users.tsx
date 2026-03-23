@@ -298,15 +298,15 @@ function Users() {
               render: (user) => (
                 <div className="flex items-center gap-2">
                   {user.is_active ? (
-                    <>
-                      <UserCheck size={16} className="text-success" />
-                      <span className="text-sm text-success font-medium">Active</span>
-                    </>
+                    <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-100 px-2.5 py-0.5 text-sm font-medium text-emerald-800">
+                      <UserCheck size={14} className="text-emerald-600" />
+                      Active
+                    </span>
                   ) : (
-                    <>
-                      <UserX size={16} className="text-error" />
-                      <span className="text-sm text-error font-medium">Inactive</span>
-                    </>
+                    <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-100 px-2.5 py-0.5 text-sm font-medium text-amber-800">
+                      <UserX size={14} className="text-amber-600" />
+                      Inactive
+                    </span>
                   )}
                 </div>
               ),
